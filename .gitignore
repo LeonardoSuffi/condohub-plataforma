@@ -1,0 +1,53 @@
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dependencies
+node_modules/
+vendor/
+
+# Build
+dist/
+build/
+
+# Environment
+.env
+.env.local
+.env.*.local
+.env.production
+
+# Logs
+*.log
+npm-debug.log*
+storage/logs/*
+!storage/logs/.gitkeep
+
+# Cache
+.cache/
+bootstrap/cache/*
+!bootstrap/cache/.gitkeep
+
+# Laravel Storage
+storage/*.key
+storage/app/*
+!storage/app/.gitkeep
+!storage/app/public/
+storage/framework/cache/*
+!storage/framework/cache/.gitkeep
+storage/framework/sessions/*
+!storage/framework/sessions/.gitkeep
+storage/framework/views/*
+!storage/framework/views/.gitkeep
+
+# Claude
+.claude/
+
+# Testing
+coverage/
+.phpunit.result.cache
