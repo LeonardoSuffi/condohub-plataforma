@@ -62,7 +62,9 @@ describe('Dashboard Page', () => {
       },
     })
 
-    expect(screen.getByText(/carregando dashboard/i)).toBeInTheDocument()
+    // New loading state uses skeleton components with animate-pulse class
+    const skeletons = document.querySelectorAll('.animate-pulse')
+    expect(skeletons.length).toBeGreaterThan(0)
   })
 
   it('renders welcome message with user name', async () => {

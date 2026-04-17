@@ -51,3 +51,4 @@ storage/framework/views/*
 # Testing
 coverage/
 .phpunit.result.cache
+nul

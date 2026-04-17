@@ -27,21 +27,12 @@ class OrderObserver
     }
 
     /**
-     * Handle the Order "updating" event.
-     */
-    public function updating(Order $order): void
-    {
-        // Armazena o status antigo para o log
-        $order->_old_status = $order->getOriginal('status');
-    }
-
-    /**
      * Handle the Order "updated" event.
      */
     public function updated(Order $order): void
     {
         // Verifica se o status mudou
-        $oldStatus = $order->_old_status ?? $order->getOriginal('status');
+        $oldStatus = $order->getOriginal('status');
         $newStatus = $order->status;
 
         if ($oldStatus !== $newStatus) {

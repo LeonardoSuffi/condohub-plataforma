@@ -19,6 +19,8 @@ class ServiceTest extends TestCase
             'category_id' => $this->getCategory()->id,
             'title' => 'Test Service',
             'description' => 'Test Description',
+            'region' => 'Sao Paulo',
+            'price_range' => '1000-5000',
             'status' => 'ativo',
         ]);
 
@@ -27,10 +29,8 @@ class ServiceTest extends TestCase
         $response->assertStatus(200)
             ->assertJsonStructure([
                 'success',
-                'data' => [
-                    'data',
-                    'meta',
-                ],
+                'data',
+                'meta',
             ]);
     }
 
@@ -46,6 +46,8 @@ class ServiceTest extends TestCase
             'category_id' => $category->id,
             'title' => 'Filtered Service',
             'description' => 'Test',
+            'region' => 'Sao Paulo',
+            'price_range' => '1000-5000',
             'status' => 'ativo',
         ]);
 
@@ -65,6 +67,8 @@ class ServiceTest extends TestCase
             'category_id' => $this->getCategory()->id,
             'title' => 'Manutencao Eletrica',
             'description' => 'Servico de eletrica',
+            'region' => 'Sao Paulo',
+            'price_range' => '1000-5000',
             'status' => 'ativo',
         ]);
 
@@ -106,6 +110,8 @@ class ServiceTest extends TestCase
             'category_id' => $this->getCategory()->id,
             'title' => 'Original Title',
             'description' => 'Original',
+            'region' => 'Sao Paulo',
+            'price_range' => '1000-5000',
             'status' => 'ativo',
         ]);
 
@@ -129,6 +135,8 @@ class ServiceTest extends TestCase
             'category_id' => $this->getCategory()->id,
             'title' => 'Original Title',
             'description' => 'Original',
+            'region' => 'Sao Paulo',
+            'price_range' => '1000-5000',
             'status' => 'ativo',
         ]);
 
@@ -136,7 +144,8 @@ class ServiceTest extends TestCase
             'title' => 'Hacked Title',
         ]);
 
-        $response->assertStatus(403);
+        // Returns 404 because the controller scope limits to user's own services
+        $response->assertStatus(404);
     }
 
     /** @test */
@@ -149,6 +158,8 @@ class ServiceTest extends TestCase
             'category_id' => $this->getCategory()->id,
             'title' => 'To Delete',
             'description' => 'Will be deleted',
+            'region' => 'Sao Paulo',
+            'price_range' => '1000-5000',
             'status' => 'ativo',
         ]);
 
@@ -183,15 +194,17 @@ class ServiceTest extends TestCase
             'category_id' => $this->getCategory()->id,
             'title' => 'View Counter Test',
             'description' => 'Test',
+            'region' => 'Sao Paulo',
+            'price_range' => '1000-5000',
             'status' => 'ativo',
-            'views' => 0,
+            'views_count' => 0,
         ]);
 
         $this->actingAs($cliente)->getJson("/api/services/{$service->id}");
 
         $this->assertDatabaseHas('services', [
             'id' => $service->id,
-            'views' => 1,
+            'views_count' => 1,
         ]);
     }
 }

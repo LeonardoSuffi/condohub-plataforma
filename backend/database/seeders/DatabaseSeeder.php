@@ -26,6 +26,18 @@ class DatabaseSeeder extends Seeder
 
         // Criar usuários de teste
         $this->createTestUsers();
+
+        // Chama FakeDataSeeder se não estiver em ambiente de teste
+        // Para rodar manualmente: php artisan db:seed --class=FakeDataSeeder
+    }
+
+    /**
+     * Executa com dados fake para desenvolvimento
+     */
+    public function runWithFakeData(): void
+    {
+        $this->run();
+        $this->call(FakeDataSeeder::class);
     }
 
     protected function createPlans(): void

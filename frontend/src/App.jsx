@@ -2,7 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 
 // Layouts
-import MainLayout from './components/layout/MainLayout'
+import DashboardLayout from './layouts/DashboardLayout'
 import AuthLayout from './components/layout/AuthLayout'
 
 // Public Pages
@@ -114,7 +114,7 @@ function App() {
       </Route>
 
       {/* Protected Routes */}
-      <Route element={<PrivateRoute><MainLayout /></PrivateRoute>}>
+      <Route element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/settings" element={<Settings />} />

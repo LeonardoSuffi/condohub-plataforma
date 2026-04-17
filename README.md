@@ -1,10 +1,167 @@
-# Documentação UML — Plataforma de Negócios Condominial
+# CondoHub — Plataforma de Negocios Condominial
 
-> Proposta Técnica MVP | Arquitetura REST API + SPA | Laravel + Vue.js/React + MySQL
+> Plataforma completa para conexao entre prestadores de servicos e condominios | Laravel 11 + React + shadcn/ui + MySQL
 
 ---
 
-## Sumário
+## Inicio Rapido
+
+### Pre-requisitos
+- PHP 8.2+
+- Node.js 18+
+- MySQL 8.0+
+- Composer
+
+### Instalacao
+
+```bash
+# Clone o repositorio
+git clone https://github.com/seu-usuario/Sistema-condominios.git
+cd Sistema-condominios
+
+# Backend (Laravel)
+cd backend
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate --seed
+php artisan serve
+
+# Frontend (React + shadcn/ui)
+cd ../frontend
+npm install
+npm run dev
+```
+
+### Acessos padrao (apos seed)
+- **Admin:** admin@condohub.com / password
+- **Empresa:** empresa@teste.com / password
+- **Cliente:** cliente@teste.com / password
+
+### Comandos uteis
+
+```bash
+# Backend
+php artisan test                    # Rodar testes (54 testes)
+php artisan db:seed --class=FakeDataSeeder  # Dados fake para teste
+
+# Frontend
+npm run dev                         # Servidor de desenvolvimento
+npm run build                       # Build de producao
+npm test                            # Rodar testes (112 testes)
+```
+
+---
+
+## Stack Tecnologica
+
+| Camada | Tecnologia | Versao |
+|--------|------------|--------|
+| **Backend** | Laravel | 11.x |
+| **Frontend** | React + Vite | 18.x + 5.x |
+| **UI Components** | shadcn/ui + Radix UI | Latest |
+| **Estilizacao** | Tailwind CSS | 3.x |
+| **Estado** | Redux Toolkit | 2.x |
+| **Banco de Dados** | MySQL | 8.0+ |
+| **Autenticacao** | Laravel Sanctum | 4.x |
+| **Testes Backend** | PHPUnit | 10.x |
+| **Testes Frontend** | Vitest + Testing Library | 1.x |
+
+---
+
+## Funcionalidades Implementadas
+
+### UI Moderna com shadcn/ui
+- Layout com sidebar colapsavel (Ctrl+B)
+- Tema dark/light com persistencia
+- Componentes reutilizaveis (Button, Card, Badge, Dialog, etc.)
+- Loading states com Skeleton animations
+- Design responsivo (mobile/tablet/desktop)
+
+### Autenticacao e Perfis
+- 3 tipos de usuario: Cliente (Sindico), Empresa (Prestador), Admin
+- Registro separado por tipo de perfil
+- Indicador de completude de perfil
+
+### Catalogo de Servicos
+- Busca com filtros (categoria, regiao, preco)
+- Paginacao com cursor
+- Destaque para servicos featured
+
+### Sistema de Negociacao
+- Chat anonimizado entre cliente e empresa
+- Handles anonimos gerados automaticamente
+- Liberacao de dados apos aceite
+
+### Gestao de Ordens
+- Fluxo: Pendente -> Aprovado -> Concluido
+- Log de alteracoes de status
+- Calculo automatico de comissao
+
+### Painel Administrativo
+- Dashboard com KPIs
+- Gestao de usuarios, ordens, planos
+- Configuracao de banners
+
+---
+
+## Estrutura do Projeto
+
+```
+Sistema-condominios/
+├── backend/                    # Laravel 11 API
+│   ├── app/
+│   │   ├── Http/Controllers/   # Controllers REST
+│   │   ├── Models/             # Eloquent Models
+│   │   ├── Observers/          # Model Observers
+│   │   └── Services/           # Business Logic
+│   ├── database/
+│   │   ├── migrations/         # Database Schema
+│   │   └── seeders/            # Data Seeders
+│   └── tests/                  # PHPUnit Tests
+│
+├── frontend/                   # React + Vite SPA
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── ui/             # shadcn/ui Components
+│   │   │   └── ...             # App Components
+│   │   ├── layouts/            # DashboardLayout, AuthLayout
+│   │   ├── pages/              # Page Components
+│   │   ├── store/              # Redux Store
+│   │   ├── services/           # API Services
+│   │   └── lib/                # Utilities (cn, formatters)
+│   └── tests/                  # Vitest Tests
+│
+└── README.md
+```
+
+---
+
+## Testes
+
+### Backend (54 testes)
+```bash
+cd backend && php artisan test
+```
+- AuthTest: Registro, login, logout
+- ServiceTest: CRUD de servicos
+- DealTest: Fluxo de negociacao
+- OrderTest: Gestao de ordens
+- FakeDataSeederTest: Validacao de dados fake
+
+### Frontend (112 testes)
+```bash
+cd frontend && npm test
+```
+- Redux Slices: auth, deals, services, notifications
+- Pages: Dashboard, Home, Login
+- Components: UI components
+
+---
+
+## Documentacao Tecnica
+
+## Sumario
 
 1. [Diagrama de Casos de Uso](#1-diagrama-de-casos-de-uso)
 2. [Diagrama de Classes (ERD)](#2-diagrama-de-classes-erd)
@@ -329,19 +486,22 @@ Cliente              Sistema (API)              Empresa               Admin
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Stack Tecnológica
+### Stack Tecnologica Detalhada
 
 | Camada | Tecnologia | Justificativa |
 |---|---|---|
-| Backend | Laravel (PHP 8.2+) | API REST, regras de negócio, autenticação |
-| Frontend | Vue.js ou React | SPA, consumo de API, estado global |
-| Banco de dados | MySQL | Persistência relacional |
-| Autenticação | Laravel Sanctum | Token por sessão, sem dependência externa |
-| Pagamentos | Asaas ou Pagar.me | Gateway nacional, suporte a PIX/boleto/cartão + webhooks |
-| Jobs | Laravel Scheduler | Reset de ranking semestral, expiração de planos |
+| Backend | Laravel 11 (PHP 8.2+) | API REST, regras de negocio, autenticacao |
+| Frontend | React 18 + Vite 5 | SPA moderna, HMR rapido, build otimizado |
+| UI Library | shadcn/ui + Radix UI | Componentes acessiveis e customizaveis |
+| Estilizacao | Tailwind CSS 3 | Utility-first, design system consistente |
+| Estado | Redux Toolkit | Estado global previsivel |
+| Banco de dados | MySQL 8 | Persistencia relacional |
+| Autenticacao | Laravel Sanctum | Token por sessao, sem dependencia externa |
+| Pagamentos | Asaas ou Pagar.me | Gateway nacional, suporte a PIX/boleto/cartao + webhooks |
+| Jobs | Laravel Scheduler | Reset de ranking semestral, expiracao de planos |
 | Infra | VPS Hostinger Ubuntu 22+ | Nginx + PHP-FPM + SSL Let's Encrypt |
 | Deploy | GitHub Actions + SSH | CI/CD simples e gratuito |
-| Build | Vite | Vue e React |
+| Testes | PHPUnit + Vitest | Cobertura backend e frontend |
 
 ---
 
@@ -590,5 +750,26 @@ Cliente              Sistema (API)              Empresa               Admin
 
 ---
 
-*Documento gerado para o MVP da Plataforma de Negócios Condominial.*
-*Versão 1.0 — Fase 1.*
+## Changelog
+
+### v1.1.0 (2024)
+- Modernizacao UI com shadcn/ui
+- Novo DashboardLayout com sidebar colapsavel
+- Tema dark/light com persistencia
+- 20+ componentes UI reutilizaveis
+- Migracao Dashboard para shadcn/ui
+- 112 testes frontend passando
+- 54 testes backend passando
+
+### v1.0.0 (2024)
+- MVP completo da plataforma
+- Autenticacao 3 perfis
+- Catalogo de servicos
+- Sistema de negociacao anonimizado
+- Gestao de ordens
+- Painel administrativo
+
+---
+
+*Documento gerado para o MVP da Plataforma de Negocios Condominial.*
+*Versao 1.1.0 — UI Modernizada com shadcn/ui*

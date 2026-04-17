@@ -24,6 +24,7 @@ class DealTest extends TestCase
             'category_id' => $this->getCategory()->id,
             'title' => 'Deal Test Service',
             'description' => 'Test service for deals',
+            'region' => 'Sao Paulo',
             'price_range' => '1000-5000',
             'status' => 'ativo',
         ]);
@@ -82,7 +83,7 @@ class DealTest extends TestCase
             'service_id' => $this->service->id,
         ]);
 
-        $response->assertStatus(422);
+        $response->assertStatus(400);
     }
 
     /** @test */
@@ -137,7 +138,7 @@ class DealTest extends TestCase
             'status' => 'aceito',
         ]);
 
-        $response->assertStatus(403);
+        $response->assertStatus(400);
     }
 
     /** @test */

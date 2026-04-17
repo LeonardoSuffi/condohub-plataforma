@@ -30,6 +30,8 @@ class Transaction extends Model
         return [
             'amount' => 'decimal:2',
             'commission' => 'decimal:2',
+            'net_amount' => 'decimal:2',
+            'metadata' => 'array',
         ];
     }
 

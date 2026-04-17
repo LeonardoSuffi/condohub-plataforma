@@ -12,9 +12,14 @@ abstract class TestCase extends BaseTestCase
 {
     use RefreshDatabase;
 
+    protected static int $empresaCounter = 0;
+    protected static int $clienteCounter = 0;
+
     protected function setUp(): void
     {
         parent::setUp();
+        self::$empresaCounter = 0;
+        self::$clienteCounter = 0;
         $this->seed(\Database\Seeders\DatabaseSeeder::class);
     }
 
@@ -23,15 +28,19 @@ abstract class TestCase extends BaseTestCase
      */
     protected function createEmpresa(array $attrs = []): User
     {
+        self::$empresaCounter++;
+        $counter = str_pad(self::$empresaCounter, 2, '0', STR_PAD_LEFT);
+
         $user = User::factory()->create(array_merge([
             'type' => 'empresa',
             'email' => 'empresa@test.com',
         ], $attrs));
 
         $user->companyProfile()->create([
-            'cnpj' => '12345678000199',
+            'cnpj' => "12.345.678/00{$counter}-99",
             'razao_social' => 'Empresa Teste LTDA',
             'nome_fantasia' => 'Empresa Teste',
+            'segmento' => 'Manutencao',
             'telefone' => '11999999999',
             'cidade' => 'Sao Paulo',
             'estado' => 'SP',
@@ -54,13 +63,16 @@ abstract class TestCase extends BaseTestCase
      */
     protected function createCliente(array $attrs = []): User
     {
+        self::$clienteCounter++;
+        $counter = str_pad(self::$clienteCounter, 2, '0', STR_PAD_LEFT);
+
         $user = User::factory()->create(array_merge([
             'type' => 'cliente',
             'email' => 'cliente@test.com',
         ], $attrs));
 
         $user->clientProfile()->create([
-            'cpf' => '12345678901',
+            'cpf' => "123.456.789-{$counter}",
             'tipo' => 'sindico',
             'nome_condominio' => 'Condominio Teste',
             'telefone' => '11888888888',

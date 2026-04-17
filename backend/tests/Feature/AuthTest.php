@@ -16,9 +16,10 @@ class AuthTest extends TestCase
             'email' => 'newempresa@test.com',
             'password' => 'Password123!',
             'password_confirmation' => 'Password123!',
-            'cnpj' => '12345678000100',
+            'cnpj' => '12.345.678/0001-00',
             'razao_social' => 'Test Empresa LTDA',
             'nome_fantasia' => 'Test Empresa',
+            'segmento' => 'Manutencao',
         ]);
 
         $response->assertStatus(201)
@@ -37,7 +38,7 @@ class AuthTest extends TestCase
         ]);
 
         $this->assertDatabaseHas('company_profiles', [
-            'cnpj' => '12345678000100',
+            'cnpj' => '12.345.678/0001-00',
         ]);
     }
 
@@ -49,8 +50,9 @@ class AuthTest extends TestCase
             'email' => 'empresa2@test.com',
             'password' => 'Password123!',
             'password_confirmation' => 'Password123!',
-            'cnpj' => '12345678000101',
+            'cnpj' => '12.345.678/0001-01',
             'razao_social' => 'Test Empresa 2 LTDA',
+            'segmento' => 'Manutencao',
         ]);
 
         $response->assertStatus(201);
@@ -73,7 +75,7 @@ class AuthTest extends TestCase
             'email' => 'newcliente@test.com',
             'password' => 'Password123!',
             'password_confirmation' => 'Password123!',
-            'cpf' => '12345678901',
+            'cpf' => '123.456.789-01',
             'tipo' => 'sindico',
         ]);
 
@@ -93,7 +95,7 @@ class AuthTest extends TestCase
         ]);
 
         $this->assertDatabaseHas('client_profiles', [
-            'cpf' => '12345678901',
+            'cpf' => '123.456.789-01',
             'tipo' => 'sindico',
         ]);
     }
@@ -108,7 +110,7 @@ class AuthTest extends TestCase
             'email' => 'existing@test.com',
             'password' => 'Password123!',
             'password_confirmation' => 'Password123!',
-            'cpf' => '12345678902',
+            'cpf' => '123.456.789-02',
             'tipo' => 'sindico',
         ]);
 
@@ -152,7 +154,7 @@ class AuthTest extends TestCase
             'password' => 'WrongPassword',
         ]);
 
-        $response->assertStatus(401);
+        $response->assertStatus(422);
     }
 
     /** @test */

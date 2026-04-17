@@ -28,6 +28,7 @@ class OrderTest extends TestCase
             'category_id' => $this->getCategory()->id,
             'title' => 'Order Test Service',
             'description' => 'Test',
+            'region' => 'Sao Paulo',
             'price_range' => '1000-5000',
             'status' => 'ativo',
         ]);
@@ -67,7 +68,7 @@ class OrderTest extends TestCase
         $response = $this->actingAs($this->empresa)->getJson('/api/orders');
 
         $response->assertStatus(200);
-        $this->assertCount(1, $response->json('data.data'));
+        $this->assertCount(1, $response->json('data'));
     }
 
     /** @test */

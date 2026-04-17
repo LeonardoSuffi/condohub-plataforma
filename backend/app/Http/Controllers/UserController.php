@@ -27,7 +27,7 @@ class UserController extends Controller
         // Adiciona informação de completude do perfil
         $user->profile_completion = $this->calculateProfileCompletion($user);
 
-        return $this->success($user, 'Dados do usuário');
+        return $this->success(['user' => $user], 'Dados do usuário');
     }
 
     /**
