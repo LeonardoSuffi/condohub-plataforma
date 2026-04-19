@@ -2,11 +2,13 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 
 // Layouts
-import DashboardLayout from './layouts/DashboardLayout'
+import SiteLayout from './layouts/SiteLayout'
 import AuthLayout from './components/layout/AuthLayout'
 
 // Public Pages
 import Home from './pages/Home'
+import CompanyProfile from './pages/companies/CompanyProfile'
+import CompanyList from './pages/public/CompanyList'
 
 // Auth Pages
 import Login from './pages/auth/Login'
@@ -17,28 +19,24 @@ import RegisterCliente from './pages/auth/RegisterCliente'
 import Dashboard from './pages/Dashboard'
 import Profile from './pages/Profile'
 import Settings from './pages/Settings'
-import ServiceCatalog from './pages/services/ServiceCatalog'
-import ServiceDetail from './pages/services/ServiceDetail'
 import MyServices from './pages/services/MyServices'
 import DealList from './pages/deals/DealList'
 import ChatView from './pages/deals/ChatView'
-import OrderList from './pages/OrderList'
 import FinanceView from './pages/finance/FinanceView'
 import RankingView from './pages/RankingView'
 
 // Admin Pages
 import AdminPanel from './pages/admin/AdminPanel'
 import AdminUsers from './pages/admin/AdminUsers'
-import AdminOrders from './pages/admin/AdminOrders'
 import AdminPlans from './pages/admin/AdminPlans'
 import AdminBanners from './pages/admin/AdminBanners'
+import AdminCategories from './pages/admin/AdminCategories'
 import AdminFinance from './pages/admin/AdminFinance'
 
-// Route Guards - Now check both isAuthenticated AND user exists
+// Route Guards
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated, user } = useSelector((state) => state.auth)
 
-  // Must be authenticated and have user data
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" replace />
   }
@@ -49,7 +47,6 @@ const PrivateRoute = ({ children }) => {
 const GuestRoute = ({ children }) => {
   const { isAuthenticated, user } = useSelector((state) => state.auth)
 
-  // If authenticated with user data, redirect to dashboard
   if (isAuthenticated && user) {
     return <Navigate to="/dashboard" replace />
   }
@@ -85,25 +82,13 @@ const EmpresaRoute = ({ children }) => {
   return children
 }
 
-const ClienteRoute = ({ children }) => {
-  const { isAuthenticated, user } = useSelector((state) => state.auth)
-
-  if (!isAuthenticated || !user) {
-    return <Navigate to="/login" replace />
-  }
-
-  if (user.type !== 'cliente') {
-    return <Navigate to="/dashboard" replace />
-  }
-
-  return children
-}
-
 function App() {
   return (
     <Routes>
-      {/* Public Home Page */}
+      {/* Public Pages */}
       <Route path="/" element={<Home />} />
+      <Route path="/empresas" element={<CompanyList />} />
+      <Route path="/empresa/:id" element={<CompanyProfile />} />
 
       {/* Auth Routes */}
       <Route element={<AuthLayout />}>
@@ -113,19 +98,14 @@ function App() {
         <Route path="/register/cliente" element={<GuestRoute><RegisterCliente /></GuestRoute>} />
       </Route>
 
-      {/* Protected Routes */}
-      <Route element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>
+      {/* Protected Routes - Site Layout */}
+      <Route element={<PrivateRoute><SiteLayout /></PrivateRoute>}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/deals" element={<DealList />} />
         <Route path="/chat/:dealId" element={<ChatView />} />
-        <Route path="/orders" element={<OrderList />} />
         <Route path="/finance" element={<FinanceView />} />
-
-        {/* Cliente Routes */}
-        <Route path="/services" element={<ClienteRoute><ServiceCatalog /></ClienteRoute>} />
-        <Route path="/services/:id" element={<ClienteRoute><ServiceDetail /></ClienteRoute>} />
 
         {/* Empresa Routes */}
         <Route path="/my-services" element={<EmpresaRoute><MyServices /></EmpresaRoute>} />
@@ -135,9 +115,9 @@ function App() {
         {/* Admin Routes */}
         <Route path="/admin" element={<AdminRoute><AdminPanel /></AdminRoute>} />
         <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
-        <Route path="/admin/orders" element={<AdminRoute><AdminOrders /></AdminRoute>} />
         <Route path="/admin/plans" element={<AdminRoute><AdminPlans /></AdminRoute>} />
         <Route path="/admin/banners" element={<AdminRoute><AdminBanners /></AdminRoute>} />
+        <Route path="/admin/categories" element={<AdminRoute><AdminCategories /></AdminRoute>} />
         <Route path="/admin/finance" element={<AdminRoute><AdminFinance /></AdminRoute>} />
       </Route>
 

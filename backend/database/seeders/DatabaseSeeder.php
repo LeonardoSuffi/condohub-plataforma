@@ -104,51 +104,171 @@ class DatabaseSeeder extends Seeder
     protected function createCategories(): void
     {
         $categories = [
-            'Manutenção Predial' => [
-                'Elétrica',
-                'Hidráulica',
-                'Pintura',
-                'Impermeabilização',
-                'Reformas',
+            [
+                'name' => 'Construcao e Reformas',
+                'icon' => 'building',
+                'description' => 'Servicos de construcao civil e reformas em geral',
+                'children' => [
+                    ['name' => 'Pedreiro', 'icon' => 'brick'],
+                    ['name' => 'Pintura', 'icon' => 'paintbrush'],
+                    ['name' => 'Gesso e Drywall', 'icon' => 'layers'],
+                    ['name' => 'Impermeabilizacao', 'icon' => 'droplet'],
+                    ['name' => 'Telhados e Coberturas', 'icon' => 'home'],
+                    ['name' => 'Pisos e Revestimentos', 'icon' => 'grid'],
+                ],
             ],
-            'Limpeza' => [
-                'Limpeza de Fachada',
-                'Limpeza de Caixa D\'água',
-                'Limpeza Pós-obra',
-                'Dedetização',
+            [
+                'name' => 'Instalacoes',
+                'icon' => 'wrench',
+                'description' => 'Servicos de instalacoes eletricas e hidraulicas',
+                'children' => [
+                    ['name' => 'Eletricista', 'icon' => 'zap'],
+                    ['name' => 'Encanador', 'icon' => 'droplet'],
+                    ['name' => 'Ar Condicionado', 'icon' => 'wind'],
+                    ['name' => 'Gas', 'icon' => 'flame'],
+                    ['name' => 'Aquecedor Solar', 'icon' => 'sun'],
+                ],
             ],
-            'Segurança' => [
-                'Portaria',
-                'CFTV',
-                'Controle de Acesso',
-                'Vigilância',
+            [
+                'name' => 'Limpeza',
+                'icon' => 'sparkles',
+                'description' => 'Servicos de limpeza residencial e comercial',
+                'children' => [
+                    ['name' => 'Limpeza Residencial', 'icon' => 'home'],
+                    ['name' => 'Limpeza Comercial', 'icon' => 'building'],
+                    ['name' => 'Limpeza de Vidros', 'icon' => 'square'],
+                    ['name' => 'Limpeza de Estofados', 'icon' => 'armchair'],
+                    ['name' => 'Limpeza Pos-obra', 'icon' => 'hard-hat'],
+                    ['name' => 'Dedetizacao', 'icon' => 'bug'],
+                ],
             ],
-            'Jardinagem' => [
-                'Paisagismo',
-                'Manutenção de Jardim',
-                'Poda de Árvores',
+            [
+                'name' => 'Jardinagem e Paisagismo',
+                'icon' => 'leaf',
+                'description' => 'Servicos de jardinagem e manutencao de areas verdes',
+                'children' => [
+                    ['name' => 'Paisagismo', 'icon' => 'trees'],
+                    ['name' => 'Manutencao de Jardim', 'icon' => 'flower'],
+                    ['name' => 'Poda de Arvores', 'icon' => 'scissors'],
+                    ['name' => 'Irrigacao', 'icon' => 'droplet'],
+                    ['name' => 'Gramados', 'icon' => 'grass'],
+                ],
             ],
-            'Elevadores' => [
-                'Manutenção de Elevadores',
-                'Modernização',
+            [
+                'name' => 'Seguranca',
+                'icon' => 'shield',
+                'description' => 'Servicos de seguranca patrimonial e eletronica',
+                'children' => [
+                    ['name' => 'Portaria', 'icon' => 'door-open'],
+                    ['name' => 'CFTV e Cameras', 'icon' => 'video'],
+                    ['name' => 'Alarmes', 'icon' => 'bell'],
+                    ['name' => 'Controle de Acesso', 'icon' => 'fingerprint'],
+                    ['name' => 'Vigilancia', 'icon' => 'eye'],
+                    ['name' => 'Cerca Eletrica', 'icon' => 'zap'],
+                ],
             ],
-            'Administração' => [
-                'Gestão Condominial',
-                'Assessoria Jurídica',
-                'Contabilidade',
+            [
+                'name' => 'Tecnologia',
+                'icon' => 'laptop',
+                'description' => 'Servicos de informatica e tecnologia',
+                'children' => [
+                    ['name' => 'Suporte Tecnico', 'icon' => 'headphones'],
+                    ['name' => 'Redes e Cabeamento', 'icon' => 'network'],
+                    ['name' => 'Desenvolvimento Web', 'icon' => 'code'],
+                    ['name' => 'Desenvolvimento de Apps', 'icon' => 'smartphone'],
+                    ['name' => 'Manutencao de Computadores', 'icon' => 'monitor'],
+                ],
+            ],
+            [
+                'name' => 'Servicos Administrativos',
+                'icon' => 'briefcase',
+                'description' => 'Servicos administrativos e consultoria',
+                'children' => [
+                    ['name' => 'Contabilidade', 'icon' => 'calculator'],
+                    ['name' => 'Assessoria Juridica', 'icon' => 'scale'],
+                    ['name' => 'Recursos Humanos', 'icon' => 'users'],
+                    ['name' => 'Marketing Digital', 'icon' => 'megaphone'],
+                    ['name' => 'Consultoria Empresarial', 'icon' => 'chart-bar'],
+                ],
+            ],
+            [
+                'name' => 'Eventos e Producao',
+                'icon' => 'calendar',
+                'description' => 'Servicos para eventos e producoes',
+                'children' => [
+                    ['name' => 'Buffet e Catering', 'icon' => 'utensils'],
+                    ['name' => 'Decoracao', 'icon' => 'gift'],
+                    ['name' => 'Fotografia', 'icon' => 'camera'],
+                    ['name' => 'Som e Iluminacao', 'icon' => 'music'],
+                    ['name' => 'Locacao de Equipamentos', 'icon' => 'package'],
+                ],
+            ],
+            [
+                'name' => 'Transporte e Logistica',
+                'icon' => 'truck',
+                'description' => 'Servicos de transporte e mudancas',
+                'children' => [
+                    ['name' => 'Mudancas', 'icon' => 'box'],
+                    ['name' => 'Frete', 'icon' => 'truck'],
+                    ['name' => 'Motoboy', 'icon' => 'bike'],
+                    ['name' => 'Armazenagem', 'icon' => 'warehouse'],
+                ],
+            ],
+            [
+                'name' => 'Saude e Bem-estar',
+                'icon' => 'heart',
+                'description' => 'Servicos de saude e cuidados pessoais',
+                'children' => [
+                    ['name' => 'Cuidador de Idosos', 'icon' => 'heart-handshake'],
+                    ['name' => 'Enfermagem', 'icon' => 'stethoscope'],
+                    ['name' => 'Fisioterapia', 'icon' => 'activity'],
+                    ['name' => 'Personal Trainer', 'icon' => 'dumbbell'],
+                    ['name' => 'Nutricao', 'icon' => 'apple'],
+                ],
+            ],
+            [
+                'name' => 'Educacao e Aulas',
+                'icon' => 'graduation-cap',
+                'description' => 'Servicos educacionais e aulas particulares',
+                'children' => [
+                    ['name' => 'Aulas Particulares', 'icon' => 'book-open'],
+                    ['name' => 'Idiomas', 'icon' => 'globe'],
+                    ['name' => 'Musica', 'icon' => 'music'],
+                    ['name' => 'Informatica', 'icon' => 'laptop'],
+                    ['name' => 'Reforco Escolar', 'icon' => 'pencil'],
+                ],
+            ],
+            [
+                'name' => 'Automotivo',
+                'icon' => 'car',
+                'description' => 'Servicos automotivos',
+                'children' => [
+                    ['name' => 'Mecanica', 'icon' => 'wrench'],
+                    ['name' => 'Eletrica Automotiva', 'icon' => 'zap'],
+                    ['name' => 'Funilaria e Pintura', 'icon' => 'paintbrush'],
+                    ['name' => 'Lavagem e Polimento', 'icon' => 'sparkles'],
+                    ['name' => 'Guincho', 'icon' => 'truck'],
+                ],
             ],
         ];
 
-        foreach ($categories as $parentName => $children) {
+        $order = 0;
+        foreach ($categories as $categoryData) {
             $parent = Category::create([
-                'name' => $parentName,
+                'name' => $categoryData['name'],
+                'icon' => $categoryData['icon'] ?? null,
+                'description' => $categoryData['description'] ?? null,
+                'order' => $order++,
                 'active' => true,
             ]);
 
-            foreach ($children as $childName) {
+            $childOrder = 0;
+            foreach ($categoryData['children'] as $child) {
                 Category::create([
-                    'name' => $childName,
+                    'name' => $child['name'],
+                    'icon' => $child['icon'] ?? null,
                     'parent_id' => $parent->id,
+                    'order' => $childOrder++,
                     'active' => true,
                 ]);
             }

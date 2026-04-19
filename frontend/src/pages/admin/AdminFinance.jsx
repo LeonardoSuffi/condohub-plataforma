@@ -97,7 +97,7 @@ export default function AdminFinance() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -142,9 +142,9 @@ export default function AdminFinance() {
           </div>
 
           <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <p className="text-sm text-gray-500">Ordens no Periodo</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{stats.orders?.total || 0}</p>
-            <p className="text-sm text-gray-400 mt-2">{stats.orders?.completed || 0} concluidas</p>
+            <p className="text-sm text-gray-500">Negociacoes no Periodo</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{stats.deals?.total || 0}</p>
+            <p className="text-sm text-gray-400 mt-2">{stats.deals?.concluido || 0} concluidas</p>
           </div>
         </div>
       )}

@@ -1,472 +1,424 @@
 import { useSelector, useDispatch } from 'react-redux'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import api from '../services/api'
 import { setUser } from '../store/slices/authSlice'
 import {
-  Sun,
   Search,
-  Plus,
-  MessageSquare,
-  ClipboardList,
-  User,
-  CheckCircle,
-  Briefcase,
-  Trophy,
-  Users,
-  CreditCard,
   ChevronRight,
-  X,
-  Pencil,
+  Building2,
+  MessageSquare,
+  MapPin,
+  Briefcase,
+  Users,
+  TrendingUp,
+  ArrowRight,
+  Plus,
+  Trophy,
+  Star,
+  Settings,
+  Bell,
+  CheckCircle,
+  Clock,
+  Eye,
 } from 'lucide-react'
-import { cn, formatCurrency } from '@/lib/utils'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
 
 export default function Dashboard() {
+  const navigate = useNavigate()
   const dispatch = useDispatch()
   const { user } = useSelector((state) => state.auth)
-  const [stats, setStats] = useState(null)
+  const [categories, setCategories] = useState([])
+  const [companies, setCompanies] = useState([])
+  const [recentDeals, setRecentDeals] = useState([])
+  const [stats, setStats] = useState({})
   const [loading, setLoading] = useState(true)
-  const [dismissedBanner, setDismissedBanner] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
 
   useEffect(() => {
-    loadDashboardData()
+    loadData()
   }, [])
 
-  const loadDashboardData = async () => {
+  const loadData = async () => {
     try {
-      const [dealsRes, ordersRes, userRes] = await Promise.all([
-        api.get('/deals', { params: { per_page: 5 } }),
-        api.get('/orders', { params: { per_page: 5 } }),
-        api.get('/users/me'),
-      ])
+      const requests = [
+        api.get('/public/categories').catch(() => ({ data: { data: [] } })),
+        api.get('/public/companies', { params: { per_page: 6, featured: true } }).catch(() => ({ data: { data: [] } })),
+        api.get('/deals', { params: { per_page: 5 } }).catch(() => ({ data: { data: [] } })),
+        api.get('/users/me').catch(() => ({ data: { data: null } })),
+      ]
 
-      setStats({
-        deals: dealsRes.data,
-        orders: ordersRes.data,
-      })
+      const [catRes, compRes, dealsRes, userRes] = await Promise.all(requests)
+
+      setCategories(catRes.data.data || [])
+      setCompanies(compRes.data.data || [])
+      setRecentDeals(dealsRes.data.data || [])
 
       if (userRes.data?.data) {
         dispatch(setUser(userRes.data.data))
       }
+
+      // Calculate stats from deals
+      const deals = dealsRes.data.data || []
+      setStats({
+        total_deals: dealsRes.data?.meta?.total || deals.length,
+        pending_deals: deals.filter(d => d.status === 'pending').length,
+        active_deals: deals.filter(d => ['active', 'in_progress'].includes(d.status)).length,
+        completed_deals: deals.filter(d => d.status === 'completed').length,
+      })
     } catch (error) {
-      console.error('Erro ao carregar dashboard:', error)
+      console.error('Error loading data:', error)
     } finally {
       setLoading(false)
     }
   }
 
-  const getStatusVariant = (status) => {
-    const variants = {
-      aberto: 'info',
-      negociando: 'warning',
-      aceito: 'success',
-      concluido: 'success',
-      rejeitado: 'destructive',
-      pendente: 'warning',
-      aprovado: 'info',
+  const handleSearch = (e) => {
+    e.preventDefault()
+    navigate(`/empresas?q=${searchTerm}`)
+  }
+
+  const parentCategories = categories.filter(c => !c.parent_id)
+
+  const getDealStatusBadge = (status) => {
+    const styles = {
+      pending: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Pendente' },
+      active: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Ativo' },
+      in_progress: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Em Andamento' },
+      completed: { bg: 'bg-green-100', text: 'text-green-700', label: 'Concluido' },
+      cancelled: { bg: 'bg-red-100', text: 'text-red-700', label: 'Cancelado' },
     }
-    return variants[status] || 'secondary'
+    const style = styles[status] || styles.pending
+    return (
+      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${style.bg} ${style.text}`}>
+        {style.label}
+      </span>
+    )
   }
 
   if (loading) {
     return (
-      <div className="space-y-8">
-        {/* Welcome Banner Skeleton */}
-        <Skeleton className="h-48 w-full rounded-2xl" />
-
-        {/* Stats Cards Skeleton */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <Card key={i}>
-              <CardContent className="p-5">
-                <Skeleton className="h-10 w-10 rounded-lg mb-4" />
-                <Skeleton className="h-8 w-16 mb-2" />
-                <Skeleton className="h-4 w-24" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Quick Actions Skeleton */}
-        <div>
-          <Skeleton className="h-6 w-32 mb-4" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[...Array(3)].map((_, i) => (
-              <Card key={i}>
-                <CardContent className="p-6">
-                  <Skeleton className="h-12 w-12 rounded-xl mb-4" />
-                  <Skeleton className="h-5 w-32 mb-2" />
-                  <Skeleton className="h-4 w-40" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-center py-20">
+          <div className="w-10 h-10 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
         </div>
       </div>
     )
   }
 
-  const dealsCount = stats?.deals?.meta?.total || stats?.deals?.data?.length || 0
-  const ordersCount = stats?.orders?.meta?.total || stats?.orders?.data?.length || 0
-
   return (
-    <div className="space-y-8">
-      {/* Welcome Banner */}
-      <Card className="bg-primary text-primary-foreground border-0">
-        <CardContent className="p-8">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      {/* Welcome Header */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-gradient-to-r from-primary-600 to-primary-700 px-6 py-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <div className="flex items-center gap-2 text-primary-foreground/70 text-sm mb-2">
-                <Sun className="w-4 h-4" />
-                <span>Bom dia</span>
-              </div>
-              <h1 className="text-2xl lg:text-3xl font-bold mb-2">
+              <p className="text-primary-200 text-sm mb-1">
+                {user?.type === 'empresa' ? 'Area do Parceiro' :
+                 user?.type === 'admin' ? 'Painel Administrativo' :
+                 'Area do Cliente'}
+              </p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white">
                 Ola, {user?.name?.split(' ')[0]}!
               </h1>
-              <p className="text-primary-foreground/70 max-w-lg">
-                {user?.type === 'empresa' && 'Gerencie seus servicos, acompanhe negociacoes e cresca seu negocio na plataforma.'}
-                {user?.type === 'cliente' && 'Encontre os melhores prestadores de servicos para seu condominio com seguranca.'}
-                {user?.type === 'admin' && 'Acompanhe todas as atividades e gerencie a plataforma de forma centralizada.'}
+              <p className="text-primary-100 mt-1">
+                {user?.type === 'empresa' ? 'Gerencie suas negociacoes e servicos' :
+                 user?.type === 'admin' ? 'Gerencie a plataforma' :
+                 'Encontre os melhores profissionais para seu condominio'}
               </p>
             </div>
 
-            <div className="flex gap-3">
-              {user?.type === 'cliente' && (
-                <Button asChild variant="secondary" size="lg">
-                  <Link to="/services">
-                    <Search className="w-5 h-5 mr-2" />
-                    Buscar servicos
-                  </Link>
-                </Button>
-              )}
-              {user?.type === 'empresa' && (
-                <Button asChild variant="secondary" size="lg">
-                  <Link to="/my-services/new">
-                    <Plus className="w-5 h-5 mr-2" />
-                    Cadastrar servico
-                  </Link>
-                </Button>
-              )}
-            </div>
+            {/* Quick Action */}
+            {user?.type === 'cliente' && (
+              <Link
+                to="/empresas"
+                className="inline-flex items-center gap-2 px-5 py-3 bg-white text-primary-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors shadow-lg"
+              >
+                <Search className="w-5 h-5" />
+                Buscar Empresas
+              </Link>
+            )}
+            {user?.type === 'empresa' && (
+              <Link
+                to="/my-services/new"
+                className="inline-flex items-center gap-2 px-5 py-3 bg-white text-primary-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors shadow-lg"
+              >
+                <Plus className="w-5 h-5" />
+                Cadastrar Servico
+              </Link>
+            )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Profile Completion Banner */}
-      {user?.profile_completion && user.profile_completion.percentage < 100 && !dismissedBanner && (
-        <Card className="bg-gradient-to-r from-warning/10 to-warning/5 border-warning/20 relative">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setDismissedBanner(true)}
-            className="absolute top-4 right-4 text-warning hover:text-warning/80"
-          >
-            <X className="w-5 h-5" />
-          </Button>
+        {/* Stats Bar */}
+        <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-gray-100 bg-gray-50">
+          <div className="px-4 py-4 text-center">
+            <div className="text-2xl font-bold text-gray-900">{stats.total_deals || 0}</div>
+            <div className="text-sm text-gray-500">Total Negociacoes</div>
+          </div>
+          <div className="px-4 py-4 text-center">
+            <div className="text-2xl font-bold text-yellow-600">{stats.pending_deals || 0}</div>
+            <div className="text-sm text-gray-500">Pendentes</div>
+          </div>
+          <div className="px-4 py-4 text-center">
+            <div className="text-2xl font-bold text-blue-600">{stats.active_deals || 0}</div>
+            <div className="text-sm text-gray-500">Em Andamento</div>
+          </div>
+          <div className="px-4 py-4 text-center">
+            <div className="text-2xl font-bold text-green-600">{stats.completed_deals || 0}</div>
+            <div className="text-sm text-gray-500">Concluidos</div>
+          </div>
+        </div>
+      </div>
 
-          <CardContent className="p-6">
-            <div className="flex flex-col lg:flex-row lg:items-center gap-6">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-12 h-12 bg-warning/20 rounded-xl flex items-center justify-center">
-                    <User className="w-6 h-6 text-warning" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold">Complete seu perfil</h3>
-                    <p className="text-sm text-warning">Quanto mais completo, mais resultados!</p>
-                  </div>
-                </div>
-
-                <p className="text-muted-foreground text-sm mb-4">
-                  Perfis completos tem ate 3x mais chances de fechar negocios. Quanto mais informacoes, mais confianca voce transmite!
-                </p>
-
-                {/* Progress Bar */}
-                <div className="flex items-center gap-4">
-                  <div className="flex-1 bg-warning/20 rounded-full h-2.5 overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-warning to-warning/80 rounded-full transition-all duration-500"
-                      style={{ width: `${user.profile_completion.percentage}%` }}
-                    />
-                  </div>
-                  <span className="text-sm font-bold text-warning min-w-[3rem]">
-                    {user.profile_completion.percentage}%
-                  </span>
-                </div>
-
-                <p className="text-xs text-muted-foreground mt-2">
-                  {user.profile_completion.completed} de {user.profile_completion.total} campos preenchidos
-                </p>
-              </div>
-
-              <Button asChild variant="warning" size="lg">
-                <Link to="/profile">
-                  <Pencil className="w-5 h-5 mr-2" />
-                  Completar perfil
-                </Link>
-              </Button>
+      {/* Search for Cliente */}
+      {user?.type === 'cliente' && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">O que voce precisa?</h2>
+          <form onSubmit={handleSearch} className="flex gap-3">
+            <div className="flex-1 relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar servicos... Ex: Eletricista, Pintor, Limpeza..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 text-gray-900 placeholder-gray-500 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-all"
+              />
             </div>
-          </CardContent>
-        </Card>
+            <button
+              type="submit"
+              className="px-6 py-3 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 transition-colors"
+            >
+              Buscar
+            </button>
+          </form>
+
+          {/* Quick categories */}
+          {parentCategories.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-4">
+              {parentCategories.slice(0, 6).map((category) => (
+                <Link
+                  key={category.id}
+                  to={`/empresas?categoria=${category.slug}`}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-full hover:bg-primary-100 hover:text-primary-700 transition-colors"
+                >
+                  {category.name}
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                <MessageSquare className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <Badge variant="success">Ativo</Badge>
-            </div>
-            <p className="text-2xl font-bold">{dealsCount}</p>
-            <p className="text-sm text-muted-foreground mt-1">Negociacoes</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                <ClipboardList className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <Badge variant="success">Ativo</Badge>
-            </div>
-            <p className="text-2xl font-bold">{ordersCount}</p>
-            <p className="text-sm text-muted-foreground mt-1">Ordens</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                <User className="w-5 h-5 text-primary-foreground" />
-              </div>
-            </div>
-            <p className="text-lg font-bold">
-              {user?.type === 'empresa' ? 'Prestador' : user?.type === 'cliente' ? 'Sindico' : 'Admin'}
-            </p>
-            <p className="text-sm text-muted-foreground mt-1">Tipo de conta</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                <CheckCircle className="w-5 h-5 text-primary-foreground" />
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 bg-success rounded-full animate-pulse" />
-              <p className="text-lg font-bold">Ativo</p>
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">Status da conta</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Quick Actions */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Acesso Rapido</h2>
+      {/* Recent Deals */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-900">Negociacoes Recentes</h2>
+          <Link to="/deals" className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1">
+            Ver todas <ChevronRight className="w-4 h-4" />
+          </Link>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {user?.type === 'cliente' && (
-            <>
-              <QuickActionCard
-                href="/services"
-                icon={Search}
-                title="Buscar Servicos"
-                description="Encontre prestadores qualificados"
-              />
-              <QuickActionCard
-                href="/deals"
-                icon={MessageSquare}
-                title="Negociacoes"
-                description="Acompanhe suas conversas"
-              />
-              <QuickActionCard
-                href="/orders"
-                icon={ClipboardList}
-                title="Minhas Ordens"
-                description="Acompanhe o status dos pedidos"
-              />
-            </>
-          )}
 
-          {user?.type === 'empresa' && (
-            <>
-              <QuickActionCard
-                href="/my-services"
-                icon={Briefcase}
-                title="Meus Servicos"
-                description="Gerencie seu catalogo"
-              />
-              <QuickActionCard
-                href="/deals"
-                icon={MessageSquare}
-                title="Propostas"
-                description="Veja solicitacoes recebidas"
-              />
-              <QuickActionCard
-                href="/ranking"
-                icon={Trophy}
-                title="Ranking"
-                description="Veja sua posicao no mercado"
-              />
-            </>
-          )}
-
-          {user?.type === 'admin' && (
-            <>
-              <QuickActionCard
-                href="/admin/users"
-                icon={Users}
-                title="Usuarios"
-                description="Gerenciar contas"
-              />
-              <QuickActionCard
-                href="/admin/orders"
-                icon={ClipboardList}
-                title="Ordens"
-                description="Aprovar e gerenciar"
-              />
-              <QuickActionCard
-                href="/admin/plans"
-                icon={CreditCard}
-                title="Planos"
-                description="Configurar assinaturas"
-              />
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Deals */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center">
-                <MessageSquare className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <CardTitle className="text-base">Negociacoes Recentes</CardTitle>
-            </div>
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/deals">Ver todas</Link>
-            </Button>
-          </CardHeader>
-          <CardContent className="p-0">
-            {stats?.deals?.data?.length > 0 ? (
-              stats.deals.data.slice(0, 4).map((deal, index) => (
-                <Link
-                  key={deal.id}
-                  to={`/chat/${deal.id}`}
-                  className={cn(
-                    "flex items-center gap-4 px-6 py-4 hover:bg-muted/50 transition-colors",
-                    index < stats.deals.data.slice(0, 4).length - 1 && "border-b"
+        {recentDeals.length > 0 ? (
+          <div className="divide-y divide-gray-100">
+            {recentDeals.map((deal) => (
+              <Link
+                key={deal.id}
+                to={`/chat/${deal.id}`}
+                className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50 transition-colors"
+              >
+                <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <MessageSquare className="w-6 h-6 text-primary-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-medium text-gray-900 truncate">
+                      {deal.service?.title || deal.title || 'Negociacao'}
+                    </h3>
+                    {getDealStatusBadge(deal.status)}
+                  </div>
+                  <p className="text-sm text-gray-500 truncate mt-0.5">
+                    {user?.type === 'empresa'
+                      ? `Cliente: ${deal.client?.name || 'Aguardando aprovacao'}`
+                      : `Empresa: ${deal.company?.nome_fantasia || deal.company?.name || 'N/A'}`
+                    }
+                  </p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-sm text-gray-500">
+                    {deal.created_at ? new Date(deal.created_at).toLocaleDateString('pt-BR') : ''}
+                  </p>
+                  {deal.unread_messages > 0 && (
+                    <span className="inline-flex items-center justify-center w-5 h-5 bg-primary-600 text-white text-xs rounded-full mt-1">
+                      {deal.unread_messages}
+                    </span>
                   )}
-                >
-                  <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center text-sm font-semibold">
-                    {(deal.service?.title || 'S').charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">
-                      {deal.service?.title || 'Servico'}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {user?.type === 'empresa' ? deal.anon_handle_b : deal.anon_handle_a}
-                    </p>
-                  </div>
-                  <Badge variant={getStatusVariant(deal.status)}>{deal.status}</Badge>
-                </Link>
-              ))
-            ) : (
-              <div className="py-12 px-6 text-center">
-                <div className="w-14 h-14 bg-muted rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <MessageSquare className="w-7 h-7 text-muted-foreground" />
                 </div>
-                <p className="text-sm font-medium">Nenhuma negociacao</p>
-                <p className="text-xs text-muted-foreground mt-1">Suas conversas aparecerao aqui</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Recent Orders */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center">
-                <ClipboardList className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <CardTitle className="text-base">Ordens Recentes</CardTitle>
-            </div>
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/orders">Ver todas</Link>
-            </Button>
-          </CardHeader>
-          <CardContent className="p-0">
-            {stats?.orders?.data?.length > 0 ? (
-              stats.orders.data.slice(0, 4).map((order, index) => (
-                <div
-                  key={order.id}
-                  className={cn(
-                    "flex items-center gap-4 px-6 py-4 hover:bg-muted/50 transition-colors",
-                    index < stats.orders.data.slice(0, 4).length - 1 && "border-b"
-                  )}
-                >
-                  <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-xs font-bold text-primary-foreground">
-                    #{order.id}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">Ordem #{order.id}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatCurrency(parseFloat(order.value))}
-                    </p>
-                  </div>
-                  <Badge variant={getStatusVariant(order.status)}>{order.status}</Badge>
-                </div>
-              ))
-            ) : (
-              <div className="py-12 px-6 text-center">
-                <div className="w-14 h-14 bg-muted rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <ClipboardList className="w-7 h-7 text-muted-foreground" />
-                </div>
-                <p className="text-sm font-medium">Nenhuma ordem</p>
-                <p className="text-xs text-muted-foreground mt-1">Suas ordens aparecerao aqui</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  )
-}
-
-function QuickActionCard({ href, icon: Icon, title, description }) {
-  return (
-    <Card className="group hover:border-foreground/20 hover:shadow-sm transition-all">
-      <CardContent className="p-6">
-        <Link to={href} className="block">
-          <div className="flex items-start justify-between mb-4">
-            <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center">
-              <Icon className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                <ChevronRight className="w-5 h-5 text-gray-400" />
+              </Link>
+            ))}
           </div>
-          <h3 className="text-base font-semibold mb-1">{title}</h3>
-          <p className="text-sm text-muted-foreground">{description}</p>
-        </Link>
-      </CardContent>
-    </Card>
+        ) : (
+          <div className="text-center py-12">
+            <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-gray-900 font-medium mb-1">Nenhuma negociacao</h3>
+            <p className="text-gray-500 text-sm mb-4">
+              {user?.type === 'cliente'
+                ? 'Comece buscando empresas para seus servicos'
+                : 'Aguarde contato de clientes interessados'
+              }
+            </p>
+            {user?.type === 'cliente' && (
+              <Link
+                to="/empresas"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors"
+              >
+                <Search className="w-4 h-4" />
+                Buscar Empresas
+              </Link>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Featured Companies for Cliente */}
+      {user?.type === 'cliente' && companies.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <h2 className="text-lg font-semibold text-gray-900">Empresas em Destaque</h2>
+            <Link to="/empresas" className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1">
+              Ver todas <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
+            {companies.slice(0, 3).map((company) => (
+              <Link
+                key={company.id}
+                to={`/empresa/${company.slug || company.id}`}
+                className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors group"
+              >
+                <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+                  {company.logo_url ? (
+                    <img src={company.logo_url} alt="" className="w-full h-full object-cover rounded-xl" />
+                  ) : (
+                    <span className="text-lg font-bold text-primary-600">
+                      {(company.nome_fantasia || company.name)?.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-medium text-gray-900 truncate group-hover:text-primary-600 transition-colors">
+                    {company.nome_fantasia || company.name}
+                  </h3>
+                  <p className="text-sm text-gray-500 truncate">{company.segmento || 'Servicos'}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    {company.rating && (
+                      <div className="flex items-center gap-1">
+                        <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                        <span className="text-sm font-medium text-gray-700">{company.rating}</span>
+                      </div>
+                    )}
+                    {company.cidade && (
+                      <span className="text-xs text-gray-500 flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        {company.cidade}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-primary-600 flex-shrink-0 transition-colors" />
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Quick Actions for Empresa */}
+      {user?.type === 'empresa' && (
+        <div className="grid sm:grid-cols-3 gap-4">
+          <Link
+            to="/my-services"
+            className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:border-primary-300 hover:shadow-md transition-all group"
+          >
+            <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-primary-200 transition-colors">
+              <Briefcase className="w-6 h-6 text-primary-600" />
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-1">Meus Servicos</h3>
+            <p className="text-sm text-gray-500">Gerencie seus servicos cadastrados</p>
+          </Link>
+
+          <Link
+            to="/deals"
+            className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:border-primary-300 hover:shadow-md transition-all group"
+          >
+            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-blue-200 transition-colors">
+              <MessageSquare className="w-6 h-6 text-blue-600" />
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-1">Negociacoes</h3>
+            <p className="text-sm text-gray-500">Veja e responda clientes</p>
+          </Link>
+
+          <Link
+            to="/ranking"
+            className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:border-primary-300 hover:shadow-md transition-all group"
+          >
+            <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-amber-200 transition-colors">
+              <Trophy className="w-6 h-6 text-amber-600" />
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-1">Ranking</h3>
+            <p className="text-sm text-gray-500">Veja sua posicao no ranking</p>
+          </Link>
+        </div>
+      )}
+
+      {/* Quick Actions for Admin */}
+      {user?.type === 'admin' && (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Link
+            to="/admin/users"
+            className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:border-primary-300 hover:shadow-md transition-all group"
+          >
+            <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-primary-200 transition-colors">
+              <Users className="w-6 h-6 text-primary-600" />
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-1">Usuarios</h3>
+            <p className="text-sm text-gray-500">Gerenciar usuarios</p>
+          </Link>
+
+          <Link
+            to="/admin/categories"
+            className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:border-primary-300 hover:shadow-md transition-all group"
+          >
+            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-blue-200 transition-colors">
+              <Briefcase className="w-6 h-6 text-blue-600" />
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-1">Categorias</h3>
+            <p className="text-sm text-gray-500">Gerenciar categorias</p>
+          </Link>
+
+          <Link
+            to="/admin/plans"
+            className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:border-primary-300 hover:shadow-md transition-all group"
+          >
+            <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-amber-200 transition-colors">
+              <Trophy className="w-6 h-6 text-amber-600" />
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-1">Planos</h3>
+            <p className="text-sm text-gray-500">Gerenciar planos</p>
+          </Link>
+
+          <Link
+            to="/admin/banners"
+            className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:border-primary-300 hover:shadow-md transition-all group"
+          >
+            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-green-200 transition-colors">
+              <Eye className="w-6 h-6 text-green-600" />
+            </div>
+            <h3 className="font-semibold text-gray-900 mb-1">Banners</h3>
+            <p className="text-sm text-gray-500">Gerenciar banners</p>
+          </Link>
+        </div>
+      )}
+    </div>
   )
 }

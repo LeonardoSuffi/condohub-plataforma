@@ -5,7 +5,6 @@ import { BrowserRouter } from 'react-router-dom'
 import authReducer from '../store/slices/authSlice'
 import servicesReducer from '../store/slices/servicesSlice'
 import dealsReducer from '../store/slices/dealsSlice'
-import ordersReducer from '../store/slices/ordersSlice'
 import notificationReducer from '../store/slices/notificationSlice'
 import subscriptionReducer from '../store/slices/subscriptionSlice'
 
@@ -18,7 +17,6 @@ export function renderWithProviders(
         auth: authReducer,
         services: servicesReducer,
         deals: dealsReducer,
-        orders: ordersReducer,
         notifications: notificationReducer,
         subscription: subscriptionReducer,
       },

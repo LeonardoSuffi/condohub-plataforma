@@ -1,100 +1,112 @@
 import { Outlet, Link } from 'react-router-dom'
+import { Shield, BarChart3, FileText, Sparkles } from 'lucide-react'
 
 export default function AuthLayout() {
   return (
-    <div className="min-h-screen bg-white flex">
+    <div className="min-h-screen bg-neutral-950 flex">
       {/* Sidebar - Hidden on mobile */}
-      <div className="hidden lg:flex lg:w-1/2 xl:w-2/5 bg-gray-900">
-        <div className="flex flex-col justify-between w-full p-10 xl:p-16">
+      <div className="hidden lg:flex lg:w-1/2 xl:w-2/5 relative overflow-hidden">
+        {/* Background Effects */}
+        <div className="absolute inset-0 bg-gradient-to-br from-neutral-900 via-primary-950/50 to-neutral-950" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-primary-500/10 rounded-full blur-[128px]" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-accent-violet/10 rounded-full blur-[128px]" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:48px_48px]" />
+
+        <div className="relative flex flex-col justify-between w-full p-10 xl:p-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
-              <svg className="w-5 h-5 text-gray-900" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
+          <Link to="/" className="flex items-center gap-3 group">
+            <div className="w-11 h-11 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center shadow-glow transition-all duration-300 group-hover:shadow-glow-lg group-hover:scale-105">
+              <span className="text-white font-bold text-xl">C</span>
             </div>
-            <span className="text-xl font-bold text-white">CondoHub</span>
+            <span className="text-xl font-bold text-white">
+              Condo<span className="text-primary-400">Hub</span>
+            </span>
           </Link>
 
           {/* Main content */}
           <div className="max-w-md">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary-500/10 border border-primary-500/20 mb-6">
+              <Sparkles className="w-3.5 h-3.5 text-primary-400" />
+              <span className="text-xs text-primary-400 font-medium">Plataforma Completa</span>
+            </div>
+
             <h1 className="text-4xl xl:text-5xl font-bold text-white leading-tight mb-6">
-              Seu marketplace condominial
+              Seu marketplace
+              <span className="block gradient-text">condominial</span>
             </h1>
-            <p className="text-lg text-gray-400 leading-relaxed">
-              Conectamos sindicos e administradoras aos melhores prestadores de servicos. Negocie com seguranca e transparencia.
+            <p className="text-lg text-neutral-400 leading-relaxed">
+              Conectamos clientes aos melhores prestadores de servicos. Negocie com seguranca e transparencia.
             </p>
 
             {/* Features */}
-            <div className="mt-10 space-y-6">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-lg bg-gray-800 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
+            <div className="mt-10 space-y-5">
+              <div className="flex items-start gap-4 group">
+                <div className="w-11 h-11 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary-500/10 group-hover:border-primary-500/30 transition-all duration-300">
+                  <Shield className="w-5 h-5 text-primary-400" />
                 </div>
                 <div>
                   <h3 className="text-white font-semibold">Negociacoes seguras</h3>
-                  <p className="text-gray-500 text-sm mt-1">Seus dados permanecem anonimos ate o fechamento</p>
+                  <p className="text-neutral-500 text-sm mt-1">Seus dados permanecem anonimos ate o fechamento</p>
                 </div>
               </div>
 
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-lg bg-gray-800 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
-                  </svg>
+              <div className="flex items-start gap-4 group">
+                <div className="w-11 h-11 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0 group-hover:bg-accent-cyan/10 group-hover:border-accent-cyan/30 transition-all duration-300">
+                  <BarChart3 className="w-5 h-5 text-accent-cyan" />
                 </div>
                 <div>
                   <h3 className="text-white font-semibold">Ranking de empresas</h3>
-                  <p className="text-gray-500 text-sm mt-1">Escolha baseado em avaliacoes reais</p>
+                  <p className="text-neutral-500 text-sm mt-1">Escolha baseado em avaliacoes reais</p>
                 </div>
               </div>
 
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-lg bg-gray-800 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z" />
-                  </svg>
+              <div className="flex items-start gap-4 group">
+                <div className="w-11 h-11 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0 group-hover:bg-accent-violet/10 group-hover:border-accent-violet/30 transition-all duration-300">
+                  <FileText className="w-5 h-5 text-accent-violet" />
                 </div>
                 <div>
                   <h3 className="text-white font-semibold">Gestao completa</h3>
-                  <p className="text-gray-500 text-sm mt-1">Ordens, contratos e pagamentos centralizados</p>
+                  <p className="text-neutral-500 text-sm mt-1">Ordens, contratos e pagamentos centralizados</p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Footer */}
-          <div className="text-sm text-gray-600">
-            2024 CondoHub. Todos os direitos reservados.
+          <div className="text-sm text-neutral-600">
+            {new Date().getFullYear()} CondoHub. Todos os direitos reservados.
           </div>
         </div>
       </div>
 
       {/* Main Form Area */}
-      <div className="flex-1 flex items-center justify-center p-6 lg:p-10">
-        <div className="w-full max-w-md">
+      <div className="flex-1 flex items-center justify-center p-6 lg:p-10 relative">
+        {/* Subtle background effect for form side */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary-950/20 via-transparent to-transparent" />
+
+        <div className="relative w-full max-w-md">
           {/* Mobile Logo */}
-          <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
-            <div className="w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
+          <div className="lg:hidden flex items-center justify-center gap-3 mb-10">
+            <div className="w-11 h-11 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center shadow-glow">
+              <span className="text-white font-bold text-xl">C</span>
             </div>
-            <span className="text-xl font-bold text-gray-900">CondoHub</span>
+            <span className="text-xl font-bold text-white">
+              Condo<span className="text-primary-400">Hub</span>
+            </span>
           </div>
 
           {/* Form content */}
-          <Outlet />
+          <div className="glass rounded-2xl border border-white/10 p-8">
+            <Outlet />
+          </div>
 
           {/* Footer */}
-          <div className="mt-8 pt-6 border-t border-gray-100 text-center">
-            <p className="text-sm text-gray-500">
+          <div className="mt-6 text-center">
+            <p className="text-sm text-neutral-500">
               Ao continuar, voce concorda com nossos{' '}
-              <a href="#" className="text-gray-700 hover:text-gray-900 transition-colors">Termos</a>
+              <Link to="/terms" className="text-neutral-400 hover:text-primary-400 transition-colors">Termos</Link>
               {' '}e{' '}
-              <a href="#" className="text-gray-700 hover:text-gray-900 transition-colors">Privacidade</a>
+              <Link to="/privacy" className="text-neutral-400 hover:text-primary-400 transition-colors">Privacidade</Link>
             </p>
           </div>
         </div>

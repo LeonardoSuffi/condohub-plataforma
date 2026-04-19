@@ -271,4 +271,70 @@ class UserController extends Controller
 
         return $this->success(null, 'Logo removida com sucesso');
     }
+
+    /**
+     * Upload de imagem de capa
+     */
+    public function uploadCover(Request $request)
+    {
+        $request->validate([
+            'cover' => 'required|image|mimes:jpeg,png,jpg,webp|max:5120',
+        ]);
+
+        $user = $request->user();
+        $profile = null;
+
+        if ($user->isEmpresa() && $user->companyProfile) {
+            $profile = $user->companyProfile;
+        } elseif ($user->isCliente() && $user->clientProfile) {
+            $profile = $user->clientProfile;
+        }
+
+        if (!$profile) {
+            return $this->error('Perfil nao encontrado', 404);
+        }
+
+        // Remove capa antiga se existir
+        if ($profile->cover_path) {
+            Storage::disk('public')->delete($profile->cover_path);
+        }
+
+        // Salva nova capa
+        $folder = $user->isEmpresa() ? 'covers/empresas' : 'covers/clientes';
+        $path = $request->file('cover')->store($folder, 'public');
+        $profile->cover_path = $path;
+        $profile->save();
+
+        return $this->success([
+            'cover_path' => $path,
+            'cover_url' => Storage::url($path),
+        ], 'Capa atualizada com sucesso');
+    }
+
+    /**
+     * Remove imagem de capa
+     */
+    public function removeCover(Request $request)
+    {
+        $user = $request->user();
+        $profile = null;
+
+        if ($user->isEmpresa() && $user->companyProfile) {
+            $profile = $user->companyProfile;
+        } elseif ($user->isCliente() && $user->clientProfile) {
+            $profile = $user->clientProfile;
+        }
+
+        if (!$profile) {
+            return $this->error('Perfil nao encontrado', 404);
+        }
+
+        if ($profile->cover_path) {
+            Storage::disk('public')->delete($profile->cover_path);
+            $profile->cover_path = null;
+            $profile->save();
+        }
+
+        return $this->success(null, 'Capa removida com sucesso');
+    }
 }

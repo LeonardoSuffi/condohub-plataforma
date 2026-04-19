@@ -19,6 +19,16 @@ use Illuminate\Validation\ValidationException;
 class AuthController extends Controller
 {
     /**
+     * Maximum failed login attempts before blocking
+     */
+    const MAX_FAILED_ATTEMPTS = 5;
+
+    /**
+     * Minutes to block after max failed attempts
+     */
+    const BLOCK_DURATION_MINUTES = 30;
+
+    /**
      * Cadastro de empresa
      */
     public function registerEmpresa(RegisterEmpresaRequest $request)
@@ -55,8 +65,16 @@ class AuthController extends Controller
             ]);
         }
 
-        // Gera token de acesso
-        $token = $user->createToken('auth-token')->plainTextToken;
+        // Generate session ID and token
+        $sessionId = $this->generateSessionId();
+        $user->update([
+            'current_session_id' => $sessionId,
+            'last_login_at' => now(),
+            'last_login_ip' => $request->ip(),
+            'last_login_device' => $request->userAgent(),
+        ]);
+
+        $token = $user->createToken($sessionId)->plainTextToken;
 
         return $this->success([
             'user' => $user->load('companyProfile'),
@@ -89,8 +107,16 @@ class AuthController extends Controller
             'nome_condominio' => $validated['nome_condominio'] ?? null,
         ]);
 
-        // Gera token de acesso
-        $token = $user->createToken('auth-token')->plainTextToken;
+        // Generate session ID and token
+        $sessionId = $this->generateSessionId();
+        $user->update([
+            'current_session_id' => $sessionId,
+            'last_login_at' => now(),
+            'last_login_ip' => $request->ip(),
+            'last_login_device' => $request->userAgent(),
+        ]);
+
+        $token = $user->createToken($sessionId)->plainTextToken;
 
         return $this->success([
             'user' => $user->load('clientProfile'),
@@ -107,16 +133,61 @@ class AuthController extends Controller
 
         $user = User::where('email', $validated['email'])->first();
 
-        if (!$user || !Hash::check($validated['password'], $user->password)) {
+        // Check if user exists
+        if (!$user) {
             throw ValidationException::withMessages([
                 'email' => ['Credenciais inválidas.'],
             ]);
         }
 
-        // Revoga tokens anteriores (opcional)
-        // $user->tokens()->delete();
+        // Check if user is permanently blocked
+        if ($user->is_blocked) {
+            throw ValidationException::withMessages([
+                'email' => ['Sua conta foi bloqueada. Motivo: ' . ($user->blocked_reason ?? 'Entre em contato com o suporte.')],
+            ]);
+        }
 
-        $token = $user->createToken('auth-token')->plainTextToken;
+        // Check if user is temporarily blocked due to failed attempts
+        if ($this->isTemporarilyBlocked($user)) {
+            $minutesRemaining = now()->diffInMinutes($user->last_failed_login_at->addMinutes(self::BLOCK_DURATION_MINUTES));
+            throw ValidationException::withMessages([
+                'email' => ["Muitas tentativas de login. Tente novamente em {$minutesRemaining} minutos."],
+            ]);
+        }
+
+        // Validate password
+        if (!Hash::check($validated['password'], $user->password)) {
+            $this->recordFailedAttempt($user);
+
+            $remainingAttempts = self::MAX_FAILED_ATTEMPTS - $user->failed_login_attempts;
+            $message = $remainingAttempts > 0
+                ? "Credenciais inválidas. Tentativas restantes: {$remainingAttempts}"
+                : 'Muitas tentativas de login. Tente novamente em ' . self::BLOCK_DURATION_MINUTES . ' minutos.';
+
+            throw ValidationException::withMessages([
+                'email' => [$message],
+            ]);
+        }
+
+        // Successful login - reset failed attempts
+        $this->resetFailedAttempts($user);
+
+        // Generate new session ID (invalidates any previous sessions)
+        $sessionId = $this->generateSessionId();
+
+        // Revoke all previous tokens for this user (single session enforcement)
+        $user->tokens()->delete();
+
+        // Update login info
+        $user->update([
+            'current_session_id' => $sessionId,
+            'last_login_at' => now(),
+            'last_login_ip' => $request->ip(),
+            'last_login_device' => $request->userAgent(),
+        ]);
+
+        // Create new token with session ID as name
+        $token = $user->createToken($sessionId)->plainTextToken;
 
         // Carrega o perfil apropriado
         if ($user->isEmpresa()) {
@@ -136,14 +207,53 @@ class AuthController extends Controller
      */
     public function logout(Request $request)
     {
-        $token = $request->user()->currentAccessToken();
+        $user = $request->user();
+        $token = $user->currentAccessToken();
 
-        // Only delete if it's a real token (not TransientToken from actingAs in tests)
+        // Clear session ID
+        $user->update([
+            'current_session_id' => null,
+        ]);
+
+        // Delete current token
         if ($token && method_exists($token, 'delete')) {
             $token->delete();
         }
 
         return $this->success(null, 'Logout realizado com sucesso');
+    }
+
+    /**
+     * Logout from all devices
+     */
+    public function logoutAll(Request $request)
+    {
+        $user = $request->user();
+
+        // Clear session ID
+        $user->update([
+            'current_session_id' => null,
+        ]);
+
+        // Delete all tokens
+        $user->tokens()->delete();
+
+        return $this->success(null, 'Logout realizado em todos os dispositivos');
+    }
+
+    /**
+     * Get current session info
+     */
+    public function sessionInfo(Request $request)
+    {
+        $user = $request->user();
+
+        return $this->success([
+            'last_login_at' => $user->last_login_at,
+            'last_login_ip' => $user->last_login_ip,
+            'last_login_device' => $user->last_login_device,
+            'current_session_id' => $user->current_session_id,
+        ]);
     }
 
     /**
@@ -185,7 +295,12 @@ class AuthController extends Controller
                 $user->forceFill([
                     'password' => Hash::make($password),
                     'remember_token' => Str::random(60),
+                    // Clear session on password reset
+                    'current_session_id' => null,
                 ])->save();
+
+                // Revoke all tokens
+                $user->tokens()->delete();
             }
         );
 
@@ -196,5 +311,52 @@ class AuthController extends Controller
         }
 
         return $this->success(null, 'Senha redefinida com sucesso');
+    }
+
+    /**
+     * Generate a unique session ID
+     */
+    private function generateSessionId(): string
+    {
+        return Str::uuid()->toString();
+    }
+
+    /**
+     * Check if user is temporarily blocked due to failed attempts
+     */
+    private function isTemporarilyBlocked(User $user): bool
+    {
+        if ($user->failed_login_attempts < self::MAX_FAILED_ATTEMPTS) {
+            return false;
+        }
+
+        if (!$user->last_failed_login_at) {
+            return false;
+        }
+
+        // Check if block duration has passed
+        return $user->last_failed_login_at->addMinutes(self::BLOCK_DURATION_MINUTES)->isFuture();
+    }
+
+    /**
+     * Record a failed login attempt
+     */
+    private function recordFailedAttempt(User $user): void
+    {
+        $user->update([
+            'failed_login_attempts' => $user->failed_login_attempts + 1,
+            'last_failed_login_at' => now(),
+        ]);
+    }
+
+    /**
+     * Reset failed login attempts after successful login
+     */
+    private function resetFailedAttempts(User $user): void
+    {
+        $user->update([
+            'failed_login_attempts' => 0,
+            'last_failed_login_at' => null,
+        ]);
     }
 }

@@ -2,6 +2,12 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchDealDetail, fetchMessages, sendMessage, updateDealStatus, clearCurrentDeal } from '../../store/slices/dealsSlice'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Send, ArrowLeft, AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function ChatView() {
@@ -111,10 +117,11 @@ export default function ChatView() {
   // Loading state
   if (loadingDetail && !currentDeal) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin mx-auto" />
-          <p className="mt-3 text-gray-500 text-sm">Carregando conversa...</p>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="h-[calc(100vh-14rem)] flex flex-col gap-4">
+          <Skeleton className="h-24 w-full rounded-lg" />
+          <Skeleton className="flex-1 w-full rounded-lg" />
+          <Skeleton className="h-14 w-full rounded-lg" />
         </div>
       </div>
     )
@@ -123,158 +130,179 @@ export default function ChatView() {
   // Not found state
   if (!loadingDetail && !currentDeal) {
     return (
-      <div className="text-center py-12">
-        <p className="text-gray-500">Negociacao nao encontrada</p>
-        <button
-          onClick={() => navigate('/deals')}
-          className="mt-4 text-gray-900 hover:underline"
-        >
-          Voltar para negociacoes
-        </button>
-      </div>
+      <Card className="max-w-md mx-auto mt-8 mx-4">
+        <CardContent className="p-8 text-center">
+          <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground mb-4">Negociacao nao encontrada</p>
+          <Button variant="outline" onClick={() => navigate('/deals')}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Voltar para negociacoes
+          </Button>
+        </CardContent>
+      </Card>
     )
   }
 
+  const getStatusBadge = () => {
+    const variants = {
+      aberto: { label: 'Aberto', variant: 'secondary' },
+      negociando: { label: 'Em Negociacao', variant: 'warning' },
+      aceito: { label: 'Aceito', variant: 'success' },
+      concluido: { label: 'Concluido', variant: 'success' },
+      rejeitado: { label: 'Rejeitado', variant: 'destructive' },
+    }
+    return variants[dealStatus] || { label: dealStatus, variant: 'secondary' }
+  }
+
+  const statusBadge = getStatusBadge()
+
   return (
-    <div className="h-[calc(100vh-12rem)] flex flex-col">
-      {/* Header */}
-      <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
-        <div className="flex justify-between items-center">
-          <div className="min-w-0 flex-1">
-            <h1 className="text-xl font-bold text-gray-900 truncate">
-              {currentDeal?.service?.title || 'Negociacao'}
-            </h1>
-            <p className="text-gray-500 text-sm mt-0.5">
-              {user?.type === 'empresa' ? (
-                <>Com: {isAnonymous ? currentDeal?.anon_handle_b : (currentDeal?.client?.user?.name || 'Cliente')}</>
-              ) : (
-                <>Com: {isAnonymous ? currentDeal?.anon_handle_a : (currentDeal?.company?.nome_fantasia || 'Empresa')}</>
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="h-[calc(100vh-14rem)] flex flex-col">
+        {/* Header */}
+        <Card className="mb-4">
+        <CardContent className="p-4">
+          <div className="flex justify-between items-center">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl font-bold text-foreground truncate">
+                {currentDeal?.service?.title || 'Negociacao'}
+              </h1>
+              <p className="text-muted-foreground text-sm mt-0.5">
+                {user?.type === 'empresa' ? (
+                  <>Com: {isAnonymous ? currentDeal?.anon_handle_b : (currentDeal?.client?.user?.name || 'Cliente')}</>
+                ) : (
+                  <>Com: {isAnonymous ? currentDeal?.anon_handle_a : (currentDeal?.company?.nome_fantasia || 'Empresa')}</>
+                )}
+              </p>
+            </div>
+            <div className="flex items-center gap-3 ml-4">
+              <Badge variant={
+                dealStatus === 'aceito' || dealStatus === 'concluido' ? 'default' :
+                dealStatus === 'negociando' ? 'secondary' :
+                dealStatus === 'rejeitado' ? 'destructive' : 'outline'
+              }>
+                {statusBadge.label}
+              </Badge>
+              {canAcceptReject && (
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => handleStatusChange('aceito')}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    Aceitar
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => handleStatusChange('rejeitado')}
+                  >
+                    Rejeitar
+                  </Button>
+                </div>
               )}
-            </p>
+            </div>
           </div>
-          <div className="flex items-center gap-3 ml-4">
-            <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
-              dealStatus === 'aceito' || dealStatus === 'concluido'
-                ? 'bg-green-100 text-green-700'
-                : dealStatus === 'negociando'
-                ? 'bg-yellow-100 text-yellow-700'
-                : dealStatus === 'rejeitado'
-                ? 'bg-red-100 text-red-700'
-                : 'bg-blue-100 text-blue-700'
-            }`}>
-              {dealStatus === 'aberto' && 'Aberto'}
-              {dealStatus === 'negociando' && 'Em Negociacao'}
-              {dealStatus === 'aceito' && 'Aceito'}
-              {dealStatus === 'concluido' && 'Concluido'}
-              {dealStatus === 'rejeitado' && 'Rejeitado'}
-            </span>
-            {canAcceptReject && (
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleStatusChange('aceito')}
-                  className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  Aceitar
-                </button>
-                <button
-                  onClick={() => handleStatusChange('rejeitado')}
-                  className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  Rejeitar
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
 
-        {isAnonymous && (
-          <div className="mt-3 p-3 bg-amber-50 border border-amber-100 rounded-lg text-amber-800 text-sm">
-            Esta conversa e anonima. Os dados de contato serao liberados apos a empresa aceitar a negociacao.
-          </div>
-        )}
+          {isAnonymous && (
+            <div className="mt-3 p-3 bg-amber-50 border border-amber-100 rounded-lg text-amber-800 text-sm flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              Esta conversa e anonima. Os dados de contato serao liberados apos a empresa aceitar a negociacao.
+            </div>
+          )}
 
-        {!isAnonymous && dealStatus === 'aceito' && (
-          <div className="mt-3 p-3 bg-green-50 border border-green-100 rounded-lg text-green-800 text-sm">
-            Negociacao aceita! Agora voces podem trocar dados de contato diretamente.
-          </div>
-        )}
-      </div>
+          {!isAnonymous && dealStatus === 'aceito' && (
+            <div className="mt-3 p-3 bg-green-50 border border-green-100 rounded-lg text-green-800 text-sm flex items-start gap-2">
+              <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              Negociacao aceita! Agora voces podem trocar dados de contato diretamente.
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Messages */}
-      <div className="flex-1 bg-white border border-gray-200 rounded-lg overflow-y-auto mb-4 p-4">
-        <div className="space-y-3">
-          {messages.length === 0 ? (
-            <div className="text-center py-8 text-gray-500 text-sm">
-              Nenhuma mensagem ainda. Comece a conversa!
-            </div>
-          ) : (
-            messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.is_mine ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${
-                    message.is_system
-                      ? 'bg-gray-100 text-gray-600 text-center w-full text-sm rounded-lg'
-                      : message.is_mine
-                      ? 'bg-gray-900 text-white'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}
-                >
-                  {!message.is_system && !message.is_mine && (
-                    <p className="text-xs font-medium mb-1 text-gray-500">
-                      {message.sender_name}
-                    </p>
-                  )}
-                  <p className="break-words">{message.content}</p>
-                  <p className={`text-xs mt-1 ${
-                    message.is_mine ? 'text-gray-400' : 'text-gray-400'
-                  }`}>
-                    {new Date(message.created_at).toLocaleTimeString('pt-BR', {
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </p>
-                </div>
+      <Card className="flex-1 overflow-hidden mb-4">
+        <CardContent className="p-4 h-full overflow-y-auto">
+          <div className="space-y-3">
+            {messages.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">
+                Nenhuma mensagem ainda. Comece a conversa!
               </div>
-            ))
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-      </div>
+            ) : (
+              messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex ${message.is_mine ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${
+                      message.is_system
+                        ? 'bg-muted text-muted-foreground text-center w-full text-sm rounded-lg'
+                        : message.is_mine
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-foreground'
+                    }`}
+                  >
+                    {!message.is_system && !message.is_mine && (
+                      <p className="text-xs font-medium mb-1 opacity-70">
+                        {message.sender_name}
+                      </p>
+                    )}
+                    <p className="break-words">{message.content}</p>
+                    <p className={`text-xs mt-1 ${
+                      message.is_mine ? 'opacity-70' : 'opacity-50'
+                    }`}>
+                      {new Date(message.created_at).toLocaleTimeString('pt-BR', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Input */}
       {canSendMessages ? (
         <form onSubmit={handleSendMessage} className="flex gap-3">
-          <input
+          <Input
             type="text"
-            className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-gray-400 transition-colors"
+            className="flex-1 h-12"
             placeholder="Digite sua mensagem..."
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             disabled={sending}
             maxLength={1000}
           />
-          <button
+          <Button
             type="submit"
             disabled={!newMessage.trim() || sending}
-            className="px-6 py-3 bg-gray-900 text-white font-medium rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-12 px-6"
           >
             {sending ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
-              'Enviar'
+              <>
+                <Send className="w-4 h-4 mr-2" />
+                Enviar
+              </>
             )}
-          </button>
+          </Button>
         </form>
       ) : (
-        <div className="text-center text-gray-500 py-4 bg-gray-50 rounded-lg text-sm">
-          {dealStatus === 'aceito' && 'Negociacao aceita. Continue a conversa por outros meios.'}
-          {dealStatus === 'concluido' && 'Esta negociacao foi concluida.'}
-          {dealStatus === 'rejeitado' && 'Esta negociacao foi encerrada.'}
-        </div>
+        <Card className="bg-muted">
+          <CardContent className="p-4 text-center text-muted-foreground text-sm">
+            {dealStatus === 'aceito' && 'Negociacao aceita. Continue a conversa por outros meios.'}
+            {dealStatus === 'concluido' && 'Esta negociacao foi concluida.'}
+            {dealStatus === 'rejeitado' && 'Esta negociacao foi encerrada.'}
+          </CardContent>
+        </Card>
       )}
+      </div>
     </div>
   )
 }

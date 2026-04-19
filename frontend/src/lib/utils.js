@@ -83,3 +83,42 @@ export function getInitials(name) {
 export function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
+
+/**
+ * Get full URL for storage assets
+ * @param {string} path - Storage path
+ * @returns {string|null} Full URL or null
+ */
+export function getStorageUrl(path) {
+  if (!path) return null
+  if (path.startsWith('http')) return path
+  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+  const cleanPath = path.startsWith('/') ? path : `/${path}`
+  return `${baseUrl}/storage${cleanPath.replace('/storage', '')}`
+}
+
+/**
+ * Get cover image URL from service
+ * @param {object} service - Service object
+ * @returns {string|null} Cover image URL
+ */
+export function getServiceCoverImage(service) {
+  if (!service) return null
+  if (service.cover_image) return getStorageUrl(service.cover_image)
+  if (service.images?.length > 0) {
+    const cover = service.images.find(img => img.is_cover) || service.images[0]
+    return cover?.url ? getStorageUrl(cover.url) : null
+  }
+  return null
+}
+
+/**
+ * Status configurations for deals
+ */
+export const dealStatusConfig = {
+  aberto: { label: 'Aberto', color: 'bg-blue-100 text-blue-700' },
+  negociando: { label: 'Em Negociacao', color: 'bg-yellow-100 text-yellow-700' },
+  aceito: { label: 'Aceito', color: 'bg-green-100 text-green-700' },
+  concluido: { label: 'Concluido', color: 'bg-emerald-100 text-emerald-700' },
+  rejeitado: { label: 'Rejeitado', color: 'bg-red-100 text-red-700' },
+}

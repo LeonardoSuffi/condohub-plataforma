@@ -4,14 +4,34 @@ import toast from 'react-hot-toast'
 const api = axios.create({
   baseURL: '/api',
   headers: {
-    'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
   timeout: 30000, // 30 second timeout
+  withCredentials: true, // Importante para CSRF cookies
 })
 
 // Flag to prevent multiple 401 redirects
 let isRedirecting = false
+
+// Track last API activity for session management
+const SESSION_STORAGE_KEY = 'last_api_activity'
+
+const updateLastActivity = () => {
+  try {
+    sessionStorage.setItem(SESSION_STORAGE_KEY, Date.now().toString())
+  } catch (e) {
+    // Ignore sessionStorage errors (private browsing, etc)
+  }
+}
+
+export const getLastApiActivity = () => {
+  try {
+    const timestamp = sessionStorage.getItem(SESSION_STORAGE_KEY)
+    return timestamp ? parseInt(timestamp, 10) : Date.now()
+  } catch (e) {
+    return Date.now()
+  }
+}
 
 // Request Interceptor
 api.interceptors.request.use(
@@ -20,6 +40,16 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+
+    // For FormData uploads, let axios set the Content-Type automatically (multipart/form-data with boundary)
+    // For other requests, explicitly set JSON content type
+    if (!(config.data instanceof FormData)) {
+      config.headers['Content-Type'] = 'application/json'
+    }
+
+    // Update last activity timestamp
+    updateLastActivity()
+
     return config
   },
   (error) => {
@@ -59,9 +89,14 @@ api.interceptors.response.use(
         // Clear token from localStorage
         localStorage.removeItem('token')
 
-        // Show toast only if we were previously authenticated
+        // Show appropriate message based on error code
         if (hadToken) {
-          toast.error('Sessao expirada. Faca login novamente.')
+          const errorCode = data?.code
+          if (errorCode === 'SESSION_EXPIRED') {
+            toast.error('Sua sessao foi encerrada. Outro login foi detectado.')
+          } else {
+            toast.error('Sessao expirada. Faca login novamente.')
+          }
         }
 
         // Reload the page to reset app state
@@ -78,9 +113,19 @@ api.interceptors.response.use(
       return Promise.reject(error)
     }
 
-    // Handle 403 - Forbidden
+    // Handle 403 - Forbidden (Account Blocked)
     if (status === 403) {
-      toast.error(message || 'Voce nao tem permissao para esta acao.')
+      const errorCode = data?.code
+      if (errorCode === 'ACCOUNT_BLOCKED') {
+        // Clear token and redirect
+        localStorage.removeItem('token')
+        toast.error(message || 'Sua conta foi bloqueada. Entre em contato com o suporte.')
+        setTimeout(() => {
+          window.location.href = '/login'
+        }, 100)
+      } else {
+        toast.error(message || 'Voce nao tem permissao para esta acao.')
+      }
       return Promise.reject(error)
     }
 

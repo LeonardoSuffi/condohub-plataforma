@@ -18,11 +18,29 @@ class User extends Authenticatable
         'password',
         'type',
         'foto_path',
+        // Security fields
+        'current_session_id',
+        'last_login_at',
+        'last_login_ip',
+        'last_login_device',
+        'is_blocked',
+        'blocked_at',
+        'blocked_reason',
+        'failed_login_attempts',
+        'last_failed_login_at',
+        // 2FA and LGPD
+        'two_factor_enabled',
+        'gdpr_consent_at',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'current_session_id',
+        'last_login_ip',
+        'last_login_device',
+        'failed_login_attempts',
+        'last_failed_login_at',
     ];
 
     protected function casts(): array
@@ -30,6 +48,13 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'last_login_at' => 'datetime',
+            'blocked_at' => 'datetime',
+            'last_failed_login_at' => 'datetime',
+            'is_blocked' => 'boolean',
+            'failed_login_attempts' => 'integer',
+            'two_factor_enabled' => 'boolean',
+            'gdpr_consent_at' => 'datetime',
         ];
     }
 
@@ -72,6 +97,21 @@ class User extends Authenticatable
     public function messages()
     {
         return $this->hasMany(Message::class, 'sender_id');
+    }
+
+    public function sessions()
+    {
+        return $this->hasMany(UserSession::class);
+    }
+
+    public function activityLogs()
+    {
+        return $this->hasMany(ActivityLog::class);
+    }
+
+    public function twoFactorAuth()
+    {
+        return $this->hasOne(TwoFactorAuth::class);
     }
 
     // ==========================================

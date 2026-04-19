@@ -10,6 +10,8 @@ class Service extends Model
 {
     use HasFactory, SoftDeletes;
 
+    protected $appends = ['cover_image'];
+
     protected $fillable = [
         'company_id',
         'category_id',
@@ -51,6 +53,16 @@ class Service extends Model
     public function deals()
     {
         return $this->hasMany(Deal::class);
+    }
+
+    public function images()
+    {
+        return $this->hasMany(ServiceImage::class)->ordered();
+    }
+
+    public function coverImage()
+    {
+        return $this->hasOne(ServiceImage::class)->where('is_cover', true);
     }
 
     // ==========================================
@@ -107,5 +119,11 @@ class Service extends Model
             'min' => (float) ($parts[0] ?? 0),
             'max' => (float) ($parts[1] ?? $parts[0] ?? 0),
         ];
+    }
+
+    public function getCoverImageAttribute(): ?string
+    {
+        $cover = $this->coverImage()->first();
+        return $cover?->url;
     }
 }

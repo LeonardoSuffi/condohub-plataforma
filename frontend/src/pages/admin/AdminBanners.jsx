@@ -46,14 +46,11 @@ export default function AdminBanners() {
       }
 
       if (editingBanner) {
-        await api.post(`/admin/banners/${editingBanner.id}?_method=PUT`, data, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        })
+        // Don't set Content-Type header - axios will set it automatically with correct boundary
+        await api.post(`/admin/banners/${editingBanner.id}?_method=PUT`, data)
         toast.success('Banner atualizado!')
       } else {
-        await api.post('/admin/banners', data, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        })
+        await api.post('/admin/banners', data)
         toast.success('Banner criado!')
       }
       closeModal()
@@ -108,7 +105,7 @@ export default function AdminBanners() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Gerenciar Banners</h1>
         <button onClick={() => openModal()} className="btn-primary">

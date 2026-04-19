@@ -14,6 +14,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Middlewares globais de segurança (verificação de ambiente feita internamente)
+        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
+        $middleware->append(\App\Http\Middleware\ForceHttps::class);
+
         $middleware->api(prepend: [
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
         ]);
@@ -23,6 +27,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'isEmpresa' => \App\Http\Middleware\IsEmpresa::class,
             'isCliente' => \App\Http\Middleware\IsCliente::class,
             'hasActivePlan' => \App\Http\Middleware\HasActivePlan::class,
+            'validateSession' => \App\Http\Middleware\ValidateSession::class,
+            'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         ]);
 
         // For API requests, return 401 JSON instead of redirecting to login

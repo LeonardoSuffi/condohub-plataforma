@@ -13,8 +13,10 @@ return [
 
     'paths' => ['api/*', 'sanctum/csrf-cookie'],
 
-    'allowed_methods' => ['*'],
+    // Métodos HTTP permitidos
+    'allowed_methods' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 
+    // Origens permitidas
     'allowed_origins' => [
         env('FRONTEND_URL', 'http://localhost:3000'),
         'http://localhost:3000',
@@ -23,11 +25,25 @@ return [
 
     'allowed_origins_patterns' => [],
 
-    'allowed_headers' => ['*'],
+    // Headers permitidos
+    'allowed_headers' => [
+        'Accept',
+        'Authorization',
+        'Content-Type',
+        'X-Requested-With',
+        'X-CSRF-TOKEN',
+        'X-XSRF-TOKEN',
+    ],
 
-    'exposed_headers' => [],
+    // Headers expostos ao JavaScript
+    'exposed_headers' => [
+        'X-RateLimit-Limit',
+        'X-RateLimit-Remaining',
+        'Retry-After',
+    ],
 
-    'max_age' => 0,
+    // Cache do preflight
+    'max_age' => 86400,
 
     'supports_credentials' => true,
 

@@ -18,3 +18,8 @@ export * from './table'
 export * from './tabs'
 export * from './textarea'
 export * from './tooltip'
+
+// Custom Modern UI Components
+export * from './glass-card'
+export * from './gradient-button'
+export * from './service-card-modern'

@@ -49,7 +49,7 @@ describe('Login Page', () => {
   it('renders registration links', () => {
     renderWithProviders(<Login />)
 
-    expect(screen.getByRole('link', { name: /sou sindico/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /sou cliente/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /sou empresa/i })).toBeInTheDocument()
   })
 
@@ -128,10 +128,10 @@ describe('Login Page', () => {
   it('registration links have correct href', () => {
     renderWithProviders(<Login />)
 
-    const sindicoLink = screen.getByRole('link', { name: /sou sindico/i })
+    const clienteLink = screen.getByRole('link', { name: /sou cliente/i })
     const empresaLink = screen.getByRole('link', { name: /sou empresa/i })
 
-    expect(sindicoLink).toHaveAttribute('href', '/register/cliente')
+    expect(clienteLink).toHaveAttribute('href', '/register/cliente')
     expect(empresaLink).toHaveAttribute('href', '/register/empresa')
   })
 

@@ -5,10 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 
 class ClientProfile extends Model
 {
     use HasFactory, SoftDeletes;
+
+    protected $appends = ['cover_url'];
 
     protected $fillable = [
         'user_id',
@@ -22,6 +25,7 @@ class ClientProfile extends Model
         'estado',
         'cep',
         'num_unidades',
+        'cover_path',
         'preferences',
     ];
 
@@ -47,6 +51,16 @@ class ClientProfile extends Model
         return $this->hasMany(Deal::class, 'client_id');
     }
 
+    public function reviewsGiven()
+    {
+        return $this->hasMany(Review::class, 'client_id');
+    }
+
+    public function socialLinks()
+    {
+        return $this->morphMany(SocialLink::class, 'profile');
+    }
+
     // ==========================================
     // HELPERS
     // ==========================================
@@ -69,5 +83,13 @@ class ClientProfile extends Model
     public function isCondominio(): bool
     {
         return $this->tipo === 'condominio';
+    }
+
+    public function getCoverUrlAttribute(): ?string
+    {
+        if ($this->cover_path) {
+            return Storage::url($this->cover_path);
+        }
+        return null;
     }
 }

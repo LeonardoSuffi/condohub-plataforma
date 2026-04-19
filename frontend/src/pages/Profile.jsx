@@ -1,23 +1,64 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { Link } from 'react-router-dom'
-import { fetchCurrentUser, updateProfile, clearError } from '../store/slices/authSlice'
+import { fetchCurrentUser, updateProfile, clearError, setUser } from '../store/slices/authSlice'
 import PlanSelectionModal from '../components/PlanSelectionModal'
+import { GlassCard, GlassStatCard } from '../components/ui/glass-card'
+import { StarRatingDisplay, ReviewCard, ReviewStats } from '../components/reviews'
+import { PortfolioGallery, PortfolioUpload } from '../components/portfolio'
+import { MetricCard } from '../components/metrics'
+import { SocialLinksDisplay } from '../components/integrations'
+import { Button } from '../components/ui/button'
+import { Badge } from '../components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import api from '../services/api'
 import toast from 'react-hot-toast'
+import {
+  Camera,
+  MapPin,
+  Calendar,
+  Mail,
+  Phone,
+  Globe,
+  Building2,
+  Briefcase,
+  Star,
+  MessageSquare,
+  ShoppingCart,
+  TrendingUp,
+  Edit3,
+  Check,
+  X,
+  Shield,
+  Award,
+  Users,
+  FileText,
+  ExternalLink,
+  Image,
+  BarChart3,
+  Plus,
+  Loader2,
+} from 'lucide-react'
 
 export default function Profile() {
   const dispatch = useDispatch()
   const { user, loading, error } = useSelector((state) => state.auth)
+  const [activeTab, setActiveTab] = useState('sobre')
   const [isEditing, setIsEditing] = useState(false)
   const [showPlanModal, setShowPlanModal] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [uploadingCover, setUploadingCover] = useState(false)
   const [stats, setStats] = useState(null)
   const [recentDeals, setRecentDeals] = useState([])
+  const [services, setServices] = useState([])
+  const [portfolio, setPortfolio] = useState([])
+  const [reviews, setReviews] = useState({ data: [], stats: {} })
   const [loadingStats, setLoadingStats] = useState(true)
+  const [uploadingPortfolio, setUploadingPortfolio] = useState(false)
   const photoInputRef = useRef(null)
   const logoInputRef = useRef(null)
+  const coverInputRef = useRef(null)
 
   const [formData, setFormData] = useState({
     name: '',
@@ -30,6 +71,7 @@ export default function Profile() {
     estado: '',
     cep: '',
     descricao: '',
+    website: '',
     nome_condominio: '',
     endereco_condominio: '',
     num_unidades: '',
@@ -55,6 +97,7 @@ export default function Profile() {
         data.estado = user.company_profile.estado || ''
         data.cep = user.company_profile.cep || ''
         data.descricao = user.company_profile.descricao || ''
+        data.website = user.company_profile.website || ''
       } else if (user.type === 'cliente' && user.client_profile) {
         data.telefone = user.client_profile.telefone || ''
         data.nome_condominio = user.client_profile.nome_condominio || ''
@@ -79,38 +122,64 @@ export default function Profile() {
   const loadProfileData = async () => {
     setLoadingStats(true)
     try {
-      const [dealsRes, ordersRes] = await Promise.all([
+      const requests = [
         api.get('/deals', { params: { per_page: 100 } }),
-        api.get('/orders', { params: { per_page: 100 } }),
-      ])
+      ]
+
+      // Empresa: carregar servicos, portfolio e avaliacoes
+      if (user?.type === 'empresa') {
+        requests.push(
+          api.get('/my-services').catch(() => ({ data: { data: [] } })),
+          api.get('/portfolio').catch(() => ({ data: { data: [] } })),
+          api.get('/reviews/received').catch(() => ({ data: { data: [], stats: {} } }))
+        )
+      }
+
+      // Cliente: carregar avaliacoes dadas
+      if (user?.type === 'cliente') {
+        requests.push(
+          api.get('/reviews/given').catch(() => ({ data: { data: [] } }))
+        )
+      }
+
+      const responses = await Promise.all(requests)
+      const [dealsRes, ...rest] = responses
 
       const deals = dealsRes.data?.data || []
-      const orders = ordersRes.data?.data || []
 
-      // Calculate stats
       const totalDeals = deals.length
       const dealsAbertos = deals.filter(d => d.status === 'aberto').length
       const dealsNegociando = deals.filter(d => d.status === 'negociando').length
       const dealsAceitos = deals.filter(d => d.status === 'aceito' || d.status === 'concluido').length
-      const dealsRejeitados = deals.filter(d => d.status === 'rejeitado').length
-
-      const totalOrders = orders.length
-      const ordersValue = orders.reduce((sum, o) => sum + parseFloat(o.value || 0), 0)
-      const ordersConcluidas = orders.filter(o => o.status === 'concluido').length
+      const dealsConcluidos = deals.filter(d => d.status === 'concluido')
+      const faturamentoTotal = dealsConcluidos.reduce((sum, d) => sum + parseFloat(d.order?.value || d.value || 0), 0)
 
       setStats({
         totalDeals,
         dealsAbertos,
         dealsNegociando,
         dealsAceitos,
-        dealsRejeitados,
-        totalOrders,
-        ordersValue,
-        ordersConcluidas,
+        faturamentoTotal,
         taxaConversao: totalDeals > 0 ? Math.round((dealsAceitos / totalDeals) * 100) : 0,
       })
 
       setRecentDeals(deals.slice(0, 5))
+
+      if (user?.type === 'empresa' && rest.length >= 3) {
+        setServices(rest[0].data?.data || [])
+        setPortfolio(rest[1].data?.data || [])
+        setReviews({
+          data: rest[2].data?.data?.data || rest[2].data?.data || [],
+          stats: rest[2].data?.stats || {},
+        })
+      }
+
+      if (user?.type === 'cliente' && rest.length >= 1) {
+        setReviews({
+          data: rest[0].data?.data?.data || rest[0].data?.data || [],
+          stats: {},
+        })
+      }
     } catch (error) {
       console.error('Erro ao carregar estatisticas:', error)
     } finally {
@@ -147,13 +216,16 @@ export default function Profile() {
     formData.append('foto', file)
 
     try {
-      await api.post('/users/me/foto', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
+      const response = await api.post('/users/me/foto', formData)
       toast.success('Foto atualizada!')
-      dispatch(fetchCurrentUser())
+      dispatch(setUser({
+        ...user,
+        foto_path: response.data.data.foto_path
+      }))
     } catch (error) {
-      toast.error('Erro ao enviar foto')
+      if (error.response?.status !== 401) {
+        toast.error(error.response?.data?.message || 'Erro ao enviar foto')
+      }
     } finally {
       setUploadingPhoto(false)
     }
@@ -173,66 +245,87 @@ export default function Profile() {
     formDataObj.append('logo', file)
 
     try {
-      await api.post('/users/me/logo', formDataObj, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
+      const response = await api.post('/users/me/logo', formDataObj)
       toast.success('Logo atualizada!')
-      dispatch(fetchCurrentUser())
+      dispatch(setUser({
+        ...user,
+        company_profile: {
+          ...user.company_profile,
+          logo_path: response.data.data.logo_path
+        }
+      }))
     } catch (error) {
-      toast.error('Erro ao enviar logo')
+      if (error.response?.status !== 401) {
+        toast.error('Erro ao enviar logo')
+      }
     } finally {
       setUploadingLogo(false)
     }
   }
 
-  const handleRemovePhoto = async () => {
-    if (!confirm('Remover foto de perfil?')) return
+  const handleCoverUpload = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('A imagem deve ter no maximo 5MB')
+      return
+    }
+
+    setUploadingCover(true)
+    const formDataObj = new FormData()
+    formDataObj.append('cover', file)
 
     try {
-      await api.delete('/users/me/foto')
-      toast.success('Foto removida!')
-      dispatch(fetchCurrentUser())
+      const response = await api.post('/users/me/cover', formDataObj)
+      toast.success('Capa atualizada!')
+      const profileKey = user.type === 'empresa' ? 'company_profile' : 'client_profile'
+      dispatch(setUser({
+        ...user,
+        [profileKey]: {
+          ...user[profileKey],
+          cover_path: response.data.data.cover_path
+        }
+      }))
     } catch (error) {
-      toast.error('Erro ao remover foto')
+      if (error.response?.status !== 401) {
+        toast.error('Erro ao enviar capa')
+      }
+    } finally {
+      setUploadingCover(false)
     }
   }
 
-  const handleRemoveLogo = async () => {
-    if (!confirm('Remover logo da empresa?')) return
-
+  const handlePortfolioUpload = async (formData) => {
+    setUploadingPortfolio(true)
     try {
-      await api.delete('/users/me/logo')
-      toast.success('Logo removida!')
-      dispatch(fetchCurrentUser())
+      await api.post('/portfolio', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      toast.success('Item adicionado ao portfolio!')
+      loadProfileData()
     } catch (error) {
-      toast.error('Erro ao remover logo')
+      toast.error('Erro ao adicionar item')
+    } finally {
+      setUploadingPortfolio(false)
     }
   }
 
-  const getStatusColor = (status) => {
-    const colors = {
-      aberto: 'bg-blue-100 text-blue-700',
-      negociando: 'bg-yellow-100 text-yellow-700',
-      aceito: 'bg-green-100 text-green-700',
-      concluido: 'bg-green-100 text-green-700',
-      rejeitado: 'bg-red-100 text-red-700',
+  const handleReviewRespond = async (reviewId, response) => {
+    try {
+      await api.post(`/reviews/${reviewId}/respond`, { response })
+      toast.success('Resposta enviada!')
+      loadProfileData()
+    } catch (error) {
+      toast.error('Erro ao enviar resposta')
     }
-    return colors[status] || 'bg-gray-100 text-gray-700'
   }
 
-  const getStatusLabel = (status) => {
-    const labels = {
-      aberto: 'Aberto',
-      negociando: 'Negociando',
-      aceito: 'Aceito',
-      concluido: 'Concluido',
-      rejeitado: 'Rejeitado',
-    }
-    return labels[status] || status
-  }
-
-  const completion = user?.profile_completion || { percentage: 0, completed: 0, total: 0 }
+  const completion = user?.profile_completion || { percentage: 0 }
   const storageUrl = import.meta.env.VITE_STORAGE_URL || 'http://localhost:8000/storage'
+  const isEmpresa = user?.type === 'empresa'
+  const isCliente = user?.type === 'cliente'
+  const profile = isEmpresa ? user?.company_profile : user?.client_profile
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -245,568 +338,596 @@ export default function Profile() {
     return new Date(date).toLocaleDateString('pt-BR')
   }
 
+  const getStatusColor = (status) => {
+    const colors = {
+      aberto: 'bg-primary/20 text-primary border-primary/30',
+      negociando: 'bg-warning/20 text-warning border-warning/30',
+      aceito: 'bg-success/20 text-success border-success/30',
+      concluido: 'bg-success/20 text-success border-success/30',
+      rejeitado: 'bg-destructive/20 text-destructive border-destructive/30',
+    }
+    return colors[status] || 'bg-muted text-muted-foreground'
+  }
+
+  const tabs = isEmpresa
+    ? [
+        { id: 'sobre', label: 'Sobre', icon: FileText },
+        { id: 'portfolio', label: 'Portfolio', icon: Image },
+        { id: 'avaliacoes', label: 'Avaliacoes', icon: Star },
+        { id: 'servicos', label: 'Servicos', icon: Briefcase },
+        { id: 'metricas', label: 'Metricas', icon: BarChart3 },
+      ]
+    : [
+        { id: 'sobre', label: 'Sobre', icon: FileText },
+        { id: 'negociacoes', label: 'Negociacoes', icon: MessageSquare },
+        { id: 'avaliacoes', label: 'Minhas Avaliacoes', icon: Star },
+      ]
+
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Meu Perfil</h1>
-          <p className="text-gray-500 text-sm mt-1">Gerencie suas informacoes e acompanhe suas estatisticas</p>
-        </div>
+    <div className="min-h-screen bg-background">
+      {/* Cover Image */}
+      <div className="relative h-48 sm:h-56 lg:h-72 bg-gradient-to-r from-background via-primary/10 to-accent-violet/10">
+        {profile?.cover_path && (
+          <img
+            src={`${storageUrl}/${profile.cover_path}`}
+            alt="Cover"
+            className="w-full h-full object-cover"
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
+
+        {/* Cover Upload Button */}
+        <button
+          onClick={() => coverInputRef.current?.click()}
+          disabled={uploadingCover}
+          className="absolute bottom-4 right-4 flex items-center gap-2 px-4 py-2 glass text-foreground text-sm font-medium rounded-lg hover:bg-primary/10 transition-colors"
+        >
+          {uploadingCover ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Camera className="w-4 h-4" />
+          )}
+          Editar capa
+        </button>
+        <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
       </div>
 
-      {/* Profile Completion Alert */}
-      {completion.percentage < 100 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
-              <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-              </svg>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-amber-800">
-                Seu perfil esta {completion.percentage}% completo
-              </p>
-              <p className="text-xs text-amber-600 mt-0.5">
-                Complete seu perfil para aumentar suas chances de fechar negocios
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-24 h-2 bg-amber-200 rounded-full overflow-hidden">
-                <div className="h-full bg-amber-500 rounded-full" style={{ width: `${completion.percentage}%` }} />
-              </div>
-              <span className="text-sm font-medium text-amber-700">{completion.percentage}%</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Profile Info */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Profile Card */}
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-            {/* Header */}
-            <div className="bg-gray-50 border-b border-gray-200 px-6 py-4">
-              <div className="flex items-center gap-4">
-                {/* Photo */}
-                <div className="relative group">
-                  <div className="w-16 h-16 bg-gray-200 rounded-full overflow-hidden flex items-center justify-center">
-                    {user?.foto_path ? (
-                      <img src={`${storageUrl}/${user.foto_path}`} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-gray-500 text-2xl font-medium">{user?.name?.charAt(0).toUpperCase()}</span>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => photoInputRef.current?.click()}
-                    disabled={uploadingPhoto}
-                    className="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                  >
-                    {uploadingPhoto ? (
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
-                      </svg>
-                    )}
-                  </button>
-                  <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-lg font-semibold text-gray-900 truncate">{user?.name}</h2>
-                  <p className="text-sm text-gray-500 truncate">{user?.email}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-700 rounded">
-                      {user?.type === 'empresa' ? 'Prestador' : user?.type === 'cliente' ? 'Sindico' : 'Admin'}
-                    </span>
-                    {user?.type === 'empresa' && user?.company_profile?.verified && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded">
-                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                        Verificado
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  {!isEditing ? (
-                    <button onClick={() => setIsEditing(true)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
-                      Editar
-                    </button>
+      {/* Profile Header */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="relative -mt-20 sm:-mt-28 pb-6">
+          <GlassCard variant="elevated" padding="lg">
+            <div className="sm:flex sm:items-end sm:gap-6">
+              {/* Avatar */}
+              <div className="relative -mt-24 sm:-mt-32 mb-4 sm:mb-0">
+                <div className="w-32 h-32 sm:w-40 sm:h-40 glass rounded-full border-4 border-background shadow-glass-lg overflow-hidden">
+                  {user?.foto_path ? (
+                    <img src={`${storageUrl}/${user.foto_path}`} alt="" className="w-full h-full object-cover" />
+                  ) : isEmpresa && profile?.logo_path ? (
+                    <img src={`${storageUrl}/${profile.logo_path}`} alt="" className="w-full h-full object-contain p-4" />
                   ) : (
-                    <div className="flex gap-2">
-                      <button onClick={() => setIsEditing(false)} className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800">
-                        Cancelar
-                      </button>
-                      <button onClick={handleSubmit} disabled={loading} className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 disabled:opacity-50">
-                        {loading ? 'Salvando...' : 'Salvar'}
-                      </button>
+                    <div className="w-full h-full bg-gradient-to-br from-primary to-accent-violet flex items-center justify-center">
+                      <span className="text-white text-4xl sm:text-5xl font-bold">
+                        {user?.name?.charAt(0).toUpperCase()}
+                      </span>
                     </div>
                   )}
                 </div>
+                <button
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={uploadingPhoto}
+                  className="absolute bottom-2 right-2 w-10 h-10 bg-primary rounded-full flex items-center justify-center text-primary-foreground hover:bg-primary/90 transition-colors shadow-lg"
+                >
+                  {uploadingPhoto ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Camera className="w-5 h-5" />
+                  )}
+                </button>
+                <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
               </div>
-            </div>
 
-            {/* Logo for Companies */}
-            {user?.type === 'empresa' && (
-              <div className="px-6 py-3 border-b border-gray-100 bg-gray-50/50">
-                <div className="flex items-center gap-3">
-                  <div className="relative group">
-                    <div className="w-12 h-12 bg-white border border-gray-200 rounded-lg overflow-hidden flex items-center justify-center">
-                      {user?.company_profile?.logo_path ? (
-                        <img src={`${storageUrl}/${user.company_profile.logo_path}`} alt="" className="w-full h-full object-contain p-1" />
-                      ) : (
-                        <svg className="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
-                        </svg>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => logoInputRef.current?.click()}
-                      disabled={uploadingLogo}
-                      className="absolute -bottom-1 -right-1 w-5 h-5 bg-gray-900 rounded-full flex items-center justify-center text-white hover:bg-gray-700"
-                    >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                      </svg>
-                    </button>
-                    <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-700">Logo da empresa</p>
-                    <p className="text-xs text-gray-500">PNG ou JPG, max 2MB</p>
-                  </div>
-                  {user?.company_profile?.logo_path && (
-                    <button onClick={handleRemoveLogo} className="text-xs text-red-600 hover:text-red-700">Remover</button>
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-3 mb-2">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+                    {isEmpresa ? (profile?.nome_fantasia || profile?.razao_social || user?.name) : user?.name}
+                  </h1>
+                  {isEmpresa && profile?.verified && (
+                    <Badge variant="outline" className="gap-1 border-primary/30 text-primary">
+                      <Shield className="w-3.5 h-3.5" />
+                      Verificado
+                    </Badge>
+                  )}
+                  {user?.active_subscription?.plan && (
+                    <Badge className="gap-1 bg-warning/20 text-warning border-warning/30">
+                      <Award className="w-3.5 h-3.5" />
+                      {user.active_subscription.plan.name}
+                    </Badge>
                   )}
                 </div>
-              </div>
-            )}
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="p-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    disabled={!isEditing}
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
-                  />
-                </div>
+                <p className="text-muted-foreground mb-3">
+                  {isEmpresa ? profile?.segmento : (isCliente ? `${profile?.tipo?.charAt(0).toUpperCase()}${profile?.tipo?.slice(1)}` : user?.type)}
+                </p>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    disabled={!isEditing}
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
-                  <input
-                    type="tel"
-                    name="telefone"
-                    value={formData.telefone}
-                    onChange={handleChange}
-                    disabled={!isEditing}
-                    placeholder="(00) 00000-0000"
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
-                  />
-                </div>
-
-                {user?.type === 'empresa' && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Nome Fantasia</label>
-                      <input
-                        type="text"
-                        name="nome_fantasia"
-                        value={formData.nome_fantasia}
-                        onChange={handleChange}
-                        disabled={!isEditing}
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Segmento</label>
-                      <input
-                        type="text"
-                        name="segmento"
-                        value={formData.segmento}
-                        onChange={handleChange}
-                        disabled={!isEditing}
-                        placeholder="Ex: Manutencao, Limpeza..."
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">CEP</label>
-                      <input
-                        type="text"
-                        name="cep"
-                        value={formData.cep}
-                        onChange={handleChange}
-                        disabled={!isEditing}
-                        placeholder="00000-000"
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
-                      />
-                    </div>
-
-                    <div className="sm:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Endereco</label>
-                      <input
-                        type="text"
-                        name="endereco"
-                        value={formData.endereco}
-                        onChange={handleChange}
-                        disabled={!isEditing}
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Cidade</label>
-                      <input
-                        type="text"
-                        name="cidade"
-                        value={formData.cidade}
-                        onChange={handleChange}
-                        disabled={!isEditing}
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-                      <select
-                        name="estado"
-                        value={formData.estado}
-                        onChange={handleChange}
-                        disabled={!isEditing}
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
-                      >
-                        <option value="">Selecione</option>
-                        {['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'].map(uf => (
-                          <option key={uf} value={uf}>{uf}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="sm:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Descricao</label>
-                      <textarea
-                        name="descricao"
-                        value={formData.descricao}
-                        onChange={handleChange}
-                        disabled={!isEditing}
-                        rows={3}
-                        placeholder="Descreva sua empresa e servicos..."
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
-                      />
-                    </div>
-                  </>
-                )}
-
-                {user?.type === 'cliente' && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Condominio</label>
-                      <input
-                        type="text"
-                        name="nome_condominio"
-                        value={formData.nome_condominio}
-                        onChange={handleChange}
-                        disabled={!isEditing}
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Numero de Unidades</label>
-                      <input
-                        type="number"
-                        name="num_unidades"
-                        value={formData.num_unidades}
-                        onChange={handleChange}
-                        disabled={!isEditing}
-                        min={1}
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
-                      />
-                    </div>
-
-                    <div className="sm:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Endereco do Condominio</label>
-                      <input
-                        type="text"
-                        name="endereco_condominio"
-                        value={formData.endereco_condominio}
-                        onChange={handleChange}
-                        disabled={!isEditing}
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">CEP</label>
-                      <input
-                        type="text"
-                        name="cep"
-                        value={formData.cep}
-                        onChange={handleChange}
-                        disabled={!isEditing}
-                        placeholder="00000-000"
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Cidade</label>
-                      <input
-                        type="text"
-                        name="cidade"
-                        value={formData.cidade}
-                        onChange={handleChange}
-                        disabled={!isEditing}
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-                      <select
-                        name="estado"
-                        value={formData.estado}
-                        onChange={handleChange}
-                        disabled={!isEditing}
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm ${!isEditing ? 'bg-gray-50 text-gray-500' : 'bg-white'}`}
-                      >
-                        <option value="">Selecione</option>
-                        {['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'].map(uf => (
-                          <option key={uf} value={uf}>{uf}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </>
-                )}
-              </div>
-            </form>
-          </div>
-
-          {/* Recent Activity */}
-          <div className="bg-white border border-gray-200 rounded-lg">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-semibold text-gray-900">Negociacoes Recentes</h3>
-                <Link to="/deals" className="text-sm text-gray-600 hover:text-gray-900">Ver todas</Link>
-              </div>
-            </div>
-            <div className="divide-y divide-gray-100">
-              {loadingStats ? (
-                <div className="p-6 text-center text-gray-500 text-sm">Carregando...</div>
-              ) : recentDeals.length === 0 ? (
-                <div className="p-6 text-center text-gray-500 text-sm">Nenhuma negociacao encontrada</div>
-              ) : (
-                recentDeals.map((deal) => (
-                  <Link key={deal.id} to={`/chat/${deal.id}`} className="flex items-center gap-4 px-6 py-3 hover:bg-gray-50">
-                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-sm font-medium text-gray-600">
-                      {(deal.service?.title || 'S').charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{deal.service?.title || 'Servico'}</p>
-                      <p className="text-xs text-gray-500">{formatDate(deal.created_at)}</p>
-                    </div>
-                    <span className={`px-2 py-1 text-xs font-medium rounded ${getStatusColor(deal.status)}`}>
-                      {getStatusLabel(deal.status)}
+                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                  {(profile?.cidade || profile?.estado) && (
+                    <span className="flex items-center gap-1.5">
+                      <MapPin className="w-4 h-4" />
+                      {[profile?.cidade, profile?.estado].filter(Boolean).join(', ')}
                     </span>
-                  </Link>
-                ))
-              )}
+                  )}
+                  {user?.created_at && (
+                    <span className="flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4" />
+                      Membro desde {formatDate(user.created_at)}
+                    </span>
+                  )}
+                  {isEmpresa && reviews.stats?.average > 0 && (
+                    <StarRatingDisplay
+                      value={reviews.stats.average}
+                      count={reviews.stats.total}
+                    />
+                  )}
+                </div>
+
+                {/* Social Links */}
+                {profile?.social_links?.length > 0 && (
+                  <div className="mt-4">
+                    <SocialLinksDisplay links={profile.social_links} />
+                  </div>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="mt-4 sm:mt-0 flex gap-2">
+                <Button onClick={() => setIsEditing(true)}>
+                  <Edit3 className="w-4 h-4 mr-2" />
+                  Editar Perfil
+                </Button>
+              </div>
             </div>
-          </div>
+
+            {/* Stats Bar */}
+            <div className="mt-6 pt-6 border-t border-border">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-foreground">{stats?.totalDeals || 0}</div>
+                  <div className="text-sm text-muted-foreground">Negociacoes</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-success">{stats?.dealsAceitos || 0}</div>
+                  <div className="text-sm text-muted-foreground">Fechados</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-primary">{stats?.taxaConversao || 0}%</div>
+                  <div className="text-sm text-muted-foreground">Conversao</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-foreground">
+                    {isEmpresa ? (portfolio?.length || 0) : (stats?.totalOrders || 0)}
+                  </div>
+                  <div className="text-sm text-muted-foreground">{isEmpresa ? 'Portfolio' : 'Pedidos'}</div>
+                </div>
+              </div>
+            </div>
+          </GlassCard>
         </div>
 
-        {/* Right Column - Stats & Plan */}
-        <div className="space-y-6">
-          {/* Plan Card - Only for Empresas */}
-          {user?.type === 'empresa' && (
-            <div className="bg-white border border-gray-200 rounded-lg">
-              <div className="px-5 py-4 border-b border-gray-200">
-                <h3 className="text-base font-semibold text-gray-900">Plano Atual</h3>
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="pb-12">
+          <TabsList className="glass w-full justify-start overflow-x-auto mb-6">
+            {tabs.map((tab) => (
+              <TabsTrigger key={tab.id} value={tab.id} className="gap-2">
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          {/* Tab: Sobre */}
+          <TabsContent value="sobre">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Main Info */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* About Card */}
+                <GlassCard>
+                  <h2 className="text-lg font-semibold text-foreground mb-4">Sobre</h2>
+                  {isEditing ? (
+                    <textarea
+                      name="descricao"
+                      value={formData.descricao}
+                      onChange={handleChange}
+                      rows={4}
+                      placeholder="Escreva uma descricao sobre voce ou sua empresa..."
+                      className="w-full px-4 py-3 bg-background/50 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none text-foreground placeholder:text-muted-foreground"
+                    />
+                  ) : (
+                    <p className="text-muted-foreground leading-relaxed">
+                      {profile?.descricao || 'Nenhuma descricao adicionada ainda.'}
+                    </p>
+                  )}
+                </GlassCard>
+
+                {/* Contact Info */}
+                <GlassCard>
+                  <h2 className="text-lg font-semibold text-foreground mb-4">Informacoes de Contato</h2>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                        <Mail className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">E-mail</p>
+                        {isEditing ? (
+                          <input
+                            type="email"
+                            name="email"
+                            value={formData.email}
+                            onChange={handleChange}
+                            className="mt-1 px-3 py-2 bg-background/50 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                          />
+                        ) : (
+                          <p className="font-medium text-foreground">{user?.email}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                        <Phone className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Telefone</p>
+                        {isEditing ? (
+                          <input
+                            type="tel"
+                            name="telefone"
+                            value={formData.telefone}
+                            onChange={handleChange}
+                            placeholder="(00) 00000-0000"
+                            className="mt-1 px-3 py-2 bg-background/50 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                          />
+                        ) : (
+                          <p className="font-medium text-foreground">{profile?.telefone || 'Nao informado'}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                        <MapPin className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Endereco</p>
+                        {isEditing ? (
+                          <div className="grid grid-cols-2 gap-2 mt-1">
+                            <input
+                              type="text"
+                              name="cidade"
+                              value={formData.cidade}
+                              onChange={handleChange}
+                              placeholder="Cidade"
+                              className="px-3 py-2 bg-background/50 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            />
+                            <input
+                              type="text"
+                              name="estado"
+                              value={formData.estado}
+                              onChange={handleChange}
+                              placeholder="Estado"
+                              className="px-3 py-2 bg-background/50 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            />
+                          </div>
+                        ) : (
+                          <p className="font-medium text-foreground">
+                            {[profile?.endereco, profile?.cidade, profile?.estado].filter(Boolean).join(', ') || 'Nao informado'}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {isEmpresa && (
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                          <Building2 className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">CNPJ</p>
+                          <p className="font-medium text-foreground">{profile?.cnpj || 'Nao informado'}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {isEditing && (
+                    <div className="flex gap-3 mt-6 pt-6 border-t border-border">
+                      <Button onClick={handleSubmit} disabled={loading}>
+                        <Check className="w-4 h-4 mr-2" />
+                        Salvar
+                      </Button>
+                      <Button variant="ghost" onClick={() => setIsEditing(false)}>
+                        <X className="w-4 h-4 mr-2" />
+                        Cancelar
+                      </Button>
+                    </div>
+                  )}
+                </GlassCard>
               </div>
-              <div className="p-5">
-                {user.active_subscription ? (
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-lg font-semibold text-gray-900">{user.active_subscription.plan?.name}</span>
-                      <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded">Ativo</span>
-                    </div>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Valor</span>
-                        <span className="text-gray-900 font-medium">
-                          {formatCurrency(user.active_subscription.plan?.price || 0)}/mes
-                        </span>
+
+              {/* Sidebar */}
+              <div className="space-y-6">
+                {/* Profile Completion */}
+                {completion.percentage < 100 && (
+                  <GlassCard>
+                    <h3 className="font-semibold text-foreground mb-3">Complete seu perfil</h3>
+                    <div className="mb-3">
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-muted-foreground">Progresso</span>
+                        <span className="font-medium text-foreground">{completion.percentage}%</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Valido ate</span>
-                        <span className="text-gray-900">{formatDate(user.active_subscription.ends_at)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-500">Servicos</span>
-                        <span className="text-gray-900">{user.active_subscription.plan?.max_services || 'Ilimitado'}</span>
+                      <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-primary to-accent-violet rounded-full transition-all"
+                          style={{ width: `${completion.percentage}%` }}
+                        />
                       </div>
                     </div>
-                    <button
-                      onClick={() => setShowPlanModal(true)}
-                      className="w-full mt-4 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
-                    >
-                      Alterar plano
-                    </button>
-                  </div>
-                ) : (
-                  <div className="text-center py-4">
-                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                      <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
-                      </svg>
-                    </div>
-                    <p className="text-sm font-medium text-gray-900 mb-1">Sem plano ativo</p>
-                    <p className="text-xs text-gray-500 mb-3">Assine para publicar servicos</p>
-                    <button
-                      onClick={() => setShowPlanModal(true)}
-                      className="w-full px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800"
-                    >
-                      Ver planos
-                    </button>
-                  </div>
+                    <p className="text-sm text-muted-foreground">
+                      Perfis completos tem mais chances de fechar negocios!
+                    </p>
+                  </GlassCard>
                 )}
+
+                {/* Plan Card */}
+                {isEmpresa && (
+                  <GlassCard variant="bordered" className="border-primary/30 bg-gradient-to-br from-primary/10 to-accent-violet/10">
+                    <div className="flex items-center gap-3 mb-4">
+                      <Award className="w-6 h-6 text-warning" />
+                      <h3 className="font-semibold text-foreground">Seu Plano</h3>
+                    </div>
+                    <p className="text-2xl font-bold text-foreground mb-1">
+                      {user?.active_subscription?.plan?.name || 'Gratuito'}
+                    </p>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {user?.active_subscription?.ends_at
+                        ? `Valido ate ${formatDate(user.active_subscription.ends_at)}`
+                        : 'Plano ativo'}
+                    </p>
+                    <Button
+                      onClick={() => setShowPlanModal(true)}
+                      className="w-full"
+                    >
+                      Fazer Upgrade
+                    </Button>
+                  </GlassCard>
+                )}
+
+                {/* Quick Stats */}
+                <GlassCard>
+                  <h3 className="font-semibold text-foreground mb-4">Estatisticas</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground flex items-center gap-2">
+                        <MessageSquare className="w-4 h-4" />
+                        Em andamento
+                      </span>
+                      <span className="font-semibold text-foreground">{stats?.dealsNegociando || 0}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground flex items-center gap-2">
+                        <Check className="w-4 h-4" />
+                        Fechados este mes
+                      </span>
+                      <span className="font-semibold text-success">{stats?.dealsAceitos || 0}</span>
+                    </div>
+                    {isEmpresa && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground flex items-center gap-2">
+                          <TrendingUp className="w-4 h-4" />
+                          Faturamento
+                        </span>
+                        <span className="font-semibold text-foreground">{formatCurrency(stats?.faturamentoTotal || 0)}</span>
+                      </div>
+                    )}
+                  </div>
+                </GlassCard>
               </div>
             </div>
+          </TabsContent>
+
+          {/* Tab: Portfolio (Empresa) */}
+          {isEmpresa && (
+            <TabsContent value="portfolio">
+              <div className="space-y-6">
+                <PortfolioUpload
+                  services={services}
+                  onUpload={handlePortfolioUpload}
+                  isUploading={uploadingPortfolio}
+                />
+                <PortfolioGallery items={portfolio} columns={3} />
+              </div>
+            </TabsContent>
           )}
 
-          {/* Statistics */}
-          <div className="bg-white border border-gray-200 rounded-lg">
-            <div className="px-5 py-4 border-b border-gray-200">
-              <h3 className="text-base font-semibold text-gray-900">Estatisticas</h3>
-            </div>
-            <div className="p-5">
-              {loadingStats ? (
-                <div className="text-center text-gray-500 text-sm py-4">Carregando...</div>
-              ) : (
-                <div className="space-y-4">
-                  {/* Total Negotiations */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center">
-                        <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                        </svg>
-                      </div>
-                      <span className="text-sm text-gray-600">Total Negociacoes</span>
-                    </div>
-                    <span className="text-lg font-semibold text-gray-900">{stats?.totalDeals || 0}</span>
-                  </div>
-
-                  {/* Conversion Rate */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-green-50 rounded-lg flex items-center justify-center">
-                        <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
-                        </svg>
-                      </div>
-                      <span className="text-sm text-gray-600">Taxa Conversao</span>
-                    </div>
-                    <span className="text-lg font-semibold text-gray-900">{stats?.taxaConversao || 0}%</span>
-                  </div>
-
-                  {/* Deals Accepted */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-emerald-50 rounded-lg flex items-center justify-center">
-                        <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <span className="text-sm text-gray-600">Aceitos</span>
-                    </div>
-                    <span className="text-lg font-semibold text-gray-900">{stats?.dealsAceitos || 0}</span>
-                  </div>
-
-                  {/* In Negotiation */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-yellow-50 rounded-lg flex items-center justify-center">
-                        <svg className="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <span className="text-sm text-gray-600">Em negociacao</span>
-                    </div>
-                    <span className="text-lg font-semibold text-gray-900">{stats?.dealsNegociando || 0}</span>
-                  </div>
-
-                  {/* Total Orders Value */}
-                  <div className="pt-4 mt-4 border-t border-gray-100">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center">
-                          <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        </div>
-                        <span className="text-sm text-gray-600">Valor em ordens</span>
-                      </div>
-                      <span className="text-lg font-semibold text-gray-900">{formatCurrency(stats?.ordersValue || 0)}</span>
-                    </div>
-                  </div>
-                </div>
+          {/* Tab: Avaliacoes */}
+          <TabsContent value="avaliacoes">
+            <div className="space-y-6">
+              {isEmpresa && reviews.stats && (
+                <ReviewStats stats={reviews.stats} />
               )}
+              <div className="space-y-4">
+                {reviews.data?.length > 0 ? (
+                  reviews.data.map((review) => (
+                    <ReviewCard
+                      key={review.id}
+                      review={review}
+                      showActions={isEmpresa}
+                      onRespond={handleReviewRespond}
+                    />
+                  ))
+                ) : (
+                  <GlassCard className="text-center py-12">
+                    <Star className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
+                    <p className="text-muted-foreground">
+                      {isEmpresa ? 'Nenhuma avaliacao recebida ainda' : 'Voce ainda nao fez nenhuma avaliacao'}
+                    </p>
+                  </GlassCard>
+                )}
+              </div>
             </div>
-          </div>
+          </TabsContent>
 
-          {/* Account Info */}
-          <div className="bg-white border border-gray-200 rounded-lg">
-            <div className="px-5 py-4 border-b border-gray-200">
-              <h3 className="text-base font-semibold text-gray-900">Conta</h3>
-            </div>
-            <div className="p-5 space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Membro desde</span>
-                <span className="text-gray-900">{user?.created_at ? formatDate(user.created_at) : '-'}</span>
+          {/* Tab: Servicos (Empresa) */}
+          {isEmpresa && (
+            <TabsContent value="servicos">
+              <GlassCard>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-lg font-semibold text-foreground">Meus Servicos</h2>
+                  <Link to="/my-services/new">
+                    <Button>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Adicionar Servico
+                    </Button>
+                  </Link>
+                </div>
+                {services.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <Briefcase className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-foreground mb-2">Nenhum servico cadastrado</h3>
+                    <p className="text-muted-foreground mb-4">Cadastre seus servicos para receber negociacoes</p>
+                    <Link to="/my-services/new">
+                      <Button>Cadastrar Servico</Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {services.map((service) => (
+                      <Link
+                        key={service.id}
+                        to={`/services/${service.id}`}
+                        className="flex items-center gap-4 py-4 hover:bg-primary/5 -mx-6 px-6 transition-colors"
+                      >
+                        <div className="w-16 h-16 bg-muted rounded-lg overflow-hidden flex-shrink-0">
+                          {service.cover_image ? (
+                            <img src={`${storageUrl}/${service.cover_image}`} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Briefcase className="w-6 h-6 text-muted-foreground" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-foreground truncate">{service.titulo}</h3>
+                          <p className="text-sm text-muted-foreground truncate">{service.category?.name}</p>
+                        </div>
+                        <Badge variant={service.status === 'ativo' ? 'default' : 'secondary'}>
+                          {service.status === 'ativo' ? 'Ativo' : 'Inativo'}
+                        </Badge>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </GlassCard>
+            </TabsContent>
+          )}
+
+          {/* Tab: Metricas (Empresa) */}
+          {isEmpresa && (
+            <TabsContent value="metricas">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <MetricCard
+                  title="Total de Negociacoes"
+                  value={stats?.totalDeals || 0}
+                  icon={MessageSquare}
+                  color="primary"
+                />
+                <MetricCard
+                  title="Taxa de Conversao"
+                  value={`${stats?.taxaConversao || 0}%`}
+                  icon={TrendingUp}
+                  color="cyan"
+                />
+                <MetricCard
+                  title="Faturamento Total"
+                  value={formatCurrency(stats?.faturamentoTotal || 0)}
+                  icon={ShoppingCart}
+                  color="success"
+                />
+                <MetricCard
+                  title="Avaliacao Media"
+                  value={reviews.stats?.average?.toFixed(1) || '0.0'}
+                  subtitle={`${reviews.stats?.total || 0} avaliacoes`}
+                  icon={Star}
+                  color="warning"
+                />
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Perfil</span>
-                <span className="text-gray-900">{completion.percentage}% completo</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Status</span>
-                <span className="text-green-600 font-medium">Ativo</span>
-              </div>
-            </div>
-          </div>
-        </div>
+
+              <GlassCard>
+                <h3 className="text-lg font-semibold text-foreground mb-4">Resumo do Periodo</h3>
+                <p className="text-muted-foreground">
+                  Graficos detalhados estarao disponiveis em breve.
+                </p>
+              </GlassCard>
+            </TabsContent>
+          )}
+
+          {/* Tab: Negociacoes (Cliente) */}
+          {isCliente && (
+            <TabsContent value="negociacoes">
+              <GlassCard>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-lg font-semibold text-foreground">Negociacoes Recentes</h2>
+                  <Link to="/deals" className="text-sm font-medium text-primary hover:underline flex items-center gap-1">
+                    Ver todas <ExternalLink className="w-4 h-4" />
+                  </Link>
+                </div>
+                {recentDeals.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <MessageSquare className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-foreground mb-2">Nenhuma negociacao</h3>
+                    <p className="text-muted-foreground">Suas negociacoes aparecerao aqui</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {recentDeals.map((deal) => (
+                      <Link
+                        key={deal.id}
+                        to={`/chat/${deal.id}`}
+                        className="flex items-center gap-4 py-4 hover:bg-primary/5 -mx-6 px-6 transition-colors"
+                      >
+                        <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <MessageSquare className="w-5 h-5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-foreground truncate">{deal.service?.titulo || 'Servico'}</h3>
+                          <p className="text-sm text-muted-foreground">{deal.company?.nome_fantasia}</p>
+                        </div>
+                        <div className="text-right">
+                          <Badge className={getStatusColor(deal.status)}>{deal.status}</Badge>
+                          <p className="text-xs text-muted-foreground mt-1">{formatDate(deal.created_at)}</p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </GlassCard>
+            </TabsContent>
+          )}
+        </Tabs>
       </div>
 
-      {/* Plan Selection Modal */}
-      <PlanSelectionModal isOpen={showPlanModal} onClose={() => setShowPlanModal(false)} />
+      {/* Plan Modal */}
+      {showPlanModal && (
+        <PlanSelectionModal
+          currentPlan={user?.active_subscription?.plan}
+          onClose={() => setShowPlanModal(false)}
+          onSelect={(plan) => {
+            toast.success(`Plano ${plan.name} selecionado!`)
+            setShowPlanModal(false)
+          }}
+        />
+      )}
     </div>
   )
 }

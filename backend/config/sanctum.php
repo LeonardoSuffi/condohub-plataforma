@@ -33,11 +33,12 @@ return [
     | Expiration Minutes
     |--------------------------------------------------------------------------
     |
-    | Tokens expiram em 1 semana por padrão.
+    | Tokens expiram em 24 horas para maior segurança.
+    | O frontend implementa refresh automático.
     |
     */
 
-    'expiration' => 60 * 24 * 7,
+    'expiration' => env('SANCTUM_TOKEN_EXPIRATION', 60 * 24), // 24 horas
 
     /*
     |--------------------------------------------------------------------------

@@ -13,6 +13,9 @@ use App\Models\Service;
 use App\Models\Deal;
 use App\Models\Order;
 use App\Models\Message;
+use App\Models\Banner;
+use App\Models\Transaction;
+use App\Models\Notification;
 use Illuminate\Support\Facades\Hash;
 
 class FakeDataSeeder extends Seeder
@@ -248,6 +251,54 @@ class FakeDataSeeder extends Seeder
     ];
 
     /**
+     * Banners promocionais e informativos
+     */
+    protected array $banners = [
+        [
+            'title' => 'Bem-vindo ao CondoHub!',
+            'description' => 'A plataforma completa para conectar condomínios aos melhores fornecedores.',
+            'position' => 'topo',
+            'type' => 'admin',
+            'link' => '/services',
+        ],
+        [
+            'title' => 'Plano Premium - 30% OFF',
+            'description' => 'Destaque seus serviços e aumente suas vendas! Promoção válida até o fim do mês.',
+            'position' => 'topo',
+            'type' => 'promocional',
+            'link' => '/plans',
+        ],
+        [
+            'title' => 'ManutenPro - Manutenção Predial',
+            'description' => 'Especialistas em manutenção com 15 anos de experiência. Solicite orçamento!',
+            'position' => 'lateral',
+            'type' => 'comercial',
+            'link' => '/services',
+        ],
+        [
+            'title' => 'SegurMax - Portaria 24h',
+            'description' => 'Segurança profissional para seu condomínio. Portaria e CFTV.',
+            'position' => 'lateral',
+            'type' => 'comercial',
+            'link' => '/services',
+        ],
+        [
+            'title' => 'Novidade: Chat em Tempo Real',
+            'description' => 'Negocie diretamente com fornecedores pelo chat da plataforma.',
+            'position' => 'modal',
+            'type' => 'admin',
+            'link' => '/deals',
+        ],
+        [
+            'title' => 'ElevaTec - Elevadores',
+            'description' => 'Manutenção de elevadores de todas as marcas. Contrato mensal a partir de R$ 800.',
+            'position' => 'topo',
+            'type' => 'comercial',
+            'link' => '/services',
+        ],
+    ];
+
+    /**
      * Serviços por categoria
      */
     protected array $servicosPorCategoria = [
@@ -312,6 +363,12 @@ class FakeDataSeeder extends Seeder
 
         $this->command->info('Criando negociações e ordens de exemplo...');
         $this->createDealsAndOrders($empresasCreated, $clientesCreated);
+
+        $this->command->info('Criando banners promocionais...');
+        $this->createBanners();
+
+        $this->command->info('Criando notificações de exemplo...');
+        $this->createNotifications($empresasCreated, $clientesCreated);
 
         $this->command->info('Dados fake criados com sucesso!');
     }
@@ -539,6 +596,84 @@ class FakeDataSeeder extends Seeder
                 'content_original' => $msg['msg'],
                 'created_at' => now()->subHours(rand(1, 72)),
             ]);
+        }
+    }
+
+    /**
+     * Cria banners promocionais e informativos
+     */
+    protected function createBanners(): void
+    {
+        $order = 1;
+        foreach ($this->banners as $banner) {
+            Banner::create([
+                'title' => $banner['title'],
+                'description' => $banner['description'],
+                'image_path' => 'banners/placeholder-' . $order . '.jpg', // Placeholder
+                'link' => $banner['link'],
+                'position' => $banner['position'],
+                'type' => $banner['type'],
+                'active' => true,
+                'order' => $order,
+                'starts_at' => now()->subDays(rand(1, 30)),
+                'ends_at' => now()->addDays(rand(30, 90)),
+                'views' => rand(100, 5000),
+                'clicks' => rand(10, 500),
+            ]);
+            $order++;
+        }
+    }
+
+    /**
+     * Cria notificações de exemplo para usuários
+     */
+    protected function createNotifications(array $empresas, array $clientes): void
+    {
+        $notificacoesCliente = [
+            ['type' => 'deal', 'title' => 'Nova proposta recebida', 'msg' => 'A empresa ManutenPro enviou uma proposta para seu pedido.'],
+            ['type' => 'system', 'title' => 'Bem-vindo ao CondoHub!', 'msg' => 'Explore nossos serviços e encontre o fornecedor ideal.'],
+            ['type' => 'deal', 'title' => 'Negociação aceita', 'msg' => 'Sua negociação foi aceita! Verifique os detalhes.'],
+            ['type' => 'order', 'title' => 'Ordem em andamento', 'msg' => 'O serviço foi iniciado. Acompanhe o progresso.'],
+        ];
+
+        $notificacoesEmpresa = [
+            ['type' => 'deal', 'title' => 'Nova solicitação de orçamento', 'msg' => 'Um cliente solicitou orçamento para seus serviços.'],
+            ['type' => 'system', 'title' => 'Seu plano foi renovado', 'msg' => 'Sua assinatura Premium foi renovada com sucesso.'],
+            ['type' => 'ranking', 'title' => 'Você subiu no ranking!', 'msg' => 'Parabéns! Você está entre os top 10 do seu segmento.'],
+            ['type' => 'order', 'title' => 'Ordem concluída', 'msg' => 'A ordem #123 foi marcada como concluída.'],
+            ['type' => 'system', 'title' => 'Novo serviço aprovado', 'msg' => 'Seu serviço foi aprovado e está visível para clientes.'],
+        ];
+
+        // Notificações para clientes
+        foreach ($clientes as $cliente) {
+            $numNotifs = rand(1, 3);
+            for ($i = 0; $i < $numNotifs; $i++) {
+                $notif = $notificacoesCliente[array_rand($notificacoesCliente)];
+                Notification::create([
+                    'user_id' => $cliente['user']->id,
+                    'type' => $notif['type'],
+                    'title' => $notif['title'],
+                    'message' => $notif['msg'],
+                    'read_at' => rand(0, 1) ? now()->subHours(rand(1, 48)) : null,
+                    'created_at' => now()->subHours(rand(1, 168)),
+                ]);
+            }
+        }
+
+        // Notificações para empresas
+        foreach ($empresas as $empresa) {
+            $numNotifs = rand(2, 4);
+            for ($i = 0; $i < $numNotifs; $i++) {
+                $notif = $notificacoesEmpresa[array_rand($notificacoesEmpresa)];
+                Notification::create([
+                    'user_id' => $empresa['user']->id,
+                    'type' => $notif['type'],
+                    'title' => $notif['title'],
+                    'message' => $notif['msg'],
+                    'read_at' => rand(0, 1) ? now()->subHours(rand(1, 48)) : null,
+                    'created_at' => now()->subHours(rand(1, 168)),
+                ]);
+            }
         }
     }
 }

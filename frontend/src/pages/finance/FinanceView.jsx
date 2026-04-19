@@ -65,7 +65,7 @@ export default function FinanceView() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Financeiro</h1>
         <button onClick={handleExport} className="btn-secondary">

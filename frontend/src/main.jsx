@@ -6,47 +6,50 @@ import { Toaster } from 'react-hot-toast'
 import App from './App'
 import { store } from './store'
 import AuthProvider from './components/AuthProvider'
+import ErrorBoundary from './components/ErrorBoundary'
 import { ThemeProvider } from './components/theme-provider'
 import { TooltipProvider } from './components/ui/tooltip'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <Provider store={store}>
-      <BrowserRouter>
-        <ThemeProvider defaultTheme="light" storageKey="condohub-ui-theme">
-          <TooltipProvider>
-            <AuthProvider>
-              <App />
-              <Toaster
-                position="top-right"
-                toastOptions={{
-                  duration: 4000,
-                  style: {
-                    background: 'hsl(var(--card))',
-                    color: 'hsl(var(--card-foreground))',
-                    borderRadius: '8px',
-                    padding: '12px 16px',
-                    border: '1px solid hsl(var(--border))',
-                  },
-                  success: {
-                    iconTheme: {
-                      primary: 'hsl(var(--success))',
-                      secondary: 'hsl(var(--success-foreground))',
+    <ErrorBoundary>
+      <Provider store={store}>
+        <BrowserRouter>
+          <ThemeProvider defaultTheme="light" storageKey="condohub-ui-theme">
+            <TooltipProvider>
+              <AuthProvider>
+                <App />
+                <Toaster
+                  position="top-right"
+                  toastOptions={{
+                    duration: 4000,
+                    style: {
+                      background: 'hsl(var(--card))',
+                      color: 'hsl(var(--card-foreground))',
+                      borderRadius: '8px',
+                      padding: '12px 16px',
+                      border: '1px solid hsl(var(--border))',
                     },
-                  },
-                  error: {
-                    iconTheme: {
-                      primary: 'hsl(var(--destructive))',
-                      secondary: 'hsl(var(--destructive-foreground))',
+                    success: {
+                      iconTheme: {
+                        primary: 'hsl(var(--success))',
+                        secondary: 'hsl(var(--success-foreground))',
+                      },
                     },
-                  },
-                }}
-              />
-            </AuthProvider>
-          </TooltipProvider>
-        </ThemeProvider>
-      </BrowserRouter>
-    </Provider>
+                    error: {
+                      iconTheme: {
+                        primary: 'hsl(var(--destructive))',
+                        secondary: 'hsl(var(--destructive-foreground))',
+                      },
+                    },
+                  }}
+                />
+              </AuthProvider>
+            </TooltipProvider>
+          </ThemeProvider>
+        </BrowserRouter>
+      </Provider>
+    </ErrorBoundary>
   </React.StrictMode>,
 )

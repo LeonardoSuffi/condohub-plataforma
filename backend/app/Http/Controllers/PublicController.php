@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Category;
 use App\Models\Service;
 use App\Models\Banner;
+use App\Models\User;
+use App\Models\CompanyProfile;
+use App\Models\Deal;
 use Illuminate\Http\Request;
 
 class PublicController extends Controller
@@ -61,9 +64,20 @@ class PublicController extends Controller
             $query->where('featured', true);
         }
 
-        // Ordenacao
+        // Ordenacao (whitelist para prevenir SQL injection)
+        $allowedOrderColumns = ['created_at', 'title', 'price_range', 'featured', 'views_count'];
         $orderBy = $request->order_by ?? 'created_at';
-        $orderDir = $request->order_dir ?? 'desc';
+        $orderDir = strtolower($request->order_dir ?? 'desc');
+
+        // Validar coluna de ordenação
+        if (!in_array($orderBy, $allowedOrderColumns)) {
+            $orderBy = 'created_at';
+        }
+
+        // Validar direção de ordenação
+        if (!in_array($orderDir, ['asc', 'desc'])) {
+            $orderDir = 'desc';
+        }
 
         if ($orderBy === 'featured') {
             $query->orderByDesc('featured')->orderByDesc('created_at');
@@ -135,8 +149,57 @@ class PublicController extends Controller
         $stats = [
             'total_services' => Service::where('status', 'ativo')->count(),
             'total_categories' => Category::where('active', true)->whereNull('parent_id')->count(),
+            'total_companies' => CompanyProfile::where('verified', true)->count(),
+            'total_clients' => User::where('type', 'cliente')->where('active', true)->count(),
+            'total_deals' => Deal::count(),
+            'completed_deals' => Deal::where('status', 'concluido')->count(),
         ];
 
         return $this->success($stats, 'Estatisticas da plataforma');
+    }
+
+    /**
+     * Lista servicos recentes
+     */
+    public function recentServices(Request $request)
+    {
+        $limit = min($request->limit ?? 8, 20);
+
+        $services = Service::with(['category:id,name,slug', 'company:id,nome_fantasia,cidade,estado,logo_path', 'images'])
+            ->where('status', 'ativo')
+            ->orderByDesc('created_at')
+            ->limit($limit)
+            ->get()
+            ->map(function ($service) {
+                $coverImage = $service->images->where('is_cover', true)->first()
+                    ?? $service->images->first();
+
+                return [
+                    'id' => $service->id,
+                    'title' => $service->title,
+                    'description' => $service->description,
+                    'region' => $service->region,
+                    'price_range' => $service->price_range,
+                    'featured' => $service->featured,
+                    'created_at' => $service->created_at,
+                    'cover_image' => $coverImage?->url,
+                    'images_count' => $service->images->count(),
+                    'category' => $service->category ? [
+                        'id' => $service->category->id,
+                        'name' => $service->category->name,
+                        'slug' => $service->category->slug,
+                    ] : null,
+                    'company' => $service->company ? [
+                        'nome_fantasia' => $service->company->nome_fantasia,
+                        'cidade' => $service->company->cidade,
+                        'estado' => $service->company->estado,
+                        'logo_url' => $service->company->logo_path
+                            ? asset('storage/' . $service->company->logo_path)
+                            : null,
+                    ] : null,
+                ];
+            });
+
+        return $this->success($services, 'Servicos recentes');
     }
 }

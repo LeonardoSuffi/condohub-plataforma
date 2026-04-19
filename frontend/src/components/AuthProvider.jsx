@@ -1,15 +1,26 @@
 import { useEffect, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchCurrentUser, setInitialized, resetAuth } from '../store/slices/authSlice'
+import { useInactivityTimeout } from '../hooks/useInactivityTimeout'
+import InactivityWarningModal from './InactivityWarningModal'
 
 /**
  * AuthProvider - Handles initial authentication check on app load
+ * Also manages inactivity timeout for security
  */
 export default function AuthProvider({ children }) {
   const dispatch = useDispatch()
   const { initialized, token } = useSelector((state) => state.auth)
   const hasCheckedRef = useRef(false)
   const [isChecking, setIsChecking] = useState(!!token)
+
+  // Inactivity timeout - 30 minutos de inatividade, aviso 5 minutos antes
+  const {
+    showWarning,
+    remainingTime,
+    extendSession,
+    handleLogout: logoutFromInactivity,
+  } = useInactivityTimeout(30, 5)
 
   useEffect(() => {
     // Only run once on mount
@@ -50,5 +61,17 @@ export default function AuthProvider({ children }) {
     )
   }
 
-  return children
+  return (
+    <>
+      {children}
+
+      {/* Modal de aviso de inatividade */}
+      <InactivityWarningModal
+        isOpen={showWarning}
+        remainingTime={remainingTime}
+        onExtend={extendSession}
+        onLogout={logoutFromInactivity}
+      />
+    </>
+  )
 }

@@ -75,8 +75,6 @@ export default function NotificationDropdown() {
     // Navigate based on notification type
     if (notification.data?.deal_id) {
       navigate(`/chat/${notification.data.deal_id}`)
-    } else if (notification.data?.order_id) {
-      navigate('/orders')
     }
 
     setIsOpen(false)

@@ -12,9 +12,23 @@ vi.mock('../services/api', () => ({
         return Promise.resolve({
           data: {
             data: [
-              { id: 1, name: 'Manutencao', slug: 'manutencao', icon: 'tools' },
-              { id: 2, name: 'Limpeza', slug: 'limpeza', icon: 'broom' },
+              { id: 1, name: 'Manutencao', slug: 'manutencao', icon: 'wrench' },
+              { id: 2, name: 'Limpeza', slug: 'limpeza', icon: 'sparkles' },
             ],
+          },
+        })
+      }
+      if (url === '/public/stats') {
+        return Promise.resolve({
+          data: {
+            data: {
+              total_services: 100,
+              total_categories: 12,
+              total_companies: 50,
+              total_clients: 200,
+              total_deals: 150,
+              completed_deals: 80,
+            },
           },
         })
       }
@@ -27,6 +41,7 @@ vi.mock('../services/api', () => ({
                 title: 'Servico Teste',
                 description: 'Descricao teste',
                 category: { id: 1, name: 'Manutencao' },
+                company: { nome_fantasia: 'Empresa Teste', cidade: 'Sao Paulo', estado: 'SP' },
                 price_range: '1000-5000',
               },
             ],
@@ -47,14 +62,15 @@ describe('Home Page', () => {
     renderWithProviders(<Home />)
 
     // Check for hero section content using getAllBy for multiple matches
-    const heroTexts = screen.getAllByText(/encontre os melhores/i)
+    const heroTexts = screen.getAllByText(/encontre os melhores prestadores/i)
     expect(heroTexts.length).toBeGreaterThan(0)
   })
 
   it('renders the search form', async () => {
     renderWithProviders(<Home />)
 
-    expect(screen.getByPlaceholderText(/buscar servicos/i)).toBeInTheDocument()
+    // Updated placeholder to match new Home.jsx
+    expect(screen.getByPlaceholderText(/o que voce precisa/i)).toBeInTheDocument()
     // There may be multiple "Buscar" buttons, use getAllBy
     const buscarButtons = screen.getAllByRole('button', { name: /buscar/i })
     expect(buscarButtons.length).toBeGreaterThan(0)
@@ -97,7 +113,7 @@ describe('Home Page', () => {
   it('renders how it works section', async () => {
     renderWithProviders(<Home />)
 
-    // How it works section - use getAllBy for potential multiple matches
+    // How it works section - look for "Como funciona"
     const comoFuncionaTexts = screen.getAllByText(/como funciona/i)
     expect(comoFuncionaTexts.length).toBeGreaterThan(0)
   })
@@ -112,11 +128,11 @@ describe('Home Page', () => {
     }, { timeout: 3000 })
   })
 
-  it('renders CTA section', async () => {
+  it('renders CTA section for professionals', async () => {
     renderWithProviders(<Home />)
 
-    // CTA section content - use getAllBy for potential multiple matches
-    const ctaTexts = screen.getAllByText(/pronto para encontrar/i)
+    // CTA section for professionals - use getAllBy for potential multiple matches
+    const ctaTexts = screen.getAllByText(/cadastre sua empresa/i)
     expect(ctaTexts.length).toBeGreaterThan(0)
   })
 
@@ -132,7 +148,8 @@ describe('Home Page', () => {
     const user = userEvent.setup()
     renderWithProviders(<Home />)
 
-    const searchInput = screen.getByPlaceholderText(/buscar servicos/i)
+    // Updated placeholder to match new Home.jsx
+    const searchInput = screen.getByPlaceholderText(/o que voce precisa/i)
     await user.type(searchInput, 'eletrica')
 
     expect(searchInput).toHaveValue('eletrica')

@@ -4,11 +4,11 @@ import userEvent from '@testing-library/user-event'
 import { renderWithProviders, mockClienteUser, mockEmpresaUser } from '../test/testUtils'
 import Dashboard from './Dashboard'
 
-// Mock the api module
+// Mock the api module - don't override user from /users/me to keep preloaded state
 vi.mock('../services/api', () => ({
   default: {
     get: vi.fn().mockImplementation((url) => {
-      if (url === '/deals') {
+      if (url === '/deals' || url.startsWith('/deals')) {
         return Promise.resolve({
           data: {
             data: [
@@ -18,25 +18,30 @@ vi.mock('../services/api', () => ({
           },
         })
       }
-      if (url === '/orders') {
+      if (url === '/users/me') {
+        // Return null so preloaded state user is preserved
         return Promise.resolve({
           data: {
-            data: [
-              { id: 1, status: 'pendente', value: '1500.00' },
-            ],
-            meta: { total: 1 },
+            data: null,
           },
         })
       }
-      if (url === '/users/me') {
+      if (url === '/public/categories') {
         return Promise.resolve({
           data: {
-            data: {
-              id: 1,
-              name: 'Test User',
-              type: 'cliente',
-              profile_completion: { percentage: 80, completed: 8, total: 10 },
-            },
+            data: [
+              { id: 1, name: 'Manutencao', slug: 'manutencao' },
+              { id: 2, name: 'Limpeza', slug: 'limpeza' },
+            ],
+          },
+        })
+      }
+      if (url === '/public/companies' || url.startsWith('/public/companies')) {
+        return Promise.resolve({
+          data: {
+            data: [
+              { id: 1, nome_fantasia: 'Empresa Teste', cidade: 'Sao Paulo' },
+            ],
           },
         })
       }
@@ -62,9 +67,9 @@ describe('Dashboard Page', () => {
       },
     })
 
-    // New loading state uses skeleton components with animate-pulse class
-    const skeletons = document.querySelectorAll('.animate-pulse')
-    expect(skeletons.length).toBeGreaterThan(0)
+    // Loading state shows a spinner with animate-spin class
+    const spinner = document.querySelector('.animate-spin')
+    expect(spinner).toBeInTheDocument()
   })
 
   it('renders welcome message with user name', async () => {
@@ -80,8 +85,8 @@ describe('Dashboard Page', () => {
     })
 
     await waitFor(() => {
-      const welcomeTexts = screen.getAllByText(/ola/i)
-      expect(welcomeTexts.length).toBeGreaterThan(0)
+      // Component shows "Ola, {firstName}!"
+      expect(screen.getByText(/Ola, Joao/i)).toBeInTheDocument()
     }, { timeout: 5000 })
   })
 
@@ -98,7 +103,8 @@ describe('Dashboard Page', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText(/encontre os melhores prestadores/i)).toBeInTheDocument()
+      // Component says "Encontre os melhores profissionais para seu condominio"
+      expect(screen.getByText(/encontre os melhores profissionais/i)).toBeInTheDocument()
     })
   })
 
@@ -114,13 +120,13 @@ describe('Dashboard Page', () => {
       },
     })
 
-    // Wait for the dashboard to finish loading
+    // Wait for the greeting to appear
     await waitFor(() => {
-      expect(screen.queryByText(/carregando dashboard/i)).not.toBeInTheDocument()
+      expect(screen.getByText(/Ola,/i)).toBeInTheDocument()
     }, { timeout: 5000 })
 
-    // Verify the greeting section exists for empresa user
-    expect(screen.getByText(/bom dia/i)).toBeInTheDocument()
+    // Verify the empresa message
+    expect(screen.getByText(/gerencie suas negociacoes/i)).toBeInTheDocument()
   })
 
   it('renders stats cards', async () => {
@@ -155,8 +161,8 @@ describe('Dashboard Page', () => {
     })
 
     await waitFor(() => {
-      // There may be multiple "Buscar Servicos" elements, use getAllBy
-      const searchTexts = screen.getAllByText(/buscar servicos/i)
+      // Component shows "Buscar Empresas" button for cliente
+      const searchTexts = screen.getAllByText(/buscar empresas/i)
       expect(searchTexts.length).toBeGreaterThan(0)
     })
   })
@@ -174,13 +180,13 @@ describe('Dashboard Page', () => {
     })
 
     await waitFor(() => {
-      // Use queryAllBy for elements that may or may not appear
-      const servicosTexts = screen.queryAllByText(/meus servicos/i)
-      expect(servicosTexts.length).toBeGreaterThanOrEqual(0)
+      // Component shows "Meus Servicos" link for empresa
+      const servicosTexts = screen.getAllByText(/meus servicos/i)
+      expect(servicosTexts.length).toBeGreaterThan(0)
     }, { timeout: 5000 })
 
-    // Just verify the component renders without error
-    expect(screen.getByText(/bom dia/i)).toBeInTheDocument()
+    // Verify the greeting
+    expect(screen.getByText(/Ola,/i)).toBeInTheDocument()
   })
 
   it('renders search services button for cliente', async () => {
@@ -196,7 +202,8 @@ describe('Dashboard Page', () => {
     })
 
     await waitFor(() => {
-      const searchLinks = screen.getAllByRole('link', { name: /buscar servicos/i })
+      // Component shows "Buscar Empresas" link for cliente
+      const searchLinks = screen.getAllByRole('link', { name: /buscar empresas/i })
       expect(searchLinks.length).toBeGreaterThan(0)
     }, { timeout: 5000 })
   })
@@ -213,13 +220,10 @@ describe('Dashboard Page', () => {
       },
     })
 
-    // Wait for loading to complete
+    // Wait for "Cadastrar Servico" button to appear
     await waitFor(() => {
-      expect(screen.queryByText(/carregando dashboard/i)).not.toBeInTheDocument()
+      expect(screen.getByText(/cadastrar servico/i)).toBeInTheDocument()
     }, { timeout: 5000 })
-
-    // Verify the dashboard rendered for empresa user
-    expect(screen.getByText(/bom dia/i)).toBeInTheDocument()
   })
 
   it('renders recent deals section', async () => {
@@ -239,24 +243,7 @@ describe('Dashboard Page', () => {
     })
   })
 
-  it('renders recent orders section', async () => {
-    renderWithProviders(<Dashboard />, {
-      preloadedState: {
-        auth: {
-          user: mockClienteUser,
-          token: 'test-token',
-          isAuthenticated: true,
-          initialized: true,
-        },
-      },
-    })
-
-    await waitFor(() => {
-      expect(screen.getByText(/ordens recentes/i)).toBeInTheDocument()
-    })
-  })
-
-  it('displays user type correctly for sindico', async () => {
+  it('displays user type correctly for cliente', async () => {
     renderWithProviders(<Dashboard />, {
       preloadedState: {
         auth: {
@@ -269,7 +256,8 @@ describe('Dashboard Page', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText(/sindico/i)).toBeInTheDocument()
+      // Component shows "Area do Cliente"
+      expect(screen.getByText(/area do cliente/i)).toBeInTheDocument()
     })
   })
 
@@ -286,8 +274,8 @@ describe('Dashboard Page', () => {
     })
 
     await waitFor(() => {
-      const prestadorTexts = screen.getAllByText(/prestador/i)
-      expect(prestadorTexts.length).toBeGreaterThan(0)
+      // Component shows "Area do Parceiro" for empresa
+      expect(screen.getByText(/area do parceiro/i)).toBeInTheDocument()
     }, { timeout: 5000 })
   })
 
@@ -304,37 +292,16 @@ describe('Dashboard Page', () => {
     })
 
     await waitFor(() => {
-      // Admin dashboard renders properly
-      const adminTexts = screen.queryAllByText(/admin/i)
-      expect(adminTexts.length).toBeGreaterThanOrEqual(0)
+      // Component shows "Painel Administrativo" for admin
+      expect(screen.getByText(/painel administrativo/i)).toBeInTheDocument()
     }, { timeout: 5000 })
-
-    // Just verify the component renders the greeting
-    expect(screen.getByText(/bom dia/i)).toBeInTheDocument()
   })
 
-  it('shows profile completion banner when incomplete', async () => {
-    const api = await import('../services/api')
-    api.default.get.mockImplementation((url) => {
-      if (url === '/users/me') {
-        return Promise.resolve({
-          data: {
-            data: {
-              id: 1,
-              name: 'Test User',
-              type: 'cliente',
-              profile_completion: { percentage: 60, completed: 6, total: 10 },
-            },
-          },
-        })
-      }
-      return Promise.resolve({ data: { data: [], meta: {} } })
-    })
-
+  it('shows stats when user is logged in', async () => {
     renderWithProviders(<Dashboard />, {
       preloadedState: {
         auth: {
-          user: { id: 1, name: 'Test', type: 'cliente', profile_completion: { percentage: 60, completed: 6, total: 10 } },
+          user: { id: 1, name: 'Test', type: 'cliente' },
           token: 'test-token',
           isAuthenticated: true,
           initialized: true,
@@ -343,7 +310,8 @@ describe('Dashboard Page', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByText(/complete seu perfil/i)).toBeInTheDocument()
+      // Component shows stats section with "Total Negociacoes"
+      expect(screen.getByText(/total negociacoes/i)).toBeInTheDocument()
     })
   })
 })

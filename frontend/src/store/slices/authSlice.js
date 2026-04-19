@@ -68,7 +68,8 @@ export const fetchCurrentUser = createAsyncThunk(
 
     try {
       const response = await api.get('/users/me')
-      return response.data.data
+      // O endpoint retorna { user: ... }, extraímos apenas o user
+      return response.data.data.user || response.data.data
     } catch (error) {
       localStorage.removeItem('token')
       return rejectWithValue(error.response?.data?.message || 'Session expired')
@@ -88,8 +89,15 @@ export const updateProfile = createAsyncThunk(
   }
 )
 
-// Check if token exists in localStorage
-const token = localStorage.getItem('token')
+// Check if token exists in localStorage (safe for SSR/testing)
+const getToken = () => {
+  try {
+    return typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null
+  } catch {
+    return null
+  }
+}
+const token = getToken()
 
 const initialState = {
   user: null,
