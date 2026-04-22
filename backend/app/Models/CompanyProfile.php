@@ -95,7 +95,7 @@ class CompanyProfile extends Model
     public function getLogoUrlAttribute(): ?string
     {
         if ($this->logo_path) {
-            return Storage::url($this->logo_path);
+            return asset('storage/' . $this->logo_path);
         }
         return null;
     }
@@ -103,7 +103,7 @@ class CompanyProfile extends Model
     public function getCoverUrlAttribute(): ?string
     {
         if ($this->cover_path) {
-            return Storage::url($this->cover_path);
+            return asset('storage/' . $this->cover_path);
         }
         return null;
     }

@@ -114,8 +114,8 @@ class CompanyController extends Controller
                     'cidade' => $company->cidade,
                     'estado' => $company->estado,
                     'descricao' => $company->descricao,
-                    'logo_url' => $company->logo_path,
-                    'cover_path' => $company->cover_path,
+                    'logo_url' => $company->logo_url,
+                    'cover_url' => $company->cover_url,
                     'verified' => (bool) $company->verified,
                     'slug' => $company->slug,
                     'services_count' => (int) $company->services_count,
@@ -365,8 +365,8 @@ class CompanyController extends Controller
             'cidade' => $company->cidade,
             'estado' => $company->estado,
             'descricao' => $company->descricao,
-            'logo_url' => $company->logo_path,
-            'cover_path' => $company->cover_path,
+            'logo_url' => $company->logo_url,
+            'cover_url' => $company->cover_url,
             'verified' => (bool) $company->verified,
             'slug' => $company->slug,
             'average_rating' => $company->average_rating ? round((float) $company->average_rating, 1) : null,
@@ -419,11 +419,11 @@ class CompanyController extends Controller
             Cache::forget("company_profile_{$companyId}");
         }
 
-        // Invalida caches de listagem (pattern matching)
-        // Em producao, usar Redis com SCAN para patterns
         Cache::forget('company_segments');
 
-        // Para invalidar todos os caches de listagem, seria necessário
-        // implementar tags de cache (requer Redis) ou lista de chaves
+        // Limpa todo o cache para garantir que listas sejam atualizadas
+        // As chaves de lista usam MD5 hash, então não podem ser enumeradas individualmente
+        // Em producao com Redis, usar tags para invalidacao seletiva
+        Cache::flush();
     }
 }

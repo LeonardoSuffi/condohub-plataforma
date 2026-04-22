@@ -2,7 +2,8 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchDealDetail, fetchMessages, sendMessage, updateDealStatus, clearCurrentDeal } from '../../store/slices/dealsSlice'
-import { Send, ArrowLeft, AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
+import { Send, ArrowLeft, AlertCircle, Loader2 } from 'lucide-react'
+import DealActionBar from '@/components/chat/DealActionBar'
 import toast from 'react-hot-toast'
 
 export default function ChatView() {
@@ -13,6 +14,7 @@ export default function ChatView() {
   const { user } = useSelector((state) => state.auth)
   const [newMessage, setNewMessage] = useState('')
   const [sending, setSending] = useState(false)
+  const [actionLoading, setActionLoading] = useState(false)
   const messagesEndRef = useRef(null)
   const pollingRef = useRef(null)
   const mountedRef = useRef(true)
@@ -84,25 +86,28 @@ export default function ChatView() {
   }
 
   const handleStatusChange = async (newStatus) => {
-    const confirmMessage = newStatus === 'aceito'
-      ? 'Ao aceitar, seus dados de contato serao liberados para o cliente. Confirma?'
-      : 'Tem certeza que deseja rejeitar esta negociacao?'
-
-    if (!window.confirm(confirmMessage)) return
-
+    setActionLoading(true)
     try {
       await dispatch(updateDealStatus({ id: dealId, status: newStatus })).unwrap()
-      toast.success(`Negociacao ${newStatus === 'aceito' ? 'aceita' : 'rejeitada'}!`)
+      const messages = {
+        aceito: 'Negociacao aceita! Dados de contato liberados.',
+        rejeitado: 'Negociacao rejeitada.',
+        concluido: 'Negociacao concluida com sucesso!',
+      }
+      toast.success(messages[newStatus] || 'Status atualizado!')
       if (newStatus === 'rejeitado') {
         navigate('/deals')
       }
+      dispatch(fetchDealDetail(dealId))
     } catch (error) {
       toast.error(error || 'Erro ao atualizar status')
+      throw error
+    } finally {
+      setActionLoading(false)
     }
   }
 
   const canSendMessages = ['aberto', 'negociando'].includes(dealStatus)
-  const canAcceptReject = user?.type === 'empresa' && dealStatus === 'negociando'
 
   const getStatusStyle = (status) => {
     const styles = {
@@ -174,42 +179,24 @@ export default function ChatView() {
               )}
             </p>
           </div>
-          <div className="flex items-center gap-3 ml-4">
-            <span className={`px-3 py-1 text-sm font-medium rounded-full ${getStatusStyle(dealStatus)}`}>
-              {getStatusLabel(dealStatus)}
-            </span>
-            {canAcceptReject && (
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleStatusChange('aceito')}
-                  className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700"
-                >
-                  Aceitar
-                </button>
-                <button
-                  onClick={() => handleStatusChange('rejeitado')}
-                  className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
-                >
-                  Rejeitar
-                </button>
-              </div>
-            )}
-          </div>
+          <span className={`px-3 py-1 text-sm font-medium rounded-full ${getStatusStyle(dealStatus)}`}>
+            {getStatusLabel(dealStatus)}
+          </span>
         </div>
 
-        {isAnonymous && (
-          <div className="mt-3 p-3 bg-amber-50 border border-amber-100 rounded-lg text-amber-800 text-sm flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            Esta conversa e anonima. Os dados de contato serao liberados apos a empresa aceitar a negociacao.
-          </div>
-        )}
-
-        {!isAnonymous && dealStatus === 'aceito' && (
-          <div className="mt-3 p-3 bg-green-50 border border-green-100 rounded-lg text-green-800 text-sm flex items-start gap-2">
-            <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            Negociacao aceita! Agora voces podem trocar dados de contato diretamente.
-          </div>
-        )}
+        {/* Action Bar - Botoes e dados de contato */}
+        <div className="mt-3">
+          <DealActionBar
+            dealStatus={dealStatus}
+            userType={user?.type}
+            isAnonymous={isAnonymous}
+            contactInfo={currentDeal?.contact_info}
+            onAccept={() => handleStatusChange('aceito')}
+            onReject={() => handleStatusChange('rejeitado')}
+            onComplete={() => handleStatusChange('concluido')}
+            loading={actionLoading}
+          />
+        </div>
       </div>
 
       {/* Messages */}

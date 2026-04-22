@@ -6,6 +6,7 @@ import { useChat } from '@/contexts/ChatContext'
 import {
   MessageSquare,
   CheckCircle,
+  CheckCircle2,
   XCircle,
   Clock,
   TrendingUp,
@@ -27,8 +28,10 @@ import {
   Zap,
   Target,
   BarChart3,
+  Loader2,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import ConfirmationModal from '@/components/chat/ConfirmationModal'
 
 export default function DealList() {
   const dispatch = useDispatch()
@@ -38,6 +41,8 @@ export default function DealList() {
   const [filter, setFilter] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [activeDropdown, setActiveDropdown] = useState(null)
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, dealId: null, action: null })
+  const [actionLoading, setActionLoading] = useState(false)
 
   useEffect(() => {
     dispatch(fetchDeals({ status: filter || undefined }))
@@ -51,11 +56,62 @@ export default function DealList() {
   }, [])
 
   const handleStatusChange = async (dealId, newStatus) => {
+    setActionLoading(true)
     try {
       await dispatch(updateDealStatus({ id: dealId, status: newStatus })).unwrap()
-      toast.success(`Negociacao ${newStatus === 'aceito' ? 'aceita' : 'rejeitada'}!`)
+      const messages = {
+        aceito: 'Negociacao aceita! Dados de contato liberados.',
+        rejeitado: 'Negociacao rejeitada.',
+        concluido: 'Negociacao concluida com sucesso!',
+      }
+      toast.success(messages[newStatus] || 'Status atualizado!')
+      dispatch(fetchDeals({ status: filter || undefined }))
     } catch (error) {
       toast.error(error || 'Erro ao atualizar status')
+      throw error
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const openConfirmModal = (dealId, action) => {
+    setConfirmModal({ isOpen: true, dealId, action })
+  }
+
+  const closeConfirmModal = () => {
+    setConfirmModal({ isOpen: false, dealId: null, action: null })
+  }
+
+  const handleConfirm = async () => {
+    const { dealId, action } = confirmModal
+    await handleStatusChange(dealId, action)
+  }
+
+  const getModalConfig = () => {
+    switch (confirmModal.action) {
+      case 'aceito':
+        return {
+          title: 'Aceitar Negociacao',
+          description: 'Ao aceitar, seus dados de contato serao liberados para o cliente e voce podera ver os dados dele.',
+          confirmText: 'Aceitar Negociacao',
+          variant: 'success',
+        }
+      case 'rejeitado':
+        return {
+          title: 'Rejeitar Negociacao',
+          description: 'Tem certeza que deseja rejeitar esta negociacao? Esta acao nao pode ser desfeita.',
+          confirmText: 'Rejeitar',
+          variant: 'danger',
+        }
+      case 'concluido':
+        return {
+          title: 'Concluir Negociacao',
+          description: 'Confirma que o servico foi realizado e a negociacao pode ser encerrada?',
+          confirmText: 'Marcar como Concluido',
+          variant: 'success',
+        }
+      default:
+        return {}
     }
   }
 
@@ -307,10 +363,11 @@ export default function DealList() {
                 getStatusStyle={getStatusStyle}
                 getStatusLabel={getStatusLabel}
                 getStatusIcon={getStatusIcon}
-                handleStatusChange={handleStatusChange}
+                openConfirmModal={openConfirmModal}
                 activeDropdown={activeDropdown}
                 setActiveDropdown={setActiveDropdown}
                 openChat={openChat}
+                actionLoading={actionLoading}
               />
             ))}
           </div>
@@ -335,6 +392,14 @@ export default function DealList() {
           </div>
         )}
       </div>
+
+      {/* Modal de Confirmacao */}
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen}
+        onClose={closeConfirmModal}
+        onConfirm={handleConfirm}
+        {...getModalConfig()}
+      />
     </div>
   )
 }
@@ -347,10 +412,11 @@ function DealCard({
   getStatusStyle,
   getStatusLabel,
   getStatusIcon,
-  handleStatusChange,
+  openConfirmModal,
   activeDropdown,
   setActiveDropdown,
-  openChat
+  openChat,
+  actionLoading
 }) {
   const StatusIcon = getStatusIcon(deal.status)
   const isActive = ['aberto', 'negociando', 'aceito'].includes(deal.status)
@@ -418,20 +484,38 @@ function DealCard({
             {isEmpresa && deal.status === 'negociando' && (
               <div className="hidden sm:flex items-center gap-2">
                 <button
-                  onClick={() => handleStatusChange(deal.id, 'aceito')}
-                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl hover:shadow-lg hover:shadow-emerald-500/25 transition-all"
+                  onClick={() => openConfirmModal(deal.id, 'aceito')}
+                  disabled={actionLoading}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl hover:shadow-lg hover:shadow-emerald-500/25 transition-all disabled:opacity-50"
                 >
                   <Check className="w-4 h-4" />
                   Aceitar
                 </button>
                 <button
-                  onClick={() => handleStatusChange(deal.id, 'rejeitado')}
-                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-red-500 to-rose-500 rounded-xl hover:shadow-lg hover:shadow-red-500/25 transition-all"
+                  onClick={() => openConfirmModal(deal.id, 'rejeitado')}
+                  disabled={actionLoading}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-red-500 to-rose-500 rounded-xl hover:shadow-lg hover:shadow-red-500/25 transition-all disabled:opacity-50"
                 >
                   <X className="w-4 h-4" />
                   Rejeitar
                 </button>
               </div>
+            )}
+
+            {/* Complete Button for Accepted Deals */}
+            {deal.status === 'aceito' && (
+              <button
+                onClick={() => openConfirmModal(deal.id, 'concluido')}
+                disabled={actionLoading}
+                className="hidden sm:flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl hover:shadow-lg hover:shadow-blue-500/25 transition-all disabled:opacity-50"
+              >
+                {actionLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4" />
+                )}
+                Concluir
+              </button>
             )}
 
             {/* Chat Button */}
@@ -445,7 +529,7 @@ function DealCard({
               </button>
             )}
 
-            {/* Mobile Dropdown */}
+            {/* Mobile Dropdown for Negociando */}
             {isEmpresa && deal.status === 'negociando' && (
               <div className="relative sm:hidden">
                 <button
@@ -457,14 +541,14 @@ function DealCard({
                 {activeDropdown === deal.id && (
                   <div className="absolute right-0 mt-1 w-40 bg-white border border-gray-100 rounded-xl shadow-xl z-10 overflow-hidden">
                     <button
-                      onClick={() => { handleStatusChange(deal.id, 'aceito'); setActiveDropdown(null) }}
+                      onClick={() => { openConfirmModal(deal.id, 'aceito'); setActiveDropdown(null) }}
                       className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium text-emerald-600 hover:bg-emerald-50 transition-colors"
                     >
                       <Check className="w-4 h-4" />
                       Aceitar
                     </button>
                     <button
-                      onClick={() => { handleStatusChange(deal.id, 'rejeitado'); setActiveDropdown(null) }}
+                      onClick={() => { openConfirmModal(deal.id, 'rejeitado'); setActiveDropdown(null) }}
                       className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
                     >
                       <X className="w-4 h-4" />
@@ -473,6 +557,17 @@ function DealCard({
                   </div>
                 )}
               </div>
+            )}
+
+            {/* Mobile Complete Button for Aceito */}
+            {deal.status === 'aceito' && (
+              <button
+                onClick={() => openConfirmModal(deal.id, 'concluido')}
+                disabled={actionLoading}
+                className="sm:hidden flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-white bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl transition-all disabled:opacity-50"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+              </button>
             )}
 
             {/* Arrow for completed/rejected */}

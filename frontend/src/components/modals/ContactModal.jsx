@@ -34,7 +34,7 @@ export default function ContactModal({
   const [message, setMessage] = useState('')
 
   const storageUrl = STORAGE_URL
-  const logoUrl = company?.logo_url ? `${storageUrl}/${company.logo_url}` : null
+  const logoUrl = company?.logo_url || null
 
   useEffect(() => {
     if (isOpen) {

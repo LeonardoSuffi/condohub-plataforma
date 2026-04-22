@@ -58,7 +58,7 @@ class ServiceController extends Controller
             'segmento' => $service->company->segmento,
             'cidade' => $service->company->cidade,
             'estado' => $service->company->estado,
-            'logo_url' => $service->company->logo_path ? asset('storage/' . $service->company->logo_path) : null,
+            'logo_url' => $service->company->logo_url,
             'verified' => $service->company->verified,
             'services_count' => $service->company->services()->active()->count(),
             'deals_completed' => $service->company->deals()->where('status', 'concluido')->count(),

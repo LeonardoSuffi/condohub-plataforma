@@ -193,9 +193,7 @@ class PublicController extends Controller
                         'nome_fantasia' => $service->company->nome_fantasia,
                         'cidade' => $service->company->cidade,
                         'estado' => $service->company->estado,
-                        'logo_url' => $service->company->logo_path
-                            ? asset('storage/' . $service->company->logo_path)
-                            : null,
+                        'logo_url' => $service->company->logo_url,
                     ] : null,
                 ];
             });

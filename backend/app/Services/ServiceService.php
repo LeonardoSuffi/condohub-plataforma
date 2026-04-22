@@ -14,7 +14,7 @@ class ServiceService
     {
         $query = Service::query()
             ->active()
-            ->with(['company', 'category']);
+            ->with(['company', 'category', 'images']);
 
         // Filtro por categoria
         if (!empty($filters['category_id'])) {
@@ -70,7 +70,7 @@ class ServiceService
                 $q->where('category_id', $service->category_id)
                   ->orWhere('region', 'like', "%{$service->region}%");
             })
-            ->with('company')
+            ->with(['company', 'images'])
             ->limit($limit)
             ->get();
     }

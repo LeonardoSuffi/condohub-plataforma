@@ -187,6 +187,8 @@ class CompanyCacheService
                 'company_profiles.estado',
                 'company_profiles.descricao',
                 'company_profiles.logo_path',
+                'company_profiles.cover_path',
+                'company_profiles.slug',
                 'company_profiles.verified',
                 'company_profiles.created_at',
             ])

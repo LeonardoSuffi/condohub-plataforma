@@ -160,6 +160,30 @@ class DealService
                 ];
                 unset($data['company']['cnpj'], $data['company']['razao_social']);
             }
+            $data['contact_info'] = null;
+        } else {
+            // Deal aceito/concluido - libera dados de contato
+            $deal->loadMissing(['client.user', 'company.user']);
+
+            if ($user->isEmpresa()) {
+                // Empresa ve dados do cliente
+                $data['contact_info'] = [
+                    'name' => $deal->client?->user?->name,
+                    'email' => $deal->client?->user?->email,
+                    'telefone' => $deal->client?->telefone,
+                    'cidade' => $deal->client?->cidade,
+                    'estado' => $deal->client?->estado,
+                ];
+            } elseif ($user->isCliente()) {
+                // Cliente ve dados da empresa
+                $data['contact_info'] = [
+                    'nome_fantasia' => $deal->company?->nome_fantasia,
+                    'email' => $deal->company?->user?->email,
+                    'telefone' => $deal->company?->telefone,
+                    'cidade' => $deal->company?->cidade,
+                    'estado' => $deal->company?->estado,
+                ];
+            }
         }
 
         return $data;

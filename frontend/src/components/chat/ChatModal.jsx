@@ -5,6 +5,7 @@ import { useChat } from '@/contexts/ChatContext'
 import { fetchDeals, fetchDealDetail, fetchMessages, sendMessage, updateDealStatus, clearCurrentDeal } from '@/store/slices/dealsSlice'
 import { STORAGE_URL } from '@/lib/config'
 import ReviewModal from '@/components/reviews/ReviewModal'
+import DealActionBar from './DealActionBar'
 import toast from 'react-hot-toast'
 import {
   X,
@@ -12,21 +13,14 @@ import {
   Send,
   ArrowLeft,
   AlertCircle,
-  CheckCircle,
   Loader2,
   MessageSquare,
   Building2,
   User,
-  Clock,
-  Shield,
   ChevronRight,
   Search,
-  MoreVertical,
-  Phone,
-  Mail,
-  Check,
-  XCircle,
   Star,
+  CheckCircle,
 } from 'lucide-react'
 
 export default function ChatModal() {
@@ -39,7 +33,8 @@ export default function ChatModal() {
   const [newMessage, setNewMessage] = useState('')
   const [sending, setSending] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const [showActions, setShowActions] = useState(false)
+  const [activeTab, setActiveTab] = useState('pendentes')
+  const [actionLoading, setActionLoading] = useState(false)
   const [reviewModalOpen, setReviewModalOpen] = useState(false)
   const [hasReviewed, setHasReviewed] = useState(false)
   const messagesEndRef = useRef(null)
@@ -109,23 +104,26 @@ export default function ChatModal() {
   }
 
   const handleStatusChange = async (newStatus) => {
-    const confirmMessage = newStatus === 'aceito'
-      ? 'Ao aceitar, seus dados de contato serao liberados para o cliente. Confirma?'
-      : 'Tem certeza que deseja rejeitar esta negociacao?'
-
-    if (!window.confirm(confirmMessage)) return
-
+    setActionLoading(true)
     try {
       await dispatch(updateDealStatus({ id: activeDealId, status: newStatus })).unwrap()
-      toast.success(`Negociacao ${newStatus === 'aceito' ? 'aceita' : 'rejeitada'}!`)
+      const messages = {
+        aceito: 'Negociacao aceita! Dados de contato liberados.',
+        rejeitado: 'Negociacao rejeitada.',
+        concluido: 'Negociacao concluida com sucesso!',
+      }
+      toast.success(messages[newStatus] || 'Status atualizado!')
       if (newStatus === 'rejeitado') {
         switchDeal(null)
       }
       dispatch(fetchDeals({ per_page: 50 }))
+      dispatch(fetchDealDetail(activeDealId))
     } catch (error) {
       toast.error(error || 'Erro ao atualizar status')
+      throw error
+    } finally {
+      setActionLoading(false)
     }
-    setShowActions(false)
   }
 
   const handleBackToList = () => {
@@ -138,7 +136,6 @@ export default function ChatModal() {
   }
 
   const canSendMessages = ['aberto', 'negociando'].includes(dealStatus)
-  const canAcceptReject = user?.type === 'empresa' && dealStatus === 'negociando'
 
   const getStatusStyle = (status) => {
     const styles = {
@@ -162,7 +159,22 @@ export default function ChatModal() {
     return labels[status] || status
   }
 
-  const filteredDeals = (deals || []).filter(deal => {
+  // Filter deals by tab
+  const getDealsForTab = (tab) => {
+    const allDeals = deals || []
+    switch (tab) {
+      case 'pendentes':
+        return allDeals.filter(d => ['aberto', 'negociando'].includes(d.status))
+      case 'contatos':
+        return allDeals.filter(d => d.status === 'aceito')
+      case 'finalizado':
+        return allDeals.filter(d => ['concluido', 'rejeitado'].includes(d.status))
+      default:
+        return allDeals
+    }
+  }
+
+  const filteredDeals = getDealsForTab(activeTab).filter(deal => {
     if (!searchTerm) return true
     const searchLower = searchTerm.toLowerCase()
     const serviceName = (deal.service?.title || deal.service?.titulo || '').toLowerCase()
@@ -170,6 +182,13 @@ export default function ChatModal() {
     const clientName = (deal.client?.name || '').toLowerCase()
     return serviceName.includes(searchLower) || companyName.includes(searchLower) || clientName.includes(searchLower)
   })
+
+  // Count for each tab
+  const tabCounts = {
+    pendentes: (deals || []).filter(d => ['aberto', 'negociando'].includes(d.status)).length,
+    contatos: (deals || []).filter(d => d.status === 'aceito').length,
+    finalizado: (deals || []).filter(d => ['concluido', 'rejeitado'].includes(d.status)).length,
+  }
 
   if (!isOpen) return null
 
@@ -246,6 +265,42 @@ export default function ChatModal() {
             </div>
           </div>
 
+          {/* Tabs */}
+          <div className="flex border-b border-gray-100">
+            {[
+              { id: 'pendentes', label: 'Pendentes', icon: '🟡' },
+              { id: 'contatos', label: 'Contatos', icon: '🟢' },
+              { id: 'finalizado', label: 'Finalizado', icon: '✓' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 py-3 text-xs font-medium transition-colors relative ${
+                  activeTab === tab.id
+                    ? 'text-slate-900 bg-slate-50'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <span className="flex items-center justify-center gap-1.5">
+                  <span>{tab.icon}</span>
+                  {tab.label}
+                  {tabCounts[tab.id] > 0 && (
+                    <span className={`min-w-[18px] h-[18px] text-[10px] rounded-full flex items-center justify-center ${
+                      activeTab === tab.id
+                        ? 'bg-slate-800 text-white'
+                        : 'bg-gray-200 text-gray-600'
+                    }`}>
+                      {tabCounts[tab.id]}
+                    </span>
+                  )}
+                </span>
+                {activeTab === tab.id && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-800" />
+                )}
+              </button>
+            ))}
+          </div>
+
           {/* Deals List */}
           <div className="flex-1 overflow-y-auto">
             {filteredDeals.length === 0 ? (
@@ -253,9 +308,15 @@ export default function ChatModal() {
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                   <MessageSquare className="w-8 h-8 text-gray-400" />
                 </div>
-                <h3 className="font-medium text-gray-900 mb-1">Nenhuma conversa</h3>
+                <h3 className="font-medium text-gray-900 mb-1">
+                  {activeTab === 'pendentes' && 'Nenhuma negociacao pendente'}
+                  {activeTab === 'contatos' && 'Nenhum contato liberado'}
+                  {activeTab === 'finalizado' && 'Nenhuma negociacao finalizada'}
+                </h3>
                 <p className="text-sm text-gray-500">
-                  Suas negociacoes aparecerao aqui
+                  {activeTab === 'pendentes' && 'Negociacoes em andamento aparecerao aqui'}
+                  {activeTab === 'contatos' && 'Contatos aceitos aparecerao aqui'}
+                  {activeTab === 'finalizado' && 'Negociacoes concluidas aparecerao aqui'}
                 </p>
               </div>
             ) : (
@@ -264,7 +325,7 @@ export default function ChatModal() {
                   const otherParty = user?.type === 'empresa'
                     ? { name: deal.client?.name || 'Cliente', type: 'cliente' }
                     : { name: deal.company?.nome_fantasia || 'Empresa', type: 'empresa' }
-                  const logoUrl = deal.company?.logo_url ? `${storageUrl}/${deal.company.logo_url}` : null
+                  const logoUrl = deal.company?.logo_url || null
 
                   return (
                     <button
@@ -356,75 +417,23 @@ export default function ChatModal() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusStyle(dealStatus)}`}>
-                      {getStatusLabel(dealStatus)}
-                    </span>
-                    {canAcceptReject && (
-                      <div className="relative">
-                        <button
-                          onClick={() => setShowActions(!showActions)}
-                          className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
-                        >
-                          <MoreVertical className="w-4 h-4 text-gray-500" />
-                        </button>
-                        {showActions && (
-                          <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-xl border border-gray-200 py-1 w-40 z-10">
-                            <button
-                              onClick={() => handleStatusChange('aceito')}
-                              className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 text-emerald-600"
-                            >
-                              <Check className="w-4 h-4" />
-                              Aceitar
-                            </button>
-                            <button
-                              onClick={() => handleStatusChange('rejeitado')}
-                              className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 text-red-600"
-                            >
-                              <XCircle className="w-4 h-4" />
-                              Rejeitar
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusStyle(dealStatus)}`}>
+                    {getStatusLabel(dealStatus)}
+                  </span>
                 </div>
-
-                {/* Anonymous notice */}
-                {isAnonymous && (
-                  <div className="mt-2 p-2 bg-amber-50 rounded-lg text-amber-700 text-xs flex items-center gap-2">
-                    <Shield className="w-3.5 h-3.5 flex-shrink-0" />
-                    <span>Conversa anonima. Dados liberados apos aceite.</span>
-                  </div>
-                )}
-
-                {/* Accepted notice with contact info */}
-                {!isAnonymous && dealStatus === 'aceito' && (
-                  <div className="mt-2 p-2 bg-emerald-50 rounded-lg text-emerald-700 text-xs">
-                    <div className="flex items-center gap-2 mb-1">
-                      <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                      <span className="font-medium">Negociacao aceita!</span>
-                    </div>
-                    {user?.type !== 'empresa' && currentDeal?.company && (
-                      <div className="ml-5 space-y-1 text-emerald-600">
-                        {currentDeal.company.telefone && (
-                          <a href={`tel:${currentDeal.company.telefone}`} className="flex items-center gap-1 hover:underline">
-                            <Phone className="w-3 h-3" />
-                            {currentDeal.company.telefone}
-                          </a>
-                        )}
-                        {currentDeal.company.email && (
-                          <a href={`mailto:${currentDeal.company.email}`} className="flex items-center gap-1 hover:underline">
-                            <Mail className="w-3 h-3" />
-                            {currentDeal.company.email}
-                          </a>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
+
+              {/* Action Bar - Botoes e dados de contato */}
+              <DealActionBar
+                dealStatus={dealStatus}
+                userType={user?.type}
+                isAnonymous={isAnonymous}
+                contactInfo={currentDeal?.contact_info}
+                onAccept={() => handleStatusChange('aceito')}
+                onReject={() => handleStatusChange('rejeitado')}
+                onComplete={() => handleStatusChange('concluido')}
+                loading={actionLoading}
+              />
 
               {/* Review Banner - Show for completed deals for clients */}
               {dealStatus === 'concluido' && user?.type === 'cliente' && !hasReviewed && (

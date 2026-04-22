@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\CompanyProfile;
 use App\Models\ClientProfile;
+use App\Services\CompanyCacheService;
+use App\Http\Controllers\CompanyController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -195,9 +197,26 @@ class UserController extends Controller
         $user->foto_path = $path;
         $user->save();
 
+        // Se for empresa, tambem atualiza logo da empresa
+        if ($user->isEmpresa() && $user->companyProfile) {
+            $profile = $user->companyProfile;
+
+            // Remove logo antiga se existir
+            if ($profile->logo_path && $profile->logo_path !== $path) {
+                Storage::disk('public')->delete($profile->logo_path);
+            }
+
+            $profile->logo_path = $path;
+            $profile->save();
+
+            // Invalida cache da empresa (perfil e listas)
+            CompanyCacheService::invalidateCompany($profile->id);
+            CompanyController::invalidateCache($profile->id);
+        }
+
         return $this->success([
             'foto_path' => $path,
-            'foto_url' => Storage::url($path),
+            'foto_url' => asset('storage/' . $path),
         ], 'Foto atualizada com sucesso');
     }
 
@@ -228,9 +247,13 @@ class UserController extends Controller
         $profile->logo_path = $path;
         $profile->save();
 
+        // Invalida cache da empresa (perfil e listas)
+        CompanyCacheService::invalidateCompany($profile->id);
+        CompanyController::invalidateCache($profile->id);
+
         return $this->success([
             'logo_path' => $path,
-            'logo_url' => Storage::url($path),
+            'logo_url' => asset('storage/' . $path),
         ], 'Logo atualizada com sucesso');
     }
 

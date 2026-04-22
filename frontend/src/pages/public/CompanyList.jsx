@@ -438,8 +438,8 @@ export default function CompanyList() {
 function CompanyCard({ company, viewMode, storageUrl }) {
   const rating = company.average_rating ? parseFloat(company.average_rating).toFixed(1) : null
   const servicesCount = company.services_count || 0
-  const logoUrl = company.logo_url ? `${storageUrl}/${company.logo_url}` : null
-  const coverUrl = company.cover_path ? `${storageUrl}/${company.cover_path}` : null
+  const logoUrl = company.logo_url || null
+  const coverUrl = company.cover_url || null
 
   if (viewMode === 'list') {
     return (

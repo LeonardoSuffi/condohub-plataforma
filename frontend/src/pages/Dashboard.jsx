@@ -843,8 +843,8 @@ export default function Dashboard() {
 
 // Modern Company Card Component
 function CompanyCardModern({ company, storageUrl, badge }) {
-  const logoUrl = company.logo_url ? `${storageUrl}/${company.logo_url}` : null
-  const coverUrl = company.cover_path ? `${storageUrl}/${company.cover_path}` : null
+  const logoUrl = company.logo_url || null
+  const coverUrl = company.cover_url || null
   const rating = company.average_rating ? parseFloat(company.average_rating).toFixed(1) : null
 
   return (
@@ -911,8 +911,8 @@ function CompanyCardModern({ company, storageUrl, badge }) {
 
 // Compact Company Card for Grid
 function CompanyCardCompact({ company, storageUrl, verified }) {
-  const logoUrl = company.logo_url ? `${storageUrl}/${company.logo_url}` : null
-  const coverUrl = company.cover_path ? `${storageUrl}/${company.cover_path}` : null
+  const logoUrl = company.logo_url || null
+  const coverUrl = company.cover_url || null
   const rating = company.average_rating ? parseFloat(company.average_rating).toFixed(1) : null
 
   return (
@@ -970,7 +970,7 @@ function CompanyCardCompact({ company, storageUrl, verified }) {
 
 // List Item Component for Sidebar Lists
 function CompanyListItem({ company, storageUrl, rank, isNew }) {
-  const logoUrl = company.logo_url ? `${storageUrl}/${company.logo_url}` : null
+  const logoUrl = company.logo_url || null
   const rating = company.average_rating ? parseFloat(company.average_rating).toFixed(1) : null
 
   return (

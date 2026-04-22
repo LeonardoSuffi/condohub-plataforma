@@ -95,7 +95,7 @@ class DashboardDataController extends Controller
                 'segmento' => $company->segmento,
                 'cidade' => $company->cidade,
                 'estado' => $company->estado,
-                'logo_url' => $company->logo_path,
+                'logo_url' => $company->logo_url,
                 'verified' => $company->verified,
                 'services_count' => $company->services_count ?? 0,
                 'deals_completed_count' => $company->deals_completed_count ?? 0,

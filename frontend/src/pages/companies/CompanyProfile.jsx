@@ -128,8 +128,8 @@ export default function CompanyProfile() {
     )
   }
 
-  const logoUrl = company.logo_url ? `${storageUrl}/${company.logo_url}` : null
-  const coverUrl = company.cover_path ? `${storageUrl}/${company.cover_path}` : null
+  const logoUrl = company.logo_url || null
+  const coverUrl = company.cover_url || null
   const totalViews = company.services?.reduce((acc, s) => acc + (s.views_count || 0), 0) || 0
   const memberSince = company.created_at
     ? new Date(company.created_at).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })

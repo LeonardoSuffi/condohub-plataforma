@@ -22,7 +22,6 @@ class Service extends Model
         'status',
         'featured',
         'tags',
-        'images',
         'views_count',
     ];
 
@@ -31,7 +30,6 @@ class Service extends Model
         return [
             'featured' => 'boolean',
             'tags' => 'array',
-            'images' => 'array',
             'views_count' => 'integer',
         ];
     }

@@ -342,7 +342,7 @@ export default function CompanyCarousel({
 }
 
 function CompanyCard({ company, storageUrl, showBadge, badgeText, index, accentColor, compact = false }) {
-  const logoUrl = company.logo_url ? `${storageUrl}/${company.logo_url}` : null
+  const logoUrl = company.logo_url || null
   const rating = company.average_rating ? parseFloat(company.average_rating).toFixed(1) : null
   const completedServices = company.deals_completed_count || 0
   const servicesList = company.services_list || []
