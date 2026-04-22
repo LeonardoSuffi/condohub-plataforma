@@ -279,7 +279,7 @@ class DatabaseSeeder extends Seeder
     {
         User::create([
             'name' => 'Administrador',
-            'email' => 'admin@condominial.com',
+            'email' => 'admin@servicepro.com.br',
             'password' => Hash::make('admin123'),
             'type' => 'admin',
             'email_verified_at' => now(),
@@ -319,8 +319,8 @@ class DatabaseSeeder extends Seeder
 
         // Cliente de teste
         $clienteUser = User::create([
-            'name' => 'Síndico Teste',
-            'email' => 'sindico@teste.com',
+            'name' => 'Cliente Teste',
+            'email' => 'cliente@teste.com',
             'password' => Hash::make('teste123'),
             'type' => 'cliente',
             'email_verified_at' => now(),
@@ -329,9 +329,9 @@ class DatabaseSeeder extends Seeder
         ClientProfile::create([
             'user_id' => $clienteUser->id,
             'cpf' => '123.456.789-00',
-            'tipo' => 'sindico',
+            'tipo' => 'pessoa_fisica',
             'telefone' => '(11) 88888-8888',
-            'nome_condominio' => 'Condomínio Teste',
+            'nome_organizacao' => 'Empresa Teste',
         ]);
     }
 }

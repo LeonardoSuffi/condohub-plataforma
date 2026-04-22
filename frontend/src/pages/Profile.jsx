@@ -1,64 +1,50 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { Link } from 'react-router-dom'
-import { fetchCurrentUser, updateProfile, clearError, setUser } from '../store/slices/authSlice'
-import PlanSelectionModal from '../components/PlanSelectionModal'
-import { GlassCard, GlassStatCard } from '../components/ui/glass-card'
-import { StarRatingDisplay, ReviewCard, ReviewStats } from '../components/reviews'
-import { PortfolioGallery, PortfolioUpload } from '../components/portfolio'
-import { MetricCard } from '../components/metrics'
-import { SocialLinksDisplay } from '../components/integrations'
-import { Button } from '../components/ui/button'
-import { Badge } from '../components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
+import { updateProfile, clearError, setUser } from '../store/slices/authSlice'
 import api from '../services/api'
 import toast from 'react-hot-toast'
+import { STORAGE_URL } from '../lib/config'
 import {
   Camera,
   MapPin,
   Calendar,
   Mail,
   Phone,
-  Globe,
   Building2,
-  Briefcase,
-  Star,
   MessageSquare,
-  ShoppingCart,
-  TrendingUp,
   Edit3,
   Check,
   X,
-  Shield,
   Award,
-  Users,
+  ChevronRight,
+  Loader2,
+  Briefcase,
+  Clock,
+  CheckCircle,
+  TrendingUp,
+  Star,
+  Shield,
+  User,
+  Settings,
   FileText,
   ExternalLink,
-  Image,
-  BarChart3,
-  Plus,
-  Loader2,
+  ArrowUpRight,
+  Zap,
+  Target,
+  Users,
+  AlertCircle,
 } from 'lucide-react'
 
 export default function Profile() {
   const dispatch = useDispatch()
-  const { user, loading, error } = useSelector((state) => state.auth)
-  const [activeTab, setActiveTab] = useState('sobre')
+  const { user, loading, error, initialized } = useSelector((state) => state.auth)
   const [isEditing, setIsEditing] = useState(false)
-  const [showPlanModal, setShowPlanModal] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
-  const [uploadingLogo, setUploadingLogo] = useState(false)
-  const [uploadingCover, setUploadingCover] = useState(false)
-  const [stats, setStats] = useState(null)
+  const [stats, setStats] = useState({})
   const [recentDeals, setRecentDeals] = useState([])
-  const [services, setServices] = useState([])
-  const [portfolio, setPortfolio] = useState([])
-  const [reviews, setReviews] = useState({ data: [], stats: {} })
   const [loadingStats, setLoadingStats] = useState(true)
-  const [uploadingPortfolio, setUploadingPortfolio] = useState(false)
   const photoInputRef = useRef(null)
-  const logoInputRef = useRef(null)
-  const coverInputRef = useRef(null)
 
   const [formData, setFormData] = useState({
     name: '',
@@ -66,20 +52,16 @@ export default function Profile() {
     nome_fantasia: '',
     segmento: '',
     telefone: '',
-    endereco: '',
     cidade: '',
     estado: '',
-    cep: '',
     descricao: '',
-    website: '',
-    nome_condominio: '',
-    endereco_condominio: '',
-    num_unidades: '',
   })
 
   useEffect(() => {
-    loadProfileData()
-  }, [])
+    if (user) {
+      loadProfileData()
+    }
+  }, [user])
 
   useEffect(() => {
     if (user) {
@@ -92,20 +74,11 @@ export default function Profile() {
         data.nome_fantasia = user.company_profile.nome_fantasia || ''
         data.segmento = user.company_profile.segmento || ''
         data.telefone = user.company_profile.telefone || ''
-        data.endereco = user.company_profile.endereco || ''
         data.cidade = user.company_profile.cidade || ''
         data.estado = user.company_profile.estado || ''
-        data.cep = user.company_profile.cep || ''
         data.descricao = user.company_profile.descricao || ''
-        data.website = user.company_profile.website || ''
       } else if (user.type === 'cliente' && user.client_profile) {
         data.telefone = user.client_profile.telefone || ''
-        data.nome_condominio = user.client_profile.nome_condominio || ''
-        data.endereco_condominio = user.client_profile.endereco_condominio || ''
-        data.cidade = user.client_profile.cidade || ''
-        data.estado = user.client_profile.estado || ''
-        data.cep = user.client_profile.cep || ''
-        data.num_unidades = user.client_profile.num_unidades || ''
       }
 
       setFormData(data)
@@ -122,66 +95,19 @@ export default function Profile() {
   const loadProfileData = async () => {
     setLoadingStats(true)
     try {
-      const requests = [
-        api.get('/deals', { params: { per_page: 100 } }),
-      ]
-
-      // Empresa: carregar servicos, portfolio e avaliacoes
-      if (user?.type === 'empresa') {
-        requests.push(
-          api.get('/my-services').catch(() => ({ data: { data: [] } })),
-          api.get('/portfolio').catch(() => ({ data: { data: [] } })),
-          api.get('/reviews/received').catch(() => ({ data: { data: [], stats: {} } }))
-        )
-      }
-
-      // Cliente: carregar avaliacoes dadas
-      if (user?.type === 'cliente') {
-        requests.push(
-          api.get('/reviews/given').catch(() => ({ data: { data: [] } }))
-        )
-      }
-
-      const responses = await Promise.all(requests)
-      const [dealsRes, ...rest] = responses
-
+      const dealsRes = await api.get('/deals', { params: { per_page: 100 } })
       const deals = dealsRes.data?.data || []
 
-      const totalDeals = deals.length
-      const dealsAbertos = deals.filter(d => d.status === 'aberto').length
-      const dealsNegociando = deals.filter(d => d.status === 'negociando').length
-      const dealsAceitos = deals.filter(d => d.status === 'aceito' || d.status === 'concluido').length
-      const dealsConcluidos = deals.filter(d => d.status === 'concluido')
-      const faturamentoTotal = dealsConcluidos.reduce((sum, d) => sum + parseFloat(d.order?.value || d.value || 0), 0)
-
       setStats({
-        totalDeals,
-        dealsAbertos,
-        dealsNegociando,
-        dealsAceitos,
-        faturamentoTotal,
-        taxaConversao: totalDeals > 0 ? Math.round((dealsAceitos / totalDeals) * 100) : 0,
+        totalDeals: deals.length,
+        dealsAbertos: deals.filter(d => d.status === 'aberto' || d.status === 'pending').length,
+        dealsNegociando: deals.filter(d => d.status === 'negociando' || d.status === 'in_progress').length,
+        dealsAceitos: deals.filter(d => d.status === 'aceito' || d.status === 'concluido' || d.status === 'completed').length,
       })
 
       setRecentDeals(deals.slice(0, 5))
-
-      if (user?.type === 'empresa' && rest.length >= 3) {
-        setServices(rest[0].data?.data || [])
-        setPortfolio(rest[1].data?.data || [])
-        setReviews({
-          data: rest[2].data?.data?.data || rest[2].data?.data || [],
-          stats: rest[2].data?.stats || {},
-        })
-      }
-
-      if (user?.type === 'cliente' && rest.length >= 1) {
-        setReviews({
-          data: rest[0].data?.data?.data || rest[0].data?.data || [],
-          stats: {},
-        })
-      }
-    } catch (error) {
-      console.error('Erro ao carregar estatisticas:', error)
+    } catch (_error) {
+      // Silently handle error loading stats
     } finally {
       setLoadingStats(false)
     }
@@ -198,7 +124,6 @@ export default function Profile() {
     if (updateProfile.fulfilled.match(result)) {
       toast.success('Perfil atualizado com sucesso!')
       setIsEditing(false)
-      dispatch(fetchCurrentUser())
     }
   }
 
@@ -212,722 +137,563 @@ export default function Profile() {
     }
 
     setUploadingPhoto(true)
-    const formData = new FormData()
-    formData.append('foto', file)
+    const formDataObj = new FormData()
+    formDataObj.append('foto', file)
 
     try {
-      const response = await api.post('/users/me/foto', formData)
+      const response = await api.post('/users/me/foto', formDataObj)
       toast.success('Foto atualizada!')
       dispatch(setUser({
         ...user,
         foto_path: response.data.data.foto_path
       }))
     } catch (error) {
-      if (error.response?.status !== 401) {
-        toast.error(error.response?.data?.message || 'Erro ao enviar foto')
-      }
+      toast.error('Erro ao enviar foto')
     } finally {
       setUploadingPhoto(false)
     }
   }
 
-  const handleLogoUpload = async (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error('A imagem deve ter no maximo 2MB')
-      return
-    }
-
-    setUploadingLogo(true)
-    const formDataObj = new FormData()
-    formDataObj.append('logo', file)
-
-    try {
-      const response = await api.post('/users/me/logo', formDataObj)
-      toast.success('Logo atualizada!')
-      dispatch(setUser({
-        ...user,
-        company_profile: {
-          ...user.company_profile,
-          logo_path: response.data.data.logo_path
-        }
-      }))
-    } catch (error) {
-      if (error.response?.status !== 401) {
-        toast.error('Erro ao enviar logo')
-      }
-    } finally {
-      setUploadingLogo(false)
-    }
-  }
-
-  const handleCoverUpload = async (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('A imagem deve ter no maximo 5MB')
-      return
-    }
-
-    setUploadingCover(true)
-    const formDataObj = new FormData()
-    formDataObj.append('cover', file)
-
-    try {
-      const response = await api.post('/users/me/cover', formDataObj)
-      toast.success('Capa atualizada!')
-      const profileKey = user.type === 'empresa' ? 'company_profile' : 'client_profile'
-      dispatch(setUser({
-        ...user,
-        [profileKey]: {
-          ...user[profileKey],
-          cover_path: response.data.data.cover_path
-        }
-      }))
-    } catch (error) {
-      if (error.response?.status !== 401) {
-        toast.error('Erro ao enviar capa')
-      }
-    } finally {
-      setUploadingCover(false)
-    }
-  }
-
-  const handlePortfolioUpload = async (formData) => {
-    setUploadingPortfolio(true)
-    try {
-      await api.post('/portfolio', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
-      toast.success('Item adicionado ao portfolio!')
-      loadProfileData()
-    } catch (error) {
-      toast.error('Erro ao adicionar item')
-    } finally {
-      setUploadingPortfolio(false)
-    }
-  }
-
-  const handleReviewRespond = async (reviewId, response) => {
-    try {
-      await api.post(`/reviews/${reviewId}/respond`, { response })
-      toast.success('Resposta enviada!')
-      loadProfileData()
-    } catch (error) {
-      toast.error('Erro ao enviar resposta')
-    }
-  }
-
-  const completion = user?.profile_completion || { percentage: 0 }
-  const storageUrl = import.meta.env.VITE_STORAGE_URL || 'http://localhost:8000/storage'
+  const storageUrl = STORAGE_URL
   const isEmpresa = user?.type === 'empresa'
-  const isCliente = user?.type === 'cliente'
   const profile = isEmpresa ? user?.company_profile : user?.client_profile
-
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value)
-  }
 
   const formatDate = (date) => {
     return new Date(date).toLocaleDateString('pt-BR')
   }
 
-  const getStatusColor = (status) => {
-    const colors = {
-      aberto: 'bg-primary/20 text-primary border-primary/30',
-      negociando: 'bg-warning/20 text-warning border-warning/30',
-      aceito: 'bg-success/20 text-success border-success/30',
-      concluido: 'bg-success/20 text-success border-success/30',
-      rejeitado: 'bg-destructive/20 text-destructive border-destructive/30',
+  const getStatusStyle = (status) => {
+    const styles = {
+      pending: 'bg-amber-100 text-amber-700',
+      aberto: 'bg-amber-100 text-amber-700',
+      negociando: 'bg-blue-100 text-blue-700',
+      in_progress: 'bg-blue-100 text-blue-700',
+      aceito: 'bg-emerald-100 text-emerald-700',
+      concluido: 'bg-emerald-100 text-emerald-700',
+      completed: 'bg-emerald-100 text-emerald-700',
     }
-    return colors[status] || 'bg-muted text-muted-foreground'
+    return styles[status] || 'bg-gray-100 text-gray-700'
   }
 
-  const tabs = isEmpresa
-    ? [
-        { id: 'sobre', label: 'Sobre', icon: FileText },
-        { id: 'portfolio', label: 'Portfolio', icon: Image },
-        { id: 'avaliacoes', label: 'Avaliacoes', icon: Star },
-        { id: 'servicos', label: 'Servicos', icon: Briefcase },
-        { id: 'metricas', label: 'Metricas', icon: BarChart3 },
-      ]
-    : [
-        { id: 'sobre', label: 'Sobre', icon: FileText },
-        { id: 'negociacoes', label: 'Negociacoes', icon: MessageSquare },
-        { id: 'avaliacoes', label: 'Minhas Avaliacoes', icon: Star },
-      ]
+  const getStatusLabel = (status) => {
+    const labels = {
+      pending: 'Pendente',
+      aberto: 'Aberto',
+      negociando: 'Negociando',
+      in_progress: 'Em Andamento',
+      aceito: 'Aceito',
+      concluido: 'Concluido',
+      completed: 'Concluido',
+    }
+    return labels[status] || status
+  }
+
+  // Guard: espera o user estar carregado
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-[3px] border-gray-200 border-t-gray-900 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-500 text-sm">Carregando...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Cover Image */}
-      <div className="relative h-48 sm:h-56 lg:h-72 bg-gradient-to-r from-background via-primary/10 to-accent-violet/10">
-        {profile?.cover_path && (
-          <img
-            src={`${storageUrl}/${profile.cover_path}`}
-            alt="Cover"
-            className="w-full h-full object-cover"
+    <div className="min-h-screen bg-gray-50">
+      {/* Hero Header - Full Width */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        {/* Animated Background Orbs */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div
+            className="absolute -top-40 -right-40 w-[600px] h-[600px] bg-gradient-to-br from-violet-500/30 via-blue-500/20 to-transparent rounded-full blur-3xl animate-pulse"
+            style={{ animationDuration: '4s' }}
           />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
+          <div
+            className="absolute -bottom-40 -left-40 w-[500px] h-[500px] bg-gradient-to-tr from-emerald-500/20 via-teal-500/10 to-transparent rounded-full blur-3xl animate-pulse"
+            style={{ animationDuration: '5s', animationDelay: '1s' }}
+          />
+        </div>
 
-        {/* Cover Upload Button */}
-        <button
-          onClick={() => coverInputRef.current?.click()}
-          disabled={uploadingCover}
-          className="absolute bottom-4 right-4 flex items-center gap-2 px-4 py-2 glass text-foreground text-sm font-medium rounded-lg hover:bg-primary/10 transition-colors"
-        >
-          {uploadingCover ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Camera className="w-4 h-4" />
-          )}
-          Editar capa
-        </button>
-        <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
-      </div>
+        {/* Grid Pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: `linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)`,
+            backgroundSize: '50px 50px'
+          }}
+        />
 
-      {/* Profile Header */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="relative -mt-20 sm:-mt-28 pb-6">
-          <GlassCard variant="elevated" padding="lg">
-            <div className="sm:flex sm:items-end sm:gap-6">
-              {/* Avatar */}
-              <div className="relative -mt-24 sm:-mt-32 mb-4 sm:mb-0">
-                <div className="w-32 h-32 sm:w-40 sm:h-40 glass rounded-full border-4 border-background shadow-glass-lg overflow-hidden">
-                  {user?.foto_path ? (
-                    <img src={`${storageUrl}/${user.foto_path}`} alt="" className="w-full h-full object-cover" />
-                  ) : isEmpresa && profile?.logo_path ? (
-                    <img src={`${storageUrl}/${profile.logo_path}`} alt="" className="w-full h-full object-contain p-4" />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-primary to-accent-violet flex items-center justify-center">
-                      <span className="text-white text-4xl sm:text-5xl font-bold">
-                        {user?.name?.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <button
-                  onClick={() => photoInputRef.current?.click()}
-                  disabled={uploadingPhoto}
-                  className="absolute bottom-2 right-2 w-10 h-10 bg-primary rounded-full flex items-center justify-center text-primary-foreground hover:bg-primary/90 transition-colors shadow-lg"
-                >
-                  {uploadingPhoto ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Camera className="w-5 h-5" />
-                  )}
-                </button>
-                <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+        {/* Hero Content */}
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-20">
+          <div className="flex flex-col lg:flex-row lg:items-center gap-8">
+            {/* Avatar */}
+            <div className="relative flex-shrink-0">
+              <div className="w-28 h-28 sm:w-36 sm:h-36 bg-white rounded-2xl shadow-2xl border-4 border-white/20 overflow-hidden">
+                {user?.foto_path ? (
+                  <img src={`${storageUrl}/${user.foto_path}`} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center">
+                    <span className="text-white text-4xl sm:text-5xl font-bold">
+                      {user?.name?.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
               </div>
+              <button
+                onClick={() => photoInputRef.current?.click()}
+                disabled={uploadingPhoto}
+                className="absolute -bottom-2 -right-2 w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center text-white hover:shadow-lg hover:shadow-emerald-500/30 transition-all shadow-lg border-2 border-white"
+              >
+                {uploadingPhoto ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Camera className="w-5 h-5" />
+                )}
+              </button>
+              <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+            </div>
 
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-3 mb-2">
-                  <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-                    {isEmpresa ? (profile?.nome_fantasia || profile?.razao_social || user?.name) : user?.name}
-                  </h1>
-                  {isEmpresa && profile?.verified && (
-                    <Badge variant="outline" className="gap-1 border-primary/30 text-primary">
-                      <Shield className="w-3.5 h-3.5" />
-                      Verificado
-                    </Badge>
+            {/* User Info */}
+            <div className="flex-1 space-y-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-xl rounded-full border border-white/20">
+                  {isEmpresa ? (
+                    <Briefcase className="w-4 h-4 text-emerald-400" />
+                  ) : (
+                    <User className="w-4 h-4 text-blue-400" />
                   )}
-                  {user?.active_subscription?.plan && (
-                    <Badge className="gap-1 bg-warning/20 text-warning border-warning/30">
-                      <Award className="w-3.5 h-3.5" />
-                      {user.active_subscription.plan.name}
-                    </Badge>
-                  )}
+                  <span className="text-sm font-medium text-white/90">
+                    {isEmpresa ? 'Conta Empresa' : 'Conta Cliente'}
+                  </span>
                 </div>
-
-                <p className="text-muted-foreground mb-3">
-                  {isEmpresa ? profile?.segmento : (isCliente ? `${profile?.tipo?.charAt(0).toUpperCase()}${profile?.tipo?.slice(1)}` : user?.type)}
-                </p>
-
-                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                  {(profile?.cidade || profile?.estado) && (
-                    <span className="flex items-center gap-1.5">
-                      <MapPin className="w-4 h-4" />
-                      {[profile?.cidade, profile?.estado].filter(Boolean).join(', ')}
-                    </span>
-                  )}
-                  {user?.created_at && (
-                    <span className="flex items-center gap-1.5">
-                      <Calendar className="w-4 h-4" />
-                      Membro desde {formatDate(user.created_at)}
-                    </span>
-                  )}
-                  {isEmpresa && reviews.stats?.average > 0 && (
-                    <StarRatingDisplay
-                      value={reviews.stats.average}
-                      count={reviews.stats.total}
-                    />
-                  )}
-                </div>
-
-                {/* Social Links */}
-                {profile?.social_links?.length > 0 && (
-                  <div className="mt-4">
-                    <SocialLinksDisplay links={profile.social_links} />
+                {isEmpresa && profile?.verified && (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/20 backdrop-blur-xl rounded-full border border-emerald-500/30">
+                    <Shield className="w-4 h-4 text-emerald-400" />
+                    <span className="text-sm font-medium text-emerald-300">Verificado</span>
                   </div>
                 )}
               </div>
 
-              {/* Actions */}
-              <div className="mt-4 sm:mt-0 flex gap-2">
-                <Button onClick={() => setIsEditing(true)}>
-                  <Edit3 className="w-4 h-4 mr-2" />
-                  Editar Perfil
-                </Button>
-              </div>
-            </div>
-
-            {/* Stats Bar */}
-            <div className="mt-6 pt-6 border-t border-border">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-foreground">{stats?.totalDeals || 0}</div>
-                  <div className="text-sm text-muted-foreground">Negociacoes</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-success">{stats?.dealsAceitos || 0}</div>
-                  <div className="text-sm text-muted-foreground">Fechados</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">{stats?.taxaConversao || 0}%</div>
-                  <div className="text-sm text-muted-foreground">Conversao</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-foreground">
-                    {isEmpresa ? (portfolio?.length || 0) : (stats?.totalOrders || 0)}
-                  </div>
-                  <div className="text-sm text-muted-foreground">{isEmpresa ? 'Portfolio' : 'Pedidos'}</div>
-                </div>
-              </div>
-            </div>
-          </GlassCard>
-        </div>
-
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="pb-12">
-          <TabsList className="glass w-full justify-start overflow-x-auto mb-6">
-            {tabs.map((tab) => (
-              <TabsTrigger key={tab.id} value={tab.id} className="gap-2">
-                <tab.icon className="w-4 h-4" />
-                {tab.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          {/* Tab: Sobre */}
-          <TabsContent value="sobre">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Main Info */}
-              <div className="lg:col-span-2 space-y-6">
-                {/* About Card */}
-                <GlassCard>
-                  <h2 className="text-lg font-semibold text-foreground mb-4">Sobre</h2>
-                  {isEditing ? (
-                    <textarea
-                      name="descricao"
-                      value={formData.descricao}
-                      onChange={handleChange}
-                      rows={4}
-                      placeholder="Escreva uma descricao sobre voce ou sua empresa..."
-                      className="w-full px-4 py-3 bg-background/50 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none text-foreground placeholder:text-muted-foreground"
-                    />
-                  ) : (
-                    <p className="text-muted-foreground leading-relaxed">
-                      {profile?.descricao || 'Nenhuma descricao adicionada ainda.'}
-                    </p>
+              <div>
+                <h1 className="text-3xl sm:text-4xl font-bold text-white">
+                  {isEmpresa ? (profile?.nome_fantasia || user?.name) : user?.name}
+                </h1>
+                <p className="text-slate-300 mt-1 flex items-center gap-2">
+                  {isEmpresa && profile?.segmento && (
+                    <span>{profile.segmento}</span>
                   )}
-                </GlassCard>
+                  {(profile?.cidade || profile?.estado) && (
+                    <span className="flex items-center gap-1">
+                      <MapPin className="w-4 h-4" />
+                      {[profile?.cidade, profile?.estado].filter(Boolean).join(', ')}
+                    </span>
+                  )}
+                </p>
+              </div>
 
-                {/* Contact Info */}
-                <GlassCard>
-                  <h2 className="text-lg font-semibold text-foreground mb-4">Informacoes de Contato</h2>
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                        <Mail className="w-5 h-5 text-primary" />
+              {/* Quick Actions */}
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  onClick={() => setIsEditing(!isEditing)}
+                  className="group flex items-center gap-2 px-5 py-2.5 bg-white text-slate-900 font-semibold rounded-xl hover:shadow-lg transition-all"
+                >
+                  <Edit3 className="w-4 h-4" />
+                  Editar Perfil
+                </button>
+                <Link
+                  to="/settings"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-white/10 backdrop-blur-sm text-white font-medium rounded-xl border border-white/20 hover:bg-white/20 transition-all"
+                >
+                  <Settings className="w-4 h-4" />
+                  Configuracoes
+                </Link>
+              </div>
+            </div>
+
+            {/* Plan Badge - Desktop */}
+            {isEmpresa && (
+              <div className="hidden lg:block">
+                <div className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 min-w-[220px]">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Award className="w-5 h-5 text-amber-400" />
+                    <span className="text-sm font-medium text-white/70">Seu Plano</span>
+                  </div>
+                  <p className="text-2xl font-bold text-white">
+                    {user?.active_subscription?.plan?.name || 'Gratuito'}
+                  </p>
+                  <p className="text-sm text-white/60 mt-1">
+                    {user?.active_subscription?.ends_at
+                      ? `Ate ${formatDate(user.active_subscription.ends_at)}`
+                      : 'Plano ativo'}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Stats Bar */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-10">
+            {[
+              { label: 'Negociacoes', value: stats.totalDeals || 0, icon: MessageSquare, color: 'from-slate-500 to-slate-600' },
+              { label: 'Abertas', value: stats.dealsAbertos || 0, icon: Clock, color: 'from-amber-500 to-orange-500' },
+              { label: 'Em Andamento', value: stats.dealsNegociando || 0, icon: TrendingUp, color: 'from-blue-500 to-cyan-500' },
+              { label: 'Concluidas', value: stats.dealsAceitos || 0, icon: CheckCircle, color: 'from-emerald-500 to-teal-500' },
+            ].map((stat, idx) => (
+              <div
+                key={idx}
+                className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10 hover:bg-white/15 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center flex-shrink-0`}>
+                    <stat.icon className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-white">{stat.value}</p>
+                    <p className="text-xs text-slate-400">{stat.label}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Profile Form */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Edit Form Card */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-slate-500 to-slate-600 rounded-xl flex items-center justify-center">
+                    <FileText className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-gray-900">Informacoes do Perfil</h2>
+                    <p className="text-sm text-gray-500">Gerencie seus dados pessoais</p>
+                  </div>
+                </div>
+                {!isEditing && (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                    Editar
+                  </button>
+                )}
+              </div>
+
+              <div className="p-6">
+                {isEditing ? (
+                  <form onSubmit={handleSubmit} className="space-y-5">
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Nome</label>
+                        <input
+                          type="text"
+                          name="name"
+                          value={formData.name}
+                          onChange={handleChange}
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                        />
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">E-mail</p>
-                        {isEditing ? (
-                          <input
-                            type="email"
-                            name="email"
-                            value={formData.email}
-                            onChange={handleChange}
-                            className="mt-1 px-3 py-2 bg-background/50 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                          />
-                        ) : (
-                          <p className="font-medium text-foreground">{user?.email}</p>
-                        )}
+                        <label className="block text-sm font-medium text-gray-700 mb-2">E-mail</label>
+                        <input
+                          type="email"
+                          name="email"
+                          value={formData.email}
+                          onChange={handleChange}
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                        />
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                        <Phone className="w-5 h-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Telefone</p>
-                        {isEditing ? (
-                          <input
-                            type="tel"
-                            name="telefone"
-                            value={formData.telefone}
-                            onChange={handleChange}
-                            placeholder="(00) 00000-0000"
-                            className="mt-1 px-3 py-2 bg-background/50 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                          />
-                        ) : (
-                          <p className="font-medium text-foreground">{profile?.telefone || 'Nao informado'}</p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                        <MapPin className="w-5 h-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Endereco</p>
-                        {isEditing ? (
-                          <div className="grid grid-cols-2 gap-2 mt-1">
+                    {isEmpresa && (
+                      <>
+                        <div className="grid sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Nome Fantasia</label>
+                            <input
+                              type="text"
+                              name="nome_fantasia"
+                              value={formData.nome_fantasia}
+                              onChange={handleChange}
+                              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Segmento</label>
+                            <input
+                              type="text"
+                              name="segmento"
+                              value={formData.segmento}
+                              onChange={handleChange}
+                              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Cidade</label>
                             <input
                               type="text"
                               name="cidade"
                               value={formData.cidade}
                               onChange={handleChange}
-                              placeholder="Cidade"
-                              className="px-3 py-2 bg-background/50 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
                             />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Estado</label>
                             <input
                               type="text"
                               name="estado"
                               value={formData.estado}
                               onChange={handleChange}
-                              placeholder="Estado"
-                              className="px-3 py-2 bg-background/50 border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
                             />
                           </div>
-                        ) : (
-                          <p className="font-medium text-foreground">
-                            {[profile?.endereco, profile?.cidade, profile?.estado].filter(Boolean).join(', ') || 'Nao informado'}
-                          </p>
-                        )}
-                      </div>
+                        </div>
+                      </>
+                    )}
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
+                      <input
+                        type="tel"
+                        name="telefone"
+                        value={formData.telefone}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                      />
                     </div>
 
                     {isEmpresa && (
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                          <Building2 className="w-5 h-5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">CNPJ</p>
-                          <p className="font-medium text-foreground">{profile?.cnpj || 'Nao informado'}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {isEditing && (
-                    <div className="flex gap-3 mt-6 pt-6 border-t border-border">
-                      <Button onClick={handleSubmit} disabled={loading}>
-                        <Check className="w-4 h-4 mr-2" />
-                        Salvar
-                      </Button>
-                      <Button variant="ghost" onClick={() => setIsEditing(false)}>
-                        <X className="w-4 h-4 mr-2" />
-                        Cancelar
-                      </Button>
-                    </div>
-                  )}
-                </GlassCard>
-              </div>
-
-              {/* Sidebar */}
-              <div className="space-y-6">
-                {/* Profile Completion */}
-                {completion.percentage < 100 && (
-                  <GlassCard>
-                    <h3 className="font-semibold text-foreground mb-3">Complete seu perfil</h3>
-                    <div className="mb-3">
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-muted-foreground">Progresso</span>
-                        <span className="font-medium text-foreground">{completion.percentage}%</span>
-                      </div>
-                      <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-primary to-accent-violet rounded-full transition-all"
-                          style={{ width: `${completion.percentage}%` }}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Descricao</label>
+                        <textarea
+                          name="descricao"
+                          value={formData.descricao}
+                          onChange={handleChange}
+                          rows={4}
+                          className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all resize-none"
                         />
                       </div>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Perfis completos tem mais chances de fechar negocios!
-                    </p>
-                  </GlassCard>
-                )}
+                    )}
 
-                {/* Plan Card */}
-                {isEmpresa && (
-                  <GlassCard variant="bordered" className="border-primary/30 bg-gradient-to-br from-primary/10 to-accent-violet/10">
-                    <div className="flex items-center gap-3 mb-4">
-                      <Award className="w-6 h-6 text-warning" />
-                      <h3 className="font-semibold text-foreground">Seu Plano</h3>
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        type="submit"
+                        disabled={loading}
+                        className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-emerald-500/25 disabled:opacity-50 transition-all"
+                      >
+                        {loading ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Check className="w-4 h-4" />
+                        )}
+                        Salvar Alteracoes
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditing(false)}
+                        className="px-6 py-3 text-gray-700 font-medium rounded-xl hover:bg-gray-100 transition-colors"
+                      >
+                        Cancelar
+                      </button>
                     </div>
-                    <p className="text-2xl font-bold text-foreground mb-1">
-                      {user?.active_subscription?.plan?.name || 'Gratuito'}
-                    </p>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      {user?.active_subscription?.ends_at
-                        ? `Valido ate ${formatDate(user.active_subscription.ends_at)}`
-                        : 'Plano ativo'}
-                    </p>
-                    <Button
-                      onClick={() => setShowPlanModal(true)}
-                      className="w-full"
-                    >
-                      Fazer Upgrade
-                    </Button>
-                  </GlassCard>
-                )}
-
-                {/* Quick Stats */}
-                <GlassCard>
-                  <h3 className="font-semibold text-foreground mb-4">Estatisticas</h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground flex items-center gap-2">
-                        <MessageSquare className="w-4 h-4" />
-                        Em andamento
-                      </span>
-                      <span className="font-semibold text-foreground">{stats?.dealsNegociando || 0}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground flex items-center gap-2">
-                        <Check className="w-4 h-4" />
-                        Fechados este mes
-                      </span>
-                      <span className="font-semibold text-success">{stats?.dealsAceitos || 0}</span>
-                    </div>
+                  </form>
+                ) : (
+                  <div className="space-y-1">
+                    <ProfileInfoRow icon={Mail} label="E-mail" value={user?.email} />
+                    <ProfileInfoRow icon={Phone} label="Telefone" value={profile?.telefone || 'Nao informado'} />
                     {isEmpresa && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground flex items-center gap-2">
-                          <TrendingUp className="w-4 h-4" />
-                          Faturamento
-                        </span>
-                        <span className="font-semibold text-foreground">{formatCurrency(stats?.faturamentoTotal || 0)}</span>
+                      <>
+                        <ProfileInfoRow icon={Building2} label="CNPJ" value={profile?.cnpj || 'Nao informado'} />
+                        <ProfileInfoRow icon={MapPin} label="Localizacao" value={[profile?.cidade, profile?.estado].filter(Boolean).join(', ') || 'Nao informado'} />
+                        <ProfileInfoRow icon={Calendar} label="Membro desde" value={formatDate(user?.created_at)} />
+                      </>
+                    )}
+                    {isEmpresa && profile?.descricao && (
+                      <div className="pt-4 mt-4 border-t border-gray-100">
+                        <p className="text-sm font-medium text-gray-500 mb-2">Sobre</p>
+                        <p className="text-gray-700 leading-relaxed">{profile.descricao}</p>
                       </div>
                     )}
                   </div>
-                </GlassCard>
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* Tab: Portfolio (Empresa) */}
-          {isEmpresa && (
-            <TabsContent value="portfolio">
-              <div className="space-y-6">
-                <PortfolioUpload
-                  services={services}
-                  onUpload={handlePortfolioUpload}
-                  isUploading={uploadingPortfolio}
-                />
-                <PortfolioGallery items={portfolio} columns={3} />
-              </div>
-            </TabsContent>
-          )}
-
-          {/* Tab: Avaliacoes */}
-          <TabsContent value="avaliacoes">
-            <div className="space-y-6">
-              {isEmpresa && reviews.stats && (
-                <ReviewStats stats={reviews.stats} />
-              )}
-              <div className="space-y-4">
-                {reviews.data?.length > 0 ? (
-                  reviews.data.map((review) => (
-                    <ReviewCard
-                      key={review.id}
-                      review={review}
-                      showActions={isEmpresa}
-                      onRespond={handleReviewRespond}
-                    />
-                  ))
-                ) : (
-                  <GlassCard className="text-center py-12">
-                    <Star className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
-                    <p className="text-muted-foreground">
-                      {isEmpresa ? 'Nenhuma avaliacao recebida ainda' : 'Voce ainda nao fez nenhuma avaliacao'}
-                    </p>
-                  </GlassCard>
                 )}
               </div>
             </div>
-          </TabsContent>
 
-          {/* Tab: Servicos (Empresa) */}
-          {isEmpresa && (
-            <TabsContent value="servicos">
-              <GlassCard>
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-lg font-semibold text-foreground">Meus Servicos</h2>
-                  <Link to="/my-services/new">
-                    <Button>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Adicionar Servico
-                    </Button>
-                  </Link>
+            {/* Quick Links for Empresa */}
+            {isEmpresa && (
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Link
+                  to="/my-services"
+                  className="group bg-white rounded-2xl shadow-sm border border-gray-100 p-5 hover:shadow-lg hover:border-gray-200 transition-all"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-500 rounded-xl flex items-center justify-center">
+                        <Briefcase className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-gray-900">Meus Servicos</h3>
+                        <p className="text-sm text-gray-500">Gerencie seu catalogo</p>
+                      </div>
+                    </div>
+                    <ArrowUpRight className="w-5 h-5 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
+                  </div>
+                </Link>
+                <Link
+                  to="/deals"
+                  className="group bg-white rounded-2xl shadow-sm border border-gray-100 p-5 hover:shadow-lg hover:border-gray-200 transition-all"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
+                        <MessageSquare className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-gray-900">Negociacoes</h3>
+                        <p className="text-sm text-gray-500">Acompanhe propostas</p>
+                      </div>
+                    </div>
+                    <ArrowUpRight className="w-5 h-5 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
+                  </div>
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Plan Card - Mobile */}
+            {isEmpresa && (
+              <div className="lg:hidden bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 text-white">
+                <div className="flex items-center gap-2 mb-3">
+                  <Award className="w-5 h-5 text-amber-400" />
+                  <span className="font-medium text-sm text-slate-300">Seu Plano</span>
                 </div>
-                {services.length === 0 ? (
-                  <div className="py-12 text-center">
-                    <Briefcase className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-foreground mb-2">Nenhum servico cadastrado</h3>
-                    <p className="text-muted-foreground mb-4">Cadastre seus servicos para receber negociacoes</p>
-                    <Link to="/my-services/new">
-                      <Button>Cadastrar Servico</Button>
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="divide-y divide-border">
-                    {services.map((service) => (
-                      <Link
-                        key={service.id}
-                        to={`/services/${service.id}`}
-                        className="flex items-center gap-4 py-4 hover:bg-primary/5 -mx-6 px-6 transition-colors"
-                      >
-                        <div className="w-16 h-16 bg-muted rounded-lg overflow-hidden flex-shrink-0">
-                          {service.cover_image ? (
-                            <img src={`${storageUrl}/${service.cover_image}`} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Briefcase className="w-6 h-6 text-muted-foreground" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-foreground truncate">{service.titulo}</h3>
-                          <p className="text-sm text-muted-foreground truncate">{service.category?.name}</p>
-                        </div>
-                        <Badge variant={service.status === 'ativo' ? 'default' : 'secondary'}>
-                          {service.status === 'ativo' ? 'Ativo' : 'Inativo'}
-                        </Badge>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </GlassCard>
-            </TabsContent>
-          )}
-
-          {/* Tab: Metricas (Empresa) */}
-          {isEmpresa && (
-            <TabsContent value="metricas">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <MetricCard
-                  title="Total de Negociacoes"
-                  value={stats?.totalDeals || 0}
-                  icon={MessageSquare}
-                  color="primary"
-                />
-                <MetricCard
-                  title="Taxa de Conversao"
-                  value={`${stats?.taxaConversao || 0}%`}
-                  icon={TrendingUp}
-                  color="cyan"
-                />
-                <MetricCard
-                  title="Faturamento Total"
-                  value={formatCurrency(stats?.faturamentoTotal || 0)}
-                  icon={ShoppingCart}
-                  color="success"
-                />
-                <MetricCard
-                  title="Avaliacao Media"
-                  value={reviews.stats?.average?.toFixed(1) || '0.0'}
-                  subtitle={`${reviews.stats?.total || 0} avaliacoes`}
-                  icon={Star}
-                  color="warning"
-                />
-              </div>
-
-              <GlassCard>
-                <h3 className="text-lg font-semibold text-foreground mb-4">Resumo do Periodo</h3>
-                <p className="text-muted-foreground">
-                  Graficos detalhados estarao disponiveis em breve.
+                <p className="text-2xl font-bold">
+                  {user?.active_subscription?.plan?.name || 'Gratuito'}
                 </p>
-              </GlassCard>
-            </TabsContent>
-          )}
+                <p className="text-slate-400 text-sm mt-1">
+                  {user?.active_subscription?.ends_at
+                    ? `Valido ate ${formatDate(user.active_subscription.ends_at)}`
+                    : 'Plano ativo'}
+                </p>
+                <Link
+                  to="/settings"
+                  className="mt-4 flex items-center justify-center gap-2 py-3 bg-white text-slate-800 font-semibold rounded-xl hover:bg-slate-100 transition-colors text-sm"
+                >
+                  Gerenciar Plano
+                </Link>
+              </div>
+            )}
 
-          {/* Tab: Negociacoes (Cliente) */}
-          {isCliente && (
-            <TabsContent value="negociacoes">
-              <GlassCard>
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-lg font-semibold text-foreground">Negociacoes Recentes</h2>
-                  <Link to="/deals" className="text-sm font-medium text-primary hover:underline flex items-center gap-1">
-                    Ver todas <ExternalLink className="w-4 h-4" />
-                  </Link>
-                </div>
-                {recentDeals.length === 0 ? (
-                  <div className="py-12 text-center">
-                    <MessageSquare className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-foreground mb-2">Nenhuma negociacao</h3>
-                    <p className="text-muted-foreground">Suas negociacoes aparecerao aqui</p>
+            {/* Recent Activity */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="px-6 py-5 border-b border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
+                    <Clock className="w-5 h-5 text-white" />
                   </div>
-                ) : (
-                  <div className="divide-y divide-border">
-                    {recentDeals.map((deal) => (
+                  <div>
+                    <h3 className="font-bold text-gray-900">Atividade Recente</h3>
+                    <p className="text-sm text-gray-500">Ultimas negociacoes</p>
+                  </div>
+                </div>
+              </div>
+              <div className="divide-y divide-gray-100">
+                {loadingStats ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="w-8 h-8 border-2 border-gray-200 border-t-gray-900 rounded-full animate-spin" />
+                  </div>
+                ) : recentDeals.length > 0 ? (
+                  <>
+                    {recentDeals.slice(0, 4).map((deal) => (
                       <Link
                         key={deal.id}
                         to={`/chat/${deal.id}`}
-                        className="flex items-center gap-4 py-4 hover:bg-primary/5 -mx-6 px-6 transition-colors"
+                        className="flex items-center gap-3 px-6 py-4 hover:bg-gray-50 transition-colors"
                       >
-                        <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <MessageSquare className="w-5 h-5 text-primary" />
+                        <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                          <MessageSquare className="w-5 h-5 text-slate-600" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-foreground truncate">{deal.service?.titulo || 'Servico'}</h3>
-                          <p className="text-sm text-muted-foreground">{deal.company?.nome_fantasia}</p>
+                          <p className="text-sm font-semibold text-gray-900 truncate">
+                            {deal.service?.titulo || 'Negociacao'}
+                          </p>
+                          <span className={`inline-block text-xs px-2 py-0.5 rounded-full mt-1 font-medium ${getStatusStyle(deal.status)}`}>
+                            {getStatusLabel(deal.status)}
+                          </span>
                         </div>
-                        <div className="text-right">
-                          <Badge className={getStatusColor(deal.status)}>{deal.status}</Badge>
-                          <p className="text-xs text-muted-foreground mt-1">{formatDate(deal.created_at)}</p>
-                        </div>
+                        <ChevronRight className="w-4 h-4 text-gray-400" />
                       </Link>
                     ))}
+                  </>
+                ) : (
+                  <div className="text-center py-12 px-6">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <MessageSquare className="w-8 h-8 text-gray-400" />
+                    </div>
+                    <p className="font-medium text-gray-900 mb-1">Nenhuma atividade</p>
+                    <p className="text-sm text-gray-500">Suas negociacoes aparecerao aqui</p>
                   </div>
                 )}
-              </GlassCard>
-            </TabsContent>
-          )}
-        </Tabs>
-      </div>
+              </div>
+              {recentDeals.length > 0 && (
+                <div className="px-6 py-4 border-t border-gray-100">
+                  <Link
+                    to="/deals"
+                    className="flex items-center justify-center gap-2 text-sm text-slate-700 font-semibold hover:text-slate-900 transition-colors"
+                  >
+                    Ver todas negociacoes
+                    <ChevronRight className="w-4 h-4" />
+                  </Link>
+                </div>
+              )}
+            </div>
 
-      {/* Plan Modal */}
-      {showPlanModal && (
-        <PlanSelectionModal
-          currentPlan={user?.active_subscription?.plan}
-          onClose={() => setShowPlanModal(false)}
-          onSelect={(plan) => {
-            toast.success(`Plano ${plan.name} selecionado!`)
-            setShowPlanModal(false)
-          }}
-        />
-      )}
+            {/* Tips Card */}
+            <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl p-6 border border-emerald-100">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center">
+                  <Zap className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="font-bold text-gray-900">Dica</h3>
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                {isEmpresa
+                  ? 'Complete seu perfil e adicione fotos aos seus servicos para atrair mais clientes e aumentar suas chances de fechar negocios.'
+                  : 'Explore as categorias e encontre os melhores profissionais para suas necessidades. Avalie os servicos recebidos para ajudar outros usuarios.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Component for profile info rows
+function ProfileInfoRow({ icon: Icon, label, value }) {
+  return (
+    <div className="flex items-center justify-between py-4 border-b border-gray-100 last:border-0">
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center">
+          <Icon className="w-4 h-4 text-gray-500" />
+        </div>
+        <span className="text-gray-500">{label}</span>
+      </div>
+      <span className="font-medium text-gray-900">{value}</span>
     </div>
   )
 }

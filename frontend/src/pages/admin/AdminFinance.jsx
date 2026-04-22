@@ -25,9 +25,8 @@ export default function AdminFinance() {
       ])
       setTransactions(transRes.data.data || [])
       setStats(statsRes.data.data)
-    } catch (error) {
+    } catch (_error) {
       toast.error('Erro ao carregar dados financeiros')
-      console.error(error)
     } finally {
       setLoading(false)
     }

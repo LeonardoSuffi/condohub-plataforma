@@ -83,13 +83,13 @@ class AuthController extends Controller
     }
 
     /**
-     * Cadastro de cliente (síndico/administradora/condomínio)
+     * Cadastro de cliente
      */
     public function registerCliente(RegisterClienteRequest $request)
     {
         $validated = $request->validated();
 
-        // Cria o usuário
+        // Cria o usuario
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
@@ -100,11 +100,8 @@ class AuthController extends Controller
         // Cria o perfil do cliente
         $profile = ClientProfile::create([
             'user_id' => $user->id,
-            'cpf' => $validated['cpf'] ?? null,
-            'cnpj' => $validated['cnpj'] ?? null,
-            'tipo' => $validated['tipo'],
-            'telefone' => $validated['telefone'] ?? null,
-            'nome_condominio' => $validated['nome_condominio'] ?? null,
+            'cpf' => $validated['cpf'],
+            'telefone' => $validated['telefone'],
         ]);
 
         // Generate session ID and token

@@ -64,12 +64,12 @@ class UserController extends Controller
             $profile = $user->clientProfile;
             $profileFields = [
                 'telefone' => !empty($profile->telefone),
-                'nome_condominio' => !empty($profile->nome_condominio),
-                'endereco_condominio' => !empty($profile->endereco_condominio),
+                'nome_organizacao' => !empty($profile->nome_organizacao),
+                'endereco_organizacao' => !empty($profile->endereco_organizacao),
                 'cidade' => !empty($profile->cidade),
                 'estado' => !empty($profile->estado),
                 'cep' => !empty($profile->cep),
-                'num_unidades' => !empty($profile->num_unidades),
+                'num_funcionarios' => !empty($profile->num_funcionarios),
             ];
             $fields = array_merge($basicFields, $profileFields);
         } else {
@@ -120,12 +120,12 @@ class UserController extends Controller
         } elseif ($user->isCliente()) {
             $rules = array_merge($rules, [
                 'telefone' => 'sometimes|string|max:20',
-                'nome_condominio' => 'sometimes|string|max:255',
-                'endereco_condominio' => 'sometimes|string|max:255',
+                'nome_organizacao' => 'sometimes|string|max:255',
+                'endereco_organizacao' => 'sometimes|string|max:255',
                 'cidade' => 'sometimes|string|max:100',
                 'estado' => 'sometimes|string|size:2',
                 'cep' => 'sometimes|string|max:10',
-                'num_unidades' => 'sometimes|integer|min:1',
+                'num_funcionarios' => 'sometimes|integer|min:0',
                 'preferences' => 'sometimes|array',
             ]);
         }
@@ -155,8 +155,8 @@ class UserController extends Controller
             }
         } elseif ($user->isCliente() && $user->clientProfile) {
             $profileData = array_intersect_key($validated, array_flip([
-                'telefone', 'nome_condominio', 'endereco_condominio',
-                'cidade', 'estado', 'cep', 'num_unidades', 'preferences'
+                'telefone', 'nome_organizacao', 'endereco_organizacao',
+                'cidade', 'estado', 'cep', 'num_funcionarios', 'preferences'
             ]));
             if (!empty($profileData)) {
                 $user->clientProfile->update($profileData);

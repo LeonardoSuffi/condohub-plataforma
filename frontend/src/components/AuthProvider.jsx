@@ -10,9 +10,9 @@ import InactivityWarningModal from './InactivityWarningModal'
  */
 export default function AuthProvider({ children }) {
   const dispatch = useDispatch()
-  const { initialized, token } = useSelector((state) => state.auth)
+  const { initialized } = useSelector((state) => state.auth)
   const hasCheckedRef = useRef(false)
-  const [isChecking, setIsChecking] = useState(!!token)
+  const [isChecking, setIsChecking] = useState(true)
 
   // Inactivity timeout - 30 minutos de inatividade, aviso 5 minutos antes
   const {
@@ -28,12 +28,14 @@ export default function AuthProvider({ children }) {
     hasCheckedRef.current = true
 
     const checkAuth = async () => {
+      // Read token directly from localStorage to avoid dependency on Redux state
+      const token = localStorage.getItem('token')
+
       if (token) {
         setIsChecking(true)
         try {
           await dispatch(fetchCurrentUser()).unwrap()
-        } catch (error) {
-          console.log('Auth check failed, clearing token:', error)
+        } catch (_error) {
           // Clear invalid token
           dispatch(resetAuth())
         } finally {
@@ -47,7 +49,7 @@ export default function AuthProvider({ children }) {
     }
 
     checkAuth()
-  }, [dispatch, token])
+  }, [dispatch]) // Only depend on dispatch, not token
 
   // Show loading only while actively checking auth
   if (isChecking) {

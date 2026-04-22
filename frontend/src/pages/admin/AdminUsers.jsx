@@ -105,8 +105,7 @@ export default function AdminUsers() {
         last: response.data.meta?.last_page || 1,
         total: response.data.meta?.total || 0,
       })
-    } catch (error) {
-      console.error('Erro ao carregar usuarios:', error)
+    } catch (_error) {
       toast.error('Erro ao carregar usuarios')
     } finally {
       setLoading(false)
@@ -623,7 +622,7 @@ export default function AdminUsers() {
                             )}
                             {user.client_profile && (
                               <p className="text-sm text-gray-500">
-                                {user.client_profile.nome_condominio || user.client_profile.tipo}
+                                {user.client_profile.nome_organizacao || user.client_profile.tipo}
                               </p>
                             )}
                           </div>
@@ -1007,12 +1006,12 @@ function UserViewModal({ user, onClose, onVerifyEmail, formatDate }) {
                   <p className="font-medium">{userData.client_profile.cpf || userData.client_profile.cnpj || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Condominio</p>
-                  <p className="font-medium">{userData.client_profile.nome_condominio || '-'}</p>
+                  <p className="text-gray-500">Organizacao</p>
+                  <p className="font-medium">{userData.client_profile.nome_organizacao || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">Unidades</p>
-                  <p className="font-medium">{userData.client_profile.num_unidades || '-'}</p>
+                  <p className="text-gray-500">Funcionarios</p>
+                  <p className="font-medium">{userData.client_profile.num_funcionarios || '-'}</p>
                 </div>
               </div>
             </div>
@@ -1226,7 +1225,7 @@ function UserCreateModal({ onClose, onSave }) {
     password: '',
     type: 'cliente',
     company: { cnpj: '', razao_social: '', segmento: '' },
-    client: { tipo: 'sindico' },
+    client: { tipo: 'pessoa_fisica' },
   })
 
   const handleSubmit = async (e) => {
@@ -1350,9 +1349,9 @@ function UserCreateModal({ onClose, onSave }) {
                   onChange={(e) => setFormData({ ...formData, client: { ...formData.client, tipo: e.target.value }})}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
                 >
-                  <option value="sindico">Sindico</option>
-                  <option value="administradora">Administradora</option>
-                  <option value="condominio">Condominio</option>
+                  <option value="pessoa_fisica">Pessoa Fisica</option>
+                  <option value="empresa">Empresa</option>
+                  <option value="autonomo">Autonomo</option>
                 </select>
               </div>
             </>
@@ -1480,8 +1479,8 @@ function SubscriptionModal({ user, onClose, onSave }) {
     try {
       const response = await api.get('/admin/plans')
       setPlans(response.data.data || [])
-    } catch (error) {
-      console.error('Erro ao carregar planos:', error)
+    } catch (_error) {
+      // Silently handle error loading plans
     }
   }
 

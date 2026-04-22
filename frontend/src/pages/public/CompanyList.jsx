@@ -1,8 +1,22 @@
 import { useState, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { useSelector } from 'react-redux'
+import { STORAGE_URL } from '@/lib/config'
 import {
-  Search, MapPin, Star, Filter, ChevronDown, Building2, X,
-  Wrench, Paintbrush, Shield, Sparkles, Zap, Leaf, Grid, List
+  Search,
+  MapPin,
+  Star,
+  Building2,
+  X,
+  Grid,
+  List,
+  Filter,
+  ChevronRight,
+  Briefcase,
+  Award,
+  Sparkles,
+  ArrowRight,
+  Lightbulb
 } from 'lucide-react'
 import api from '@/services/api'
 import PublicHeader from '@/components/layout/PublicHeader'
@@ -13,15 +27,15 @@ export default function CompanyList() {
   const [companies, setCompanies] = useState([])
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
-  const [showFilters, setShowFilters] = useState(false)
   const [viewMode, setViewMode] = useState('grid')
+  const [sortBy, setSortBy] = useState('relevante')
+  const { isAuthenticated, user, initialized } = useSelector((state) => state.auth)
+  const isLoggedIn = initialized && isAuthenticated && user
 
-  // Filters state
   const [filters, setFilters] = useState({
     q: searchParams.get('q') || '',
     categoria: searchParams.get('categoria') || '',
     cidade: searchParams.get('cidade') || '',
-    rating: searchParams.get('rating') || '',
   })
 
   useEffect(() => {
@@ -29,12 +43,10 @@ export default function CompanyList() {
   }, [])
 
   useEffect(() => {
-    // Update URL when filters change
     const params = new URLSearchParams()
     if (filters.q) params.set('q', filters.q)
     if (filters.categoria) params.set('categoria', filters.categoria)
     if (filters.cidade) params.set('cidade', filters.cidade)
-    if (filters.rating) params.set('rating', filters.rating)
     setSearchParams(params)
   }, [filters])
 
@@ -42,13 +54,14 @@ export default function CompanyList() {
     try {
       setLoading(true)
       const [companiesRes, categoriesRes] = await Promise.all([
-        api.get('/public/companies', { params: filters }).catch(() => ({ data: { data: [] } })),
+        api.get('/public/companies', { params: filters }).catch(() => ({ data: { data: { data: [] } } })),
         api.get('/public/categories').catch(() => ({ data: { data: [] } }))
       ])
-      setCompanies(companiesRes.data.data || [])
+      const companiesData = companiesRes.data.data?.data || companiesRes.data.data || []
+      setCompanies(companiesData)
       setCategories(categoriesRes.data.data?.filter(c => !c.parent_id) || [])
-    } catch (error) {
-      console.error('Error loading data:', error)
+    } catch (_error) {
+      // Silently handle error loading data
     } finally {
       setLoading(false)
     }
@@ -60,286 +73,515 @@ export default function CompanyList() {
   }
 
   const clearFilters = () => {
-    setFilters({ q: '', categoria: '', cidade: '', rating: '' })
+    setFilters({ q: '', categoria: '', cidade: '' })
   }
 
-  const hasActiveFilters = filters.categoria || filters.cidade || filters.rating
+  const hasActiveFilters = filters.categoria || filters.cidade
 
-  // Default categories for display
   const defaultCategories = [
-    { id: 1, name: 'Manutencao', slug: 'manutencao', icon: 'wrench' },
-    { id: 2, name: 'Pintura', slug: 'pintura', icon: 'paintbrush' },
-    { id: 3, name: 'Seguranca', slug: 'seguranca', icon: 'shield' },
-    { id: 4, name: 'Limpeza', slug: 'limpeza', icon: 'sparkles' },
-    { id: 5, name: 'Jardinagem', slug: 'jardinagem', icon: 'leaf' },
-    { id: 6, name: 'Eletrica', slug: 'eletrica', icon: 'zap' },
+    { id: 1, name: 'Manutencao', slug: 'manutencao' },
+    { id: 2, name: 'Pintura', slug: 'pintura' },
+    { id: 3, name: 'Seguranca', slug: 'seguranca' },
+    { id: 4, name: 'Limpeza', slug: 'limpeza' },
+    { id: 5, name: 'Jardinagem', slug: 'jardinagem' },
+    { id: 6, name: 'Eletrica', slug: 'eletrica' },
   ]
 
   const displayCategories = categories.length > 0 ? categories : defaultCategories
+  const displayCompanies = companies
 
-  // Mock companies for display
-  const mockCompanies = [
-    { id: 1, nome_fantasia: 'FixTudo Manutencoes', cidade: 'Sao Paulo', estado: 'SP', rating: 4.8, total_reviews: 127, description: 'Especialistas em manutencao predial com mais de 10 anos de experiencia.', services: ['Manutencao', 'Reparos', 'Instalacoes'] },
-    { id: 2, nome_fantasia: 'CleanPro Limpeza', cidade: 'Sao Paulo', estado: 'SP', rating: 4.9, total_reviews: 89, description: 'Limpeza profissional para condominios e empresas.', services: ['Limpeza', 'Conservacao'] },
-    { id: 3, nome_fantasia: 'Seguranca Total', cidade: 'Campinas', estado: 'SP', rating: 4.7, total_reviews: 64, description: 'Solucoes completas em seguranca patrimonial.', services: ['Portaria', 'Monitoramento', 'CFTV'] },
-    { id: 4, nome_fantasia: 'Verde Jardins', cidade: 'Santos', estado: 'SP', rating: 4.6, total_reviews: 43, description: 'Paisagismo e manutencao de areas verdes.', services: ['Jardinagem', 'Paisagismo'] },
-    { id: 5, nome_fantasia: 'Eletro Master', cidade: 'Sao Paulo', estado: 'SP', rating: 4.8, total_reviews: 95, description: 'Instalacoes eletricas residenciais e comerciais.', services: ['Eletrica', 'Instalacoes'] },
-    { id: 6, nome_fantasia: 'PintaFacil', cidade: 'Guarulhos', estado: 'SP', rating: 4.5, total_reviews: 56, description: 'Pintura predial e residencial de alta qualidade.', services: ['Pintura', 'Textura'] },
-  ]
+  const storageUrl = STORAGE_URL
 
-  const displayCompanies = companies.length > 0 ? companies : mockCompanies
-
-  const getCategoryIcon = (iconName) => {
-    const icons = { wrench: Wrench, paintbrush: Paintbrush, shield: Shield, sparkles: Sparkles, leaf: Leaf, zap: Zap }
-    return icons[iconName] || Building2
-  }
+  // Stats
+  const totalCompanies = displayCompanies.length
+  const avgRating = displayCompanies.length > 0
+    ? (displayCompanies.reduce((acc, c) => acc + parseFloat(c.average_rating || 5), 0) / displayCompanies.length).toFixed(1)
+    : '5.0'
+  const totalServices = displayCompanies.reduce((acc, c) => acc + (c.services_count || 0), 0)
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <>
       <PublicHeader />
+      <div className="min-h-screen bg-gray-50 pt-16">
+      {/* Hero Section */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        {/* Animated Orbs */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div
+            className="absolute -top-40 -right-40 w-[600px] h-[600px] bg-gradient-to-br from-blue-500/30 via-indigo-500/20 to-transparent rounded-full blur-3xl animate-pulse"
+            style={{ animationDuration: '4s' }}
+          />
+          <div
+            className="absolute -bottom-40 -left-40 w-[500px] h-[500px] bg-gradient-to-tr from-violet-500/20 via-purple-500/10 to-transparent rounded-full blur-3xl animate-pulse"
+            style={{ animationDuration: '5s', animationDelay: '1s' }}
+          />
+        </div>
 
-      {/* Header with search */}
-      <section className="bg-white border-b border-gray-200 pt-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6">
-            Encontre empresas
-          </h1>
+        {/* Grid Pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+            backgroundSize: '50px 50px'
+          }}
+        />
 
-          {/* Search form */}
-          <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar por nome ou servico..."
-                value={filters.q}
-                onChange={(e) => setFilters({ ...filters, q: e.target.value })}
-                className="w-full pl-12 pr-4 py-3 text-gray-900 placeholder-gray-500 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-              />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-20">
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/20 backdrop-blur-sm rounded-full border border-blue-400/30 mb-6">
+              <Building2 className="w-4 h-4 text-blue-300" />
+              <span className="text-blue-300 text-sm font-medium">
+                {totalCompanies} empresas cadastradas
+              </span>
             </div>
-            <div className="sm:w-48 relative">
-              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Cidade"
-                value={filters.cidade}
-                onChange={(e) => setFilters({ ...filters, cidade: e.target.value })}
-                className="w-full pl-12 pr-4 py-3 text-gray-900 placeholder-gray-500 bg-gray-50 rounded-xl border border-gray-200 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-              />
+            <h1 className="text-4xl lg:text-5xl font-bold text-white mb-4">
+              Encontre a Empresa <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">Ideal</span>
+            </h1>
+            <p className="text-slate-400 text-lg max-w-2xl mx-auto">
+              Conecte-se com as melhores empresas de servicos para seu condominio
+            </p>
+          </div>
+
+          {/* Search Form */}
+          <form onSubmit={handleSearch} className="max-w-4xl mx-auto">
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-2 border border-white/10">
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Buscar por nome ou servico..."
+                    value={filters.q}
+                    onChange={(e) => setFilters({ ...filters, q: e.target.value })}
+                    className="w-full pl-12 pr-4 py-4 bg-white rounded-xl border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-400"
+                  />
+                </div>
+                <div className="sm:w-48 relative">
+                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Cidade"
+                    value={filters.cidade}
+                    onChange={(e) => setFilters({ ...filters, cidade: e.target.value })}
+                    className="w-full pl-12 pr-4 py-4 bg-white rounded-xl border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-400"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2"
+                >
+                  <Search className="w-5 h-5" />
+                  <span className="hidden sm:inline">Buscar</span>
+                </button>
+              </div>
             </div>
-            <button
-              type="submit"
-              className="px-6 py-3 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 transition-colors"
-            >
-              Buscar
-            </button>
           </form>
 
-          {/* Category pills */}
-          <div className="flex flex-wrap gap-2 mt-6">
-            <button
-              onClick={() => setFilters({ ...filters, categoria: '' })}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                !filters.categoria
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Todas
-            </button>
-            {displayCategories.slice(0, 6).map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setFilters({ ...filters, categoria: cat.slug })}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                  filters.categoria === cat.slug
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {cat.name}
-              </button>
-            ))}
+          {/* Stats Bar */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-10">
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center">
+                  <Building2 className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <p className="text-slate-400 text-sm">Empresas</p>
+                  <p className="text-xl font-bold text-white">{totalCompanies}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-amber-500/20 rounded-xl flex items-center justify-center">
+                  <Star className="w-5 h-5 text-amber-400" />
+                </div>
+                <div>
+                  <p className="text-slate-400 text-sm">Avaliacao Media</p>
+                  <p className="text-xl font-bold text-white">{avgRating}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center">
+                  <Briefcase className="w-5 h-5 text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-slate-400 text-sm">Servicos</p>
+                  <p className="text-xl font-bold text-white">{totalServices}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-violet-500/20 rounded-xl flex items-center justify-center">
+                  <Award className="w-5 h-5 text-violet-400" />
+                </div>
+                <div>
+                  <p className="text-slate-400 text-sm">Categorias</p>
+                  <p className="text-xl font-bold text-white">{displayCategories.length}</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </section>
+      </div>
 
-      {/* Main content */}
-      <section className="flex-1 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Toolbar */}
-          <div className="flex items-center justify-between mb-6">
-            <p className="text-gray-600">
-              <span className="font-semibold text-gray-900">{displayCompanies.length}</span> empresas encontradas
-            </p>
-            <div className="flex items-center gap-3">
-              {/* View mode toggle */}
-              <div className="hidden sm:flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Sidebar - Filters */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* Categories */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h3 className="font-semibold text-gray-900 flex items-center gap-2 mb-4">
+                <Filter className="w-5 h-5 text-blue-600" />
+                Categorias
+              </h3>
+              <div className="space-y-2">
                 <button
-                  onClick={() => setViewMode('grid')}
-                  className={`p-2 rounded-md transition-colors ${
-                    viewMode === 'grid' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-500'
+                  onClick={() => setFilters({ ...filters, categoria: '' })}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left transition-all ${
+                    !filters.categoria
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
+                      : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
                   }`}
                 >
-                  <Grid className="w-4 h-4" />
+                  <span className="font-medium">Todas</span>
+                  {!filters.categoria && <ChevronRight className="w-4 h-4" />}
                 </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`p-2 rounded-md transition-colors ${
-                    viewMode === 'list' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-500'
-                  }`}
-                >
-                  <List className="w-4 h-4" />
-                </button>
+                {displayCategories.map((cat) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => {
+                      setFilters({ ...filters, categoria: cat.slug })
+                      loadData()
+                    }}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left transition-all ${
+                      filters.categoria === cat.slug
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
+                        : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <span className="font-medium">{cat.name}</span>
+                    {filters.categoria === cat.slug && <ChevronRight className="w-4 h-4" />}
+                  </button>
+                ))}
               </div>
+            </div>
 
-              {/* Sort dropdown */}
-              <select className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-primary-500">
-                <option>Mais relevantes</option>
-                <option>Melhor avaliados</option>
-                <option>Mais avaliacoes</option>
-              </select>
+            {/* Tips */}
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border border-blue-100 p-6">
+              <h3 className="font-semibold text-gray-900 flex items-center gap-2 mb-3">
+                <Lightbulb className="w-5 h-5 text-blue-600" />
+                Dicas
+              </h3>
+              <ul className="space-y-2 text-sm text-gray-600">
+                <li className="flex items-start gap-2">
+                  <ChevronRight className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                  <span>Verifique as avaliacoes antes de contratar</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <ChevronRight className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                  <span>Compare orcamentos de diferentes empresas</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <ChevronRight className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                  <span>Prefira empresas com mais servicos concluidos</span>
+                </li>
+              </ul>
             </div>
           </div>
 
-          {/* Active filters */}
-          {hasActiveFilters && (
-            <div className="flex flex-wrap items-center gap-2 mb-6">
-              <span className="text-sm text-gray-500">Filtros ativos:</span>
-              {filters.categoria && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm">
-                  {filters.categoria}
-                  <button onClick={() => setFilters({ ...filters, categoria: '' })}>
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </span>
-              )}
-              {filters.cidade && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm">
-                  {filters.cidade}
-                  <button onClick={() => setFilters({ ...filters, cidade: '' })}>
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </span>
-              )}
-              <button
-                onClick={clearFilters}
-                className="text-sm text-gray-500 hover:text-gray-700 underline"
-              >
-                Limpar todos
-              </button>
-            </div>
-          )}
-
-          {/* Companies grid/list */}
-          {loading ? (
-            <div className="flex justify-center py-20">
-              <div className="w-10 h-10 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : displayCompanies.length > 0 ? (
-            <div className={`grid gap-6 ${
-              viewMode === 'grid' ? 'sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'
-            }`}>
-              {displayCompanies.map((company) => (
-                <Link
-                  key={company.id}
-                  to={`/empresa/${company.slug || company.id}`}
-                  className={`bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300 group ${
-                    viewMode === 'list' ? 'flex' : ''
-                  }`}
-                >
-                  {/* Company header/avatar */}
-                  <div className={`bg-gradient-to-br from-primary-500 to-primary-700 relative ${
-                    viewMode === 'list' ? 'w-32 flex-shrink-0 flex items-center justify-center' : 'h-28'
-                  }`}>
-                    <div className={`bg-white rounded-xl shadow-lg flex items-center justify-center ${
-                      viewMode === 'list' ? 'w-16 h-16' : 'w-16 h-16 absolute -bottom-8 left-4'
-                    }`}>
-                      <span className="text-2xl font-bold text-primary-600">
-                        {(company.nome_fantasia || company.name || 'E').charAt(0)}
-                      </span>
-                    </div>
+          {/* Main Column - Companies */}
+          <div className="lg:col-span-3 space-y-6">
+            {/* Toolbar */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <p className="text-gray-600">
+                    <span className="font-semibold text-gray-900">{displayCompanies.length}</span> empresas
+                  </p>
+                  {hasActiveFilters && (
+                    <button
+                      onClick={clearFilters}
+                      className="flex items-center gap-1 text-sm text-red-600 hover:text-red-700"
+                    >
+                      <X className="w-4 h-4" />
+                      Limpar filtros
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+                    <button
+                      onClick={() => setViewMode('grid')}
+                      className={`p-2 rounded-lg transition-colors ${
+                        viewMode === 'grid' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      <Grid className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className={`p-2 rounded-lg transition-colors ${
+                        viewMode === 'list' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      <List className="w-4 h-4" />
+                    </button>
                   </div>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="px-4 py-2 bg-gray-100 border-0 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="relevante">Mais relevantes</option>
+                    <option value="avaliacao">Melhor avaliados</option>
+                    <option value="servicos">Mais servicos</option>
+                  </select>
+                </div>
+              </div>
 
-                  {/* Company info */}
-                  <div className={`p-4 ${viewMode === 'list' ? 'flex-1' : 'pt-12'}`}>
-                    <h3 className="font-semibold text-gray-900 text-lg group-hover:text-primary-600 transition-colors">
-                      {company.nome_fantasia || company.name}
-                    </h3>
-
-                    <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+              {/* Active filters pills */}
+              {hasActiveFilters && (
+                <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-gray-100">
+                  {filters.categoria && (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                      {filters.categoria}
+                      <button onClick={() => setFilters({ ...filters, categoria: '' })} className="hover:text-blue-900">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </span>
+                  )}
+                  {filters.cidade && (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
                       <MapPin className="w-3.5 h-3.5" />
-                      {company.cidade}, {company.estado}
-                    </p>
-
-                    {viewMode === 'list' && company.description && (
-                      <p className="text-sm text-gray-600 mt-2 line-clamp-2">
-                        {company.description || company.sobre}
-                      </p>
-                    )}
-
-                    {/* Rating */}
-                    <div className="flex items-center gap-2 mt-3">
-                      <div className="flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-lg">
-                        <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
-                        <span className="text-sm font-semibold text-amber-700">
-                          {company.rating || company.average_rating || '4.5'}
-                        </span>
-                      </div>
-                      <span className="text-xs text-gray-500">
-                        ({company.total_reviews || company.reviews_count || 0} avaliacoes)
-                      </span>
-                    </div>
-
-                    {/* Services tags */}
-                    <div className="flex flex-wrap gap-1 mt-3">
-                      {(company.services || company.categories || ['Servicos']).slice(0, 3).map((service, idx) => (
-                        <span key={idx} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-md">
-                          {typeof service === 'string' ? service : service.name}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </Link>
-              ))}
+                      {filters.cidade}
+                      <button onClick={() => setFilters({ ...filters, cidade: '' })} className="hover:text-blue-900">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="text-center py-20">
-              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Building2 className="w-10 h-10 text-gray-400" />
+
+            {/* Companies Grid/List */}
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-20">
+                <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                <p className="mt-4 text-gray-500">Buscando empresas...</p>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Nenhuma empresa encontrada</h3>
-              <p className="text-gray-600 mb-6">Tente ajustar os filtros ou buscar por outro termo</p>
-              <button
-                onClick={clearFilters}
-                className="px-6 py-3 bg-primary-600 text-white font-medium rounded-xl hover:bg-primary-700 transition-colors"
-              >
-                Limpar filtros
-              </button>
-            </div>
-          )}
-        </div>
-      </section>
+            ) : displayCompanies.length > 0 ? (
+              <div className={`grid gap-6 ${viewMode === 'grid' ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
+                {displayCompanies.map((company) => (
+                  <CompanyCard key={company.id} company={company} viewMode={viewMode} storageUrl={storageUrl} />
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
+                <div className="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Building2 className="w-10 h-10 text-gray-400" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Nenhuma empresa encontrada</h3>
+                <p className="text-gray-500 mb-6">Tente ajustar os filtros ou buscar por outro termo</p>
+                <button
+                  onClick={clearFilters}
+                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-500/25"
+                >
+                  Limpar filtros
+                </button>
+              </div>
+            )}
 
-      {/* CTA banner */}
-      <section className="bg-primary-600 py-12">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-2xl font-bold text-white mb-3">
-            Tem uma empresa de servicos?
-          </h2>
-          <p className="text-primary-100 mb-6">
-            Cadastre-se gratuitamente e seja encontrado por milhares de clientes
-          </p>
-          <Link
-            to="/register/empresa"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-white text-primary-700 font-semibold rounded-xl hover:bg-gray-100 transition-colors"
-          >
-            Cadastrar minha empresa
-          </Link>
+            {/* CTA Banner - only show when not logged in */}
+            {!isLoggedIn && (
+              <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-8 relative overflow-hidden">
+                <div className="absolute inset-0 overflow-hidden">
+                  <div className="absolute -top-20 -right-20 w-[300px] h-[300px] bg-gradient-to-br from-blue-500/20 to-transparent rounded-full blur-2xl" />
+                </div>
+                <div className="relative text-center">
+                  <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/30">
+                    <Sparkles className="w-8 h-8 text-white" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-white mb-3">
+                    Tem uma empresa de servicos?
+                  </h2>
+                  <p className="text-slate-400 mb-6 max-w-md mx-auto">
+                    Cadastre-se gratuitamente e seja encontrado por milhares de condominios
+                  </p>
+                  <Link
+                    to="/register/empresa"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-white text-slate-800 font-semibold rounded-xl hover:bg-gray-100 transition-colors"
+                  >
+                    Cadastrar minha empresa
+                    <ArrowRight className="w-5 h-5" />
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      </section>
-
+      </div>
       <PublicFooter />
     </div>
+    </>
+  )
+}
+
+function CompanyCard({ company, viewMode, storageUrl }) {
+  const rating = parseFloat(company.average_rating || 5).toFixed(1)
+  const servicesCount = company.services_count || 0
+
+  if (viewMode === 'list') {
+    return (
+      <Link
+        to={`/empresa/${company.slug || company.id}`}
+        className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-lg hover:border-blue-200 transition-all duration-300 group flex gap-6"
+      >
+        {/* Avatar */}
+        <div className="flex-shrink-0">
+          <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:shadow-blue-500/30 transition-shadow">
+            {company.logo_path ? (
+              <img
+                src={`${storageUrl}/${company.logo_path}`}
+                alt=""
+                className="w-full h-full object-cover rounded-2xl"
+              />
+            ) : (
+              <span className="text-3xl font-bold text-white">
+                {(company.nome_fantasia || company.name || 'E').charAt(0)}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                {company.nome_fantasia || company.name}
+              </h3>
+              <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                <MapPin className="w-3.5 h-3.5" />
+                {company.cidade}, {company.estado}
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 rounded-xl">
+              <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+              <span className="font-semibold text-amber-700">{rating}</span>
+            </div>
+          </div>
+
+          {company.sobre && (
+            <p className="text-sm text-gray-600 mt-3 line-clamp-2">{company.sobre}</p>
+          )}
+
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+            <div className="flex flex-wrap gap-1.5">
+              {(company.services_list || []).slice(0, 3).map((service, idx) => (
+                <span key={idx} className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-lg font-medium">
+                  {service}
+                </span>
+              ))}
+              {(company.services_list || []).length > 3 && (
+                <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-lg">
+                  +{company.services_list.length - 3}
+                </span>
+              )}
+            </div>
+            <span className="text-sm text-gray-500 flex items-center gap-1">
+              <Briefcase className="w-4 h-4" />
+              {servicesCount} servicos
+            </span>
+          </div>
+        </div>
+
+        {/* Arrow */}
+        <div className="flex-shrink-0 flex items-center">
+          <div className="w-10 h-10 bg-gray-100 group-hover:bg-blue-100 rounded-xl flex items-center justify-center transition-colors">
+            <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
+          </div>
+        </div>
+      </Link>
+    )
+  }
+
+  // Grid view
+  return (
+    <Link
+      to={`/empresa/${company.slug || company.id}`}
+      className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg hover:border-blue-200 transition-all duration-300 group"
+    >
+      {/* Header */}
+      <div className="bg-gradient-to-br from-blue-600 to-indigo-600 h-24 relative">
+        <div className="absolute inset-0 opacity-30">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+        </div>
+        <div className="absolute -bottom-10 left-6">
+          <div className="w-20 h-20 bg-white rounded-2xl shadow-lg flex items-center justify-center border-4 border-white">
+            {company.logo_path ? (
+              <img
+                src={`${storageUrl}/${company.logo_path}`}
+                alt=""
+                className="w-full h-full object-cover rounded-xl"
+              />
+            ) : (
+              <span className="text-3xl font-bold text-blue-600">
+                {(company.nome_fantasia || company.name || 'E').charAt(0)}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="absolute top-4 right-4">
+          <div className="flex items-center gap-1 px-2 py-1 bg-white/20 backdrop-blur-sm rounded-lg">
+            <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+            <span className="text-white text-sm font-medium">{rating}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="p-6 pt-14">
+        <h3 className="text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors truncate">
+          {company.nome_fantasia || company.name}
+        </h3>
+        <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+          <MapPin className="w-3.5 h-3.5" />
+          {company.cidade}, {company.estado}
+        </p>
+
+        {/* Services tags */}
+        <div className="flex flex-wrap gap-1.5 mt-4">
+          {(company.services_list || []).slice(0, 3).map((service, idx) => (
+            <span key={idx} className="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-lg font-medium">
+              {service}
+            </span>
+          ))}
+          {(company.services_list || []).length > 3 && (
+            <span className="text-xs bg-gray-100 text-gray-500 px-2.5 py-1 rounded-lg">
+              +{company.services_list.length - 3}
+            </span>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+          <span className="text-sm text-gray-500 flex items-center gap-1">
+            <Briefcase className="w-4 h-4" />
+            {servicesCount} {servicesCount === 1 ? 'servico' : 'servicos'}
+          </span>
+          <span className="text-sm font-medium text-blue-600 flex items-center gap-1 group-hover:gap-2 transition-all">
+            Ver perfil
+            <ArrowRight className="w-4 h-4" />
+          </span>
+        </div>
+      </div>
+    </Link>
   )
 }

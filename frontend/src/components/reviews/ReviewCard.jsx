@@ -1,194 +1,178 @@
-import * as React from "react"
-import { formatDistanceToNow } from "date-fns"
-import { ptBR } from "date-fns/locale"
-import { CheckCircle, MessageCircle, MoreVertical, Flag, EyeOff } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { GlassCard } from "@/components/ui/glass-card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { useState } from 'react'
+import StarRating from './StarRating'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { StarRating } from "./StarRating"
+  User,
+  CheckCircle,
+  MessageSquare,
+  ChevronDown,
+  ChevronUp,
+  Send,
+  Loader2,
+} from 'lucide-react'
 
-const ReviewCard = React.forwardRef(
-  ({
-    review,
-    variant = "default", // default, compact, detailed
-    showActions = false,
-    onRespond,
-    onHide,
-    onReport,
-    className,
-    ...props
-  }, ref) => {
-    const [showResponseForm, setShowResponseForm] = React.useState(false)
-    const [responseText, setResponseText] = React.useState("")
+export default function ReviewCard({
+  review,
+  showResponse = true,
+  canRespond = false,
+  onRespond,
+  responding = false,
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const [responseText, setResponseText] = useState('')
+  const [showResponseForm, setShowResponseForm] = useState(false)
 
-    const getInitials = (name) => {
-      return name
-        ?.split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2) || "?"
+  const clientName = review.client?.name || review.client_name || 'Cliente'
+  const date = new Date(review.created_at).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
+
+  const getInitials = (name) => {
+    if (!name) return '?'
+    return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+  }
+
+  const handleRespond = () => {
+    if (responseText.trim() && onRespond) {
+      onRespond(review.id, responseText.trim())
+      setResponseText('')
+      setShowResponseForm(false)
     }
+  }
 
-    const formatDate = (date) => {
-      return formatDistanceToNow(new Date(date), {
-        addSuffix: true,
-        locale: ptBR,
-      })
-    }
+  const commentLength = review.comment?.length || 0
+  const shouldTruncate = commentLength > 200
 
-    const handleSubmitResponse = () => {
-      if (responseText.trim() && onRespond) {
-        onRespond(review.id, responseText)
-        setShowResponseForm(false)
-        setResponseText("")
-      }
-    }
-
-    return (
-      <GlassCard
-        ref={ref}
-        variant="default"
-        padding="md"
-        className={cn("", className)}
-        {...props}
-      >
-        {/* Header */}
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={review.client?.user?.foto_path} />
-              <AvatarFallback className="bg-primary/10 text-primary">
-                {getInitials(review.client?.user?.name)}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-foreground">
-                  {review.client?.user?.name || "Usuario"}
-                </span>
-                {review.is_verified && (
-                  <Badge variant="outline" className="text-xs gap-1 text-success border-success/30">
-                    <CheckCircle className="w-3 h-3" />
-                    Verificado
-                  </Badge>
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {formatDate(review.created_at)}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <StarRating value={review.rating} readonly size="sm" />
-
-            {showActions && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {!review.response && (
-                    <DropdownMenuItem onClick={() => setShowResponseForm(true)}>
-                      <MessageCircle className="mr-2 h-4 w-4" />
-                      Responder
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem onClick={() => onHide?.(review.id)}>
-                    <EyeOff className="mr-2 h-4 w-4" />
-                    Ocultar
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => onReport?.(review.id)}
-                    className="text-destructive"
-                  >
-                    <Flag className="mr-2 h-4 w-4" />
-                    Reportar
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
+      {/* Header */}
+      <div className="flex items-start gap-3 mb-3">
+        {/* Avatar */}
+        <div className="w-10 h-10 bg-gradient-to-br from-slate-200 to-slate-300 rounded-full flex items-center justify-center flex-shrink-0">
+          <span className="text-sm font-medium text-slate-600">
+            {getInitials(clientName)}
+          </span>
         </div>
 
-        {/* Comentario */}
-        {review.comment && (
-          <p className="mt-4 text-foreground/90">
-            {review.comment}
-          </p>
-        )}
-
-        {/* Deal/Servico relacionado */}
-        {review.deal && (
-          <div className="mt-3">
-            <Badge variant="secondary" className="text-xs">
-              {review.deal.titulo}
-            </Badge>
-          </div>
-        )}
-
-        {/* Resposta da empresa */}
-        {review.response && (
-          <div className="mt-4 pl-4 border-l-2 border-primary/30 bg-primary/5 rounded-r-lg p-3">
-            <p className="text-sm font-medium text-primary mb-1">
-              Resposta da empresa
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="font-medium text-gray-900 truncate">
+              {clientName}
             </p>
-            <p className="text-sm text-foreground/80">
-              {review.response}
-            </p>
-            {review.responded_at && (
-              <p className="text-xs text-muted-foreground mt-2">
-                {formatDate(review.responded_at)}
-              </p>
+            {review.is_verified && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full">
+                <CheckCircle className="w-3 h-3" />
+                Verificada
+              </span>
             )}
           </div>
-        )}
-
-        {/* Formulario de resposta */}
-        {showResponseForm && !review.response && (
-          <div className="mt-4 space-y-3">
-            <textarea
-              value={responseText}
-              onChange={(e) => setResponseText(e.target.value)}
-              placeholder="Escreva sua resposta..."
-              className="w-full min-h-[100px] p-3 rounded-lg border border-border bg-background/50 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
-            />
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setShowResponseForm(false)
-                  setResponseText("")
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleSubmitResponse}
-                disabled={!responseText.trim()}
-              >
-                Enviar Resposta
-              </Button>
-            </div>
+          <div className="flex items-center gap-3 mt-1">
+            <StarRating rating={review.rating} readonly size="sm" />
+            <span className="text-xs text-gray-400">{date}</span>
           </div>
-        )}
-      </GlassCard>
-    )
-  }
-)
-ReviewCard.displayName = "ReviewCard"
+        </div>
+      </div>
 
-export { ReviewCard }
+      {/* Comment */}
+      {review.comment && (
+        <div className="mb-3">
+          <p className={`text-sm text-gray-600 leading-relaxed ${shouldTruncate && !expanded ? 'line-clamp-3' : ''}`}>
+            {review.comment}
+          </p>
+          {shouldTruncate && (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="mt-1 text-sm text-slate-600 hover:text-slate-800 font-medium flex items-center gap-1"
+            >
+              {expanded ? (
+                <>
+                  Ver menos <ChevronUp className="w-4 h-4" />
+                </>
+              ) : (
+                <>
+                  Ver mais <ChevronDown className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Response */}
+      {showResponse && review.response && (
+        <div className="bg-slate-50 rounded-lg p-3 border-l-2 border-slate-300">
+          <p className="text-xs font-medium text-slate-500 mb-1">
+            Resposta da empresa
+          </p>
+          <p className="text-sm text-slate-700">
+            {review.response}
+          </p>
+          {review.responded_at && (
+            <p className="text-xs text-slate-400 mt-2">
+              {new Date(review.responded_at).toLocaleDateString('pt-BR', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+              })}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Respond Button */}
+      {canRespond && !review.response && !showResponseForm && (
+        <button
+          onClick={() => setShowResponseForm(true)}
+          className="mt-3 flex items-center gap-2 text-sm text-slate-600 hover:text-slate-800 font-medium"
+        >
+          <MessageSquare className="w-4 h-4" />
+          Responder
+        </button>
+      )}
+
+      {/* Response Form */}
+      {showResponseForm && (
+        <div className="mt-3 space-y-3">
+          <textarea
+            value={responseText}
+            onChange={(e) => setResponseText(e.target.value)}
+            placeholder="Escreva sua resposta..."
+            rows={3}
+            maxLength={1000}
+            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-400 transition-all resize-none"
+          />
+          <div className="flex items-center justify-end gap-2">
+            <button
+              onClick={() => {
+                setShowResponseForm(false)
+                setResponseText('')
+              }}
+              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleRespond}
+              disabled={!responseText.trim() || responding}
+              className="px-4 py-2 bg-slate-800 text-white text-sm font-medium rounded-lg hover:bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {responding ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4" />
+                  Enviar
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

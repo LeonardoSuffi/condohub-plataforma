@@ -28,8 +28,8 @@ export default function AdminPlans() {
     try {
       const response = await api.get('/admin/plans')
       setPlans(response.data.data)
-    } catch (error) {
-      console.error('Erro ao carregar planos:', error)
+    } catch (_error) {
+      // Silently handle error loading plans
     } finally {
       setLoading(false)
     }

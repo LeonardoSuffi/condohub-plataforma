@@ -85,12 +85,12 @@ class GdprController extends Controller
                 'cnpj' => $client->cnpj,
                 'tipo' => $client->tipo,
                 'telefone' => $client->telefone,
-                'nome_condominio' => $client->nome_condominio,
-                'endereco_condominio' => $client->endereco_condominio,
+                'nome_organizacao' => $client->nome_organizacao,
+                'endereco_organizacao' => $client->endereco_organizacao,
                 'cidade' => $client->cidade,
                 'estado' => $client->estado,
                 'cep' => $client->cep,
-                'num_unidades' => $client->num_unidades,
+                'num_funcionarios' => $client->num_funcionarios,
             ];
 
             // Avaliacoes dadas

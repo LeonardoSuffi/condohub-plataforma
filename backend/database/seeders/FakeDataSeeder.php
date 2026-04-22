@@ -47,7 +47,7 @@ class FakeDataSeeder extends Seeder
             'telefone' => '(11) 4567-8901',
             'cidade' => 'São Paulo',
             'estado' => 'SP',
-            'descricao' => 'Serviços elétricos para condomínios: instalação, manutenção e projetos.',
+            'descricao' => 'Servicos eletricos: instalacao, manutencao e projetos.',
             'plan' => 'intermediario',
         ],
         [
@@ -86,7 +86,7 @@ class FakeDataSeeder extends Seeder
             'telefone' => '(11) 7890-1234',
             'cidade' => 'Santo André',
             'estado' => 'SP',
-            'descricao' => 'Limpeza profissional para condomínios, pós-obra e fachadas.',
+            'descricao' => 'Limpeza profissional residencial e comercial, pos-obra e fachadas.',
             'plan' => 'premium',
         ],
         [
@@ -99,7 +99,7 @@ class FakeDataSeeder extends Seeder
             'telefone' => '(11) 8901-2345',
             'cidade' => 'Osasco',
             'estado' => 'SP',
-            'descricao' => 'Portaria 24h, CFTV e controle de acesso para condomínios.',
+            'descricao' => 'Portaria 24h, CFTV e controle de acesso para empresas e residencias.',
             'plan' => 'premium',
         ],
         [
@@ -112,7 +112,7 @@ class FakeDataSeeder extends Seeder
             'telefone' => '(11) 9012-3456',
             'cidade' => 'Campinas',
             'estado' => 'SP',
-            'descricao' => 'Paisagismo, manutenção de jardins e áreas verdes condominiais.',
+            'descricao' => 'Paisagismo e manutencao de jardins e areas verdes.',
             'plan' => 'intermediario',
         ],
         [
@@ -142,111 +142,111 @@ class FakeDataSeeder extends Seeder
             'plan' => 'intermediario',
         ],
         [
-            'name' => 'AdminCond Gestão',
-            'email' => 'contato@admincond.com.br',
+            'name' => 'AdminPro Gestao',
+            'email' => 'contato@adminpro.com.br',
             'cnpj' => '01.234.567/0001-10',
-            'razao_social' => 'AdminCond Gestão Condominial LTDA',
-            'nome_fantasia' => 'AdminCond',
+            'razao_social' => 'AdminPro Gestao Empresarial LTDA',
+            'nome_fantasia' => 'AdminPro',
             'segmento' => 'Administração',
             'telefone' => '(11) 4567-8902',
             'cidade' => 'São Paulo',
             'estado' => 'SP',
-            'descricao' => 'Administração profissional de condomínios residenciais e comerciais.',
+            'descricao' => 'Administracao profissional para empresas e negocios.',
             'plan' => 'premium',
         ],
     ];
 
     /**
-     * Clientes (síndicos e administradoras) fake
+     * Clientes (pessoas fisicas, empresas e autonomos) fake
      */
     protected array $clientes = [
         [
             'name' => 'Carlos Roberto Silva',
             'email' => 'carlos.silva@email.com',
             'cpf' => '111.222.333-44',
-            'tipo' => 'sindico',
+            'tipo' => 'pessoa_fisica',
             'telefone' => '(11) 99111-2233',
-            'nome_condominio' => 'Residencial Parque das Flores',
-            'cidade' => 'São Paulo',
+            'nome_organizacao' => 'Residencia Silva',
+            'cidade' => 'Sao Paulo',
             'estado' => 'SP',
-            'num_unidades' => 120,
+            'num_funcionarios' => 0,
         ],
         [
             'name' => 'Maria Fernanda Oliveira',
             'email' => 'maria.oliveira@email.com',
             'cpf' => '222.333.444-55',
-            'tipo' => 'sindico',
+            'tipo' => 'pessoa_fisica',
             'telefone' => '(11) 99222-3344',
-            'nome_condominio' => 'Edifício Solar das Palmeiras',
-            'cidade' => 'São Paulo',
+            'nome_organizacao' => 'Consultoria MFO',
+            'cidade' => 'Sao Paulo',
             'estado' => 'SP',
-            'num_unidades' => 80,
+            'num_funcionarios' => 0,
         ],
         [
-            'name' => 'João Pedro Santos',
+            'name' => 'Joao Pedro Santos',
             'email' => 'joao.santos@email.com',
             'cpf' => '333.444.555-66',
-            'tipo' => 'sindico',
+            'tipo' => 'autonomo',
             'telefone' => '(11) 99333-4455',
-            'nome_condominio' => 'Condomínio Vila Verde',
+            'nome_organizacao' => 'JP Solucoes',
             'cidade' => 'Guarulhos',
             'estado' => 'SP',
-            'num_unidades' => 200,
+            'num_funcionarios' => 1,
         ],
         [
             'name' => 'Ana Paula Rodrigues',
             'email' => 'ana.rodrigues@email.com',
             'cpf' => '444.555.666-77',
-            'tipo' => 'sindico',
+            'tipo' => 'pessoa_fisica',
             'telefone' => '(11) 99444-5566',
-            'nome_condominio' => 'Torres do Horizonte',
-            'cidade' => 'Santo André',
+            'nome_organizacao' => 'Escritorio Rodrigues',
+            'cidade' => 'Santo Andre',
             'estado' => 'SP',
-            'num_unidades' => 300,
+            'num_funcionarios' => 5,
         ],
         [
-            'name' => 'Administradora Condovida',
-            'email' => 'contato@condovida.com.br',
+            'name' => 'Tech Solutions Ltda',
+            'email' => 'contato@techsolutions.com.br',
             'cnpj' => '11.222.333/0001-44',
-            'tipo' => 'administradora',
+            'tipo' => 'empresa',
             'telefone' => '(11) 3333-4444',
-            'nome_condominio' => 'Administradora Condovida',
-            'cidade' => 'São Paulo',
+            'nome_organizacao' => 'Tech Solutions',
+            'cidade' => 'Sao Paulo',
             'estado' => 'SP',
-            'num_unidades' => 50,
+            'num_funcionarios' => 50,
         ],
         [
             'name' => 'Roberto Mendes Costa',
             'email' => 'roberto.costa@email.com',
             'cpf' => '555.666.777-88',
-            'tipo' => 'sindico',
+            'tipo' => 'autonomo',
             'telefone' => '(11) 99555-6677',
-            'nome_condominio' => 'Residencial Bosque Imperial',
+            'nome_organizacao' => 'RMC Consultoria',
             'cidade' => 'Osasco',
             'estado' => 'SP',
-            'num_unidades' => 150,
+            'num_funcionarios' => 2,
         ],
         [
             'name' => 'Patricia Lima Souza',
             'email' => 'patricia.souza@email.com',
             'cpf' => '666.777.888-99',
-            'tipo' => 'sindico',
+            'tipo' => 'pessoa_fisica',
             'telefone' => '(11) 99666-7788',
-            'nome_condominio' => 'Edifício Jardim Europa',
-            'cidade' => 'São Bernardo do Campo',
+            'nome_organizacao' => 'Souza Eventos',
+            'cidade' => 'Sao Bernardo do Campo',
             'estado' => 'SP',
-            'num_unidades' => 64,
+            'num_funcionarios' => 10,
         ],
         [
-            'name' => 'Administradora PrimeGestão',
+            'name' => 'Prime Gestao Empresarial',
             'email' => 'atendimento@primegestao.com.br',
             'cnpj' => '22.333.444/0001-55',
-            'tipo' => 'administradora',
+            'tipo' => 'empresa',
             'telefone' => '(11) 4444-5555',
-            'nome_condominio' => 'PrimeGestão Administradora',
-            'cidade' => 'São Paulo',
+            'nome_organizacao' => 'Prime Gestao',
+            'cidade' => 'Sao Paulo',
             'estado' => 'SP',
-            'num_unidades' => 100,
+            'num_funcionarios' => 100,
         ],
     ];
 
@@ -255,8 +255,8 @@ class FakeDataSeeder extends Seeder
      */
     protected array $banners = [
         [
-            'title' => 'Bem-vindo ao CondoHub!',
-            'description' => 'A plataforma completa para conectar condomínios aos melhores fornecedores.',
+            'title' => 'Bem-vindo ao ServicePro!',
+            'description' => 'A plataforma completa para conectar voce aos melhores profissionais.',
             'position' => 'topo',
             'type' => 'admin',
             'link' => '/services',
@@ -277,7 +277,7 @@ class FakeDataSeeder extends Seeder
         ],
         [
             'title' => 'SegurMax - Portaria 24h',
-            'description' => 'Segurança profissional para seu condomínio. Portaria e CFTV.',
+            'description' => 'Seguranca profissional para sua empresa. Portaria e CFTV.',
             'position' => 'lateral',
             'type' => 'comercial',
             'link' => '/services',
@@ -344,9 +344,9 @@ class FakeDataSeeder extends Seeder
             ['title' => 'Impermeabilização de Laje', 'price' => '5000-20000', 'desc' => 'Impermeabilização de laje de cobertura com garantia.'],
             ['title' => 'Impermeabilização de Piscina', 'price' => '3000-12000', 'desc' => 'Tratamento e impermeabilização de piscinas.'],
         ],
-        'Gestão Condominial' => [
-            ['title' => 'Administração Completa', 'price' => '1500-4000', 'desc' => 'Gestão administrativa, financeira e de pessoal do condomínio.'],
-            ['title' => 'Assessoria para Assembleias', 'price' => '500-1500', 'desc' => 'Organização e condução de assembleias condominiais.'],
+        'Gestao Empresarial' => [
+            ['title' => 'Administracao Completa', 'price' => '1500-4000', 'desc' => 'Gestao administrativa, financeira e de pessoal.'],
+            ['title' => 'Assessoria para Reunioes', 'price' => '500-1500', 'desc' => 'Organizacao e conducao de reunioes corporativas.'],
         ],
     ];
 
@@ -355,7 +355,7 @@ class FakeDataSeeder extends Seeder
         $this->command->info('Criando empresas fornecedoras...');
         $empresasCreated = $this->createEmpresas();
 
-        $this->command->info('Criando clientes (síndicos e administradoras)...');
+        $this->command->info('Criando clientes...');
         $clientesCreated = $this->createClientes();
 
         $this->command->info('Criando serviços para as empresas...');
@@ -444,10 +444,10 @@ class FakeDataSeeder extends Seeder
                 'user_id' => $user->id,
                 'tipo' => $cliente['tipo'],
                 'telefone' => $cliente['telefone'],
-                'nome_condominio' => $cliente['nome_condominio'],
-                'cidade' => $cliente['cidade'] ?? 'São Paulo',
+                'nome_organizacao' => $cliente['nome_organizacao'],
+                'cidade' => $cliente['cidade'] ?? 'Sao Paulo',
                 'estado' => $cliente['estado'] ?? 'SP',
-                'num_unidades' => $cliente['num_unidades'] ?? null,
+                'num_funcionarios' => $cliente['num_funcionarios'] ?? null,
             ];
 
             if (isset($cliente['cpf'])) {
@@ -519,7 +519,7 @@ class FakeDataSeeder extends Seeder
             'Jardinagem' => ['Paisagismo', 'Manutenção de Jardim'],
             'Elevadores' => ['Manutenção de Elevadores'],
             'Impermeabilização' => ['Impermeabilização'],
-            'Administração' => ['Gestão Condominial'],
+            'Administração' => ['Gestao Empresarial'],
         ];
 
         $categoriasRelacionadas = $relacoes[$segmento] ?? [];
@@ -631,7 +631,7 @@ class FakeDataSeeder extends Seeder
     {
         $notificacoesCliente = [
             ['type' => 'deal', 'title' => 'Nova proposta recebida', 'msg' => 'A empresa ManutenPro enviou uma proposta para seu pedido.'],
-            ['type' => 'system', 'title' => 'Bem-vindo ao CondoHub!', 'msg' => 'Explore nossos serviços e encontre o fornecedor ideal.'],
+            ['type' => 'system', 'title' => 'Bem-vindo ao ServicePro!', 'msg' => 'Explore nossos servicos e encontre o profissional ideal.'],
             ['type' => 'deal', 'title' => 'Negociação aceita', 'msg' => 'Sua negociação foi aceita! Verifique os detalhes.'],
             ['type' => 'order', 'title' => 'Ordem em andamento', 'msg' => 'O serviço foi iniciado. Acompanhe o progresso.'],
         ];

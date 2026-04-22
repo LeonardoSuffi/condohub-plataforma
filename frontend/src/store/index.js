@@ -4,6 +4,7 @@ import servicesReducer from './slices/servicesSlice'
 import dealsReducer from './slices/dealsSlice'
 import subscriptionReducer from './slices/subscriptionSlice'
 import notificationReducer from './slices/notificationSlice'
+import reviewsReducer from './slices/reviewsSlice'
 
 export const store = configureStore({
   reducer: {
@@ -12,5 +13,6 @@ export const store = configureStore({
     deals: dealsReducer,
     subscription: subscriptionReducer,
     notifications: notificationReducer,
+    reviews: reviewsReducer,
   },
 })

@@ -1,8 +1,8 @@
-# CondoHub
+# ServicePro
 
-**Marketplace B2B para Servicos de Condominios**
+**Marketplace de Servicos B2B**
 
-Plataforma completa que conecta sindicos e administradores de condominios a empresas prestadoras de servicos, com negociacoes anonimas, sistema de ranking e gestao financeira integrada.
+Plataforma que conecta clientes a empresas prestadoras de servicos, com sistema de negociacao anonima, avaliacoes, ranking e relatorios.
 
 ---
 
@@ -14,125 +14,122 @@ Plataforma completa que conecta sindicos e administradores de condominios a empr
 - [Instalacao](#instalacao)
 - [Estrutura do Projeto](#estrutura-do-projeto)
 - [API Reference](#api-reference)
-- [Testes](#testes)
-- [Seguranca e LGPD](#seguranca-e-lgpd)
-- [Changelog](#changelog)
+- [Usuarios de Teste](#usuarios-de-teste)
 
 ---
 
 ## Visao Geral
 
-O CondoHub e uma solucao completa para o mercado de servicos condominiais que resolve o problema de confianca e transparencia na contratacao de prestadores. A plataforma oferece:
+O ServicePro e uma plataforma completa para contratacao de servicos com foco em transparencia e confianca. Principais diferenciais:
 
-- **Anonimato nas negociacoes**: Empresas e clientes negociam sem revelar identidades ate o aceite formal
-- **Sistema de ranking**: Empresas competem por posicao baseado em negociacoes concluidas
-- **Planos de assinatura**: 3 niveis com diferentes limites de interacoes
-- **Gestao financeira**: Controle de comissoes, transacoes e relatorios
+- **Negociacao Anonima**: Clientes e empresas negociam sem revelar identidades ate o aceite
+- **Sistema de Avaliacoes**: Clientes avaliam empresas apos conclusao do servico
+- **Ranking de Empresas**: Empresas competem por posicao baseado em desempenho
+- **Relatorios com Graficos**: Dashboard analitico para empresas com metricas visuais
+- **Chat Integrado**: Comunicacao em tempo real entre cliente e empresa
 
 ### Tipos de Usuario
 
-| Tipo | Descricao | Funcionalidades |
-|------|-----------|-----------------|
-| **Cliente** | Sindico ou administrador de condominio | Buscar servicos, iniciar negociacoes, avaliar empresas |
-| **Empresa** | Prestador de servicos | Cadastrar servicos, responder negociacoes, gerenciar assinatura |
-| **Admin** | Administrador da plataforma | Aprovar cadastros, gerenciar planos, visualizar metricas |
+| Tipo | Descricao | Acesso |
+|------|-----------|--------|
+| **Cliente** | Busca e contrata servicos | Dashboard, Negociacoes, Lista de Empresas |
+| **Empresa** | Oferece servicos na plataforma | Dashboard, Meus Servicos, Negociacoes, Relatorios, Ranking, Financeiro |
+| **Admin** | Administra a plataforma | Painel Admin, Usuarios, Categorias, Planos, Banners, Financeiro |
 
 ---
 
 ## Funcionalidades
 
-### Autenticacao e Perfis
+### Autenticacao
 
 - Registro separado para Cliente e Empresa
-- Login com token JWT via Laravel Sanctum
+- Login com JWT via Laravel Sanctum
 - Recuperacao de senha por email
-- Perfis completos com indicador de completude
-- **Timeout por inatividade** com aviso e logout automatico (30 minutos padrao)
-- Extensao de sessao pelo usuario
+- Autenticacao de dois fatores (2FA) opcional
+- Controle de sessoes ativas
 
 ### Catalogo de Servicos
 
-- Busca com filtros por categoria, regiao e faixa de preco
-- Paginacao otimizada com cursor
-- Destaque para servicos em evidencia (featured)
-- Categorias e subcategorias hierarquicas
-- Visualizacao publica de empresas e servicos
+- Busca com filtros por categoria e regiao
+- Categorias hierarquicas (pais/filhas)
+- Galeria de imagens por servico
+- Faixa de preco configuravel
+- Servicos em destaque
 
 ### Sistema de Negociacao
 
-O diferencial do CondoHub e o sistema de negociacao anonima:
+Fluxo de uma negociacao:
 
-1. **Cliente demonstra interesse** em um servico
-2. **Sistema gera handles anonimos** (ex: `Empresa #A7F2`, `Cliente #C3B1`)
-3. **Chat anonimizado** com sanitizacao automatica de dados pessoais
-4. **Apos aceite**, dados reais sao liberados para ambas as partes
-5. **Deal gera ordem** automaticamente para acompanhamento
-
-**Estados do Deal:**
 ```
-Aberto -> Em Negociacao -> Aceito/Rejeitado -> Concluido
+1. Cliente inicia interesse em servico
+2. Sistema gera handles anonimos (ex: "Empresa #A7F2")
+3. Chat anonimizado entre as partes
+4. Empresa aceita ou rejeita
+5. Apos aceite: dados reais liberados
+6. Cliente finaliza e avalia
+```
+
+**Status possiveis:**
+```
+aberto -> negociando -> aceito -> concluido
+                    \-> rejeitado
 ```
 
 ### Chat em Tempo Real
 
-- Mensagens entre cliente e empresa dentro da negociacao
-- Sanitizacao automatica de dados pessoais (CPF, CNPJ, telefone, email)
-- Indicador de mensagens nao lidas
-- Historico completo por negociacao
+- Widget flutuante acessivel em todas as paginas
+- Polling automatico para novas mensagens
+- Lista de conversas com busca
+- Indicador de status da negociacao
 
-### Sistema de Notificacoes
+### Sistema de Avaliacoes
 
-- Notificacoes em tempo real no header
-- Tipos: nova negociacao, nova mensagem, atualizacao de status, sistema
-- Marcar como lida individualmente ou todas
-- Contador de nao lidas com badge
-- Dropdown com acesso rapido as ultimas notificacoes
+- Avaliacao de 1 a 5 estrelas
+- Comentario opcional (ate 2000 caracteres)
+- Resposta da empresa a avaliacao
+- Badge de "Avaliacao Verificada" para deals concluidos
+- Exibicao no perfil publico da empresa
+
+### Relatorios e Metricas (Empresas)
+
+Dashboard com graficos usando Recharts:
+
+- **KPIs**: Total de negociacoes, taxa de conversao, media de avaliacoes
+- **Grafico de Linha**: Negociacoes ao longo do tempo
+- **Grafico de Pizza**: Distribuicao de status das negociacoes
+- **Grafico de Barras**: Servicos mais solicitados
+- **Filtro por Periodo**: 7 dias, 30 dias, 90 dias, 1 ano
+
+### Ranking
+
+- Score baseado em negociacoes concluidas
+- Ciclo semestral com reset automatico
+- Posicao visivel para empresas
+- Historico de ciclos anteriores
 
 ### Planos e Assinaturas
 
-| Plano | Preco | Interacoes/Mes | Recursos |
-|-------|-------|----------------|----------|
-| **Gratuito** | R$ 0 | 10 | Acesso basico |
-| **Intermediario** | R$ 99 | 100 | Ranking ativo, suporte prioritario |
-| **Premium** | R$ 199 | Ilimitado | Todos os recursos, destaque no catalogo |
-
-- Controle de interacoes utilizadas
-- Upgrade/downgrade de plano
-- Renovacao automatica
-- Expiracao gerenciada por scheduler
-
-### Ranking e Gamificacao
-
-- Score calculado por negociacoes concluidas
-- Ranking atualizado por semestre
-- Posicao visivel para empresas
-- Historico de ciclos anteriores
-- Reset automatico semestral
-
-### Gestao Financeira
-
-- Dashboard com metricas (receita total, comissoes, pendencias)
-- Historico de transacoes
-- Calculo automatico de comissao por ordem concluida
-- Exportacao de relatorios
+| Plano | Preco | Interacoes | Recursos |
+|-------|-------|------------|----------|
+| Gratuito | R$ 0 | 10/mes | Acesso basico |
+| Intermediario | R$ 99/mes | 50/mes | Ranking ativo |
+| Premium | R$ 199/mes | Ilimitado | Destaque + todos recursos |
 
 ### Painel Administrativo
 
 - Dashboard com KPIs da plataforma
-- Gestao de usuarios (ativar, bloquear, qualificar)
-- Gestao de planos e precos
-- Configuracao de banners promocionais
-- Aprovacao de ordens
-- Visualizacao de logs de atividade
+- Gestao de usuarios (CRUD, bloqueio, verificacao)
+- Gestao de categorias hierarquicas
+- Configuracao de planos e precos
+- Banners promocionais
+- Visao financeira geral
 
-### Interface do Usuario
+### Notificacoes
 
-- **Layout moderno** com sidebar colapsavel (Ctrl+B / Cmd+B)
-- **Dark Mode / Light Mode** com persistencia
-- **Componentes shadcn/ui** para UI consistente
-- **Design responsivo** (mobile, tablet, desktop)
-- **Loading states** com skeleton animations
-- **Glass morphism cards** para estatisticas
+- Badge contador no header
+- Dropdown com ultimas notificacoes
+- Marcar como lida individual ou todas
+- Tipos: nova negociacao, mensagem, sistema
 
 ---
 
@@ -140,28 +137,38 @@ Aberto -> Em Negociacao -> Aceito/Rejeitado -> Concluido
 
 ### Backend
 
-| Tecnologia | Versao | Uso |
-|------------|--------|-----|
+| Tecnologia | Versao | Descricao |
+|------------|--------|-----------|
 | PHP | 8.2+ | Runtime |
-| Laravel | 11.x | Framework API |
-| Laravel Sanctum | 4.x | Autenticacao |
+| Laravel | 11.x | Framework |
+| Laravel Sanctum | 4.x | Autenticacao API |
 | MySQL | 8.0+ | Banco de dados |
-| PHPUnit | 10.x | Testes |
+| PHPUnit | 11.x | Testes |
 
 ### Frontend
 
-| Tecnologia | Versao | Uso |
-|------------|--------|-----|
+| Tecnologia | Versao | Descricao |
+|------------|--------|-----------|
 | React | 18.x | UI Library |
-| Vite | 5.x | Build tool |
-| Redux Toolkit | 2.x | Estado global |
+| Vite | 5.x | Build Tool |
+| Redux Toolkit | 2.x | Estado Global |
 | React Router | 6.x | Roteamento |
 | Tailwind CSS | 3.x | Estilizacao |
-| shadcn/ui | Latest | Componentes UI |
-| Radix UI | Latest | Primitivos acessiveis |
-| Vitest | 1.x | Testes |
-| Testing Library | Latest | Testes de componente |
-| MSW | 2.x | Mock de API em testes |
+| Recharts | 3.x | Graficos |
+| Radix UI | Latest | Componentes Acessiveis |
+| Lucide React | Latest | Icones |
+| Axios | 1.x | HTTP Client |
+| React Hot Toast | 2.x | Notificacoes |
+
+### Testes
+
+| Tecnologia | Uso |
+|------------|-----|
+| Vitest | Testes unitarios frontend |
+| Testing Library | Testes de componentes |
+| Playwright | Testes E2E |
+| MSW | Mock de API |
+| PHPUnit | Testes backend |
 
 ---
 
@@ -172,61 +179,55 @@ Aberto -> Em Negociacao -> Aceito/Rejeitado -> Concluido
 - PHP 8.2+
 - Composer 2.x
 - Node.js 18+
-- npm ou yarn
 - MySQL 8.0+
+- XAMPP (opcional, para ambiente local)
 
 ### Backend
 
 ```bash
-# Navegue para o diretorio backend
 cd backend
 
-# Instale as dependencias
+# Instalar dependencias
 composer install
 
-# Configure o ambiente
+# Configurar ambiente
 cp .env.example .env
 php artisan key:generate
 
-# Configure o banco de dados no .env
-# DB_DATABASE=condohub
+# Configurar banco no .env
+# DB_DATABASE=servicepro_db
 # DB_USERNAME=root
 # DB_PASSWORD=
 
-# Execute as migrations
+# Criar banco e executar migrations
 php artisan migrate
 
-# (Opcional) Popule com dados de teste
+# Popular com dados de teste
 php artisan db:seed
 
-# Inicie o servidor
-php artisan serve
+# Iniciar servidor
+php artisan serve --port=8000
 ```
 
 ### Frontend
 
 ```bash
-# Navegue para o diretorio frontend
 cd frontend
 
-# Instale as dependencias
+# Instalar dependencias
 npm install
 
-# Configure o ambiente
+# Configurar ambiente
 cp .env.example .env
 # VITE_API_URL=http://localhost:8000/api
+# VITE_STORAGE_URL=http://localhost:8000/storage
 
-# Inicie o servidor de desenvolvimento
+# Iniciar desenvolvimento
 npm run dev
+
+# Build producao
+npm run build
 ```
-
-### Usuarios Padrao (apos seed)
-
-| Tipo | Email | Senha |
-|------|-------|-------|
-| Admin | admin@condohub.com | password |
-| Empresa | empresa@teste.com | password |
-| Cliente | cliente@teste.com | password |
 
 ---
 
@@ -234,80 +235,69 @@ npm run dev
 
 ```
 Sistema-condominios/
-├── backend/                      # Laravel 11 API
+├── backend/                          # Laravel 11 API
 │   ├── app/
 │   │   ├── Http/
-│   │   │   ├── Controllers/      # REST Controllers
-│   │   │   └── Middleware/       # Auth, Role checks
-│   │   ├── Models/               # Eloquent Models (22 tabelas)
-│   │   ├── Observers/            # Model events
-│   │   └── Services/             # Business logic
+│   │   │   ├── Controllers/          # 24 Controllers
+│   │   │   │   ├── AuthController    # Autenticacao
+│   │   │   │   ├── DealController    # Negociacoes
+│   │   │   │   ├── ServiceController # Servicos
+│   │   │   │   ├── ReviewController  # Avaliacoes
+│   │   │   │   ├── MetricsController # Relatorios
+│   │   │   │   └── Admin/            # Painel Admin
+│   │   │   └── Middleware/           # Auth, Roles
+│   │   ├── Models/                   # Eloquent Models
+│   │   └── Services/                 # Logica de negocio
 │   ├── database/
-│   │   ├── migrations/           # Schema definitions
-│   │   └── seeders/              # Data seeders
-│   ├── routes/
-│   │   └── api.php               # 100+ API endpoints
-│   └── tests/                    # PHPUnit tests
+│   │   ├── migrations/               # Schema (29 migrations)
+│   │   └── seeders/                  # Dados de teste
+│   └── routes/
+│       └── api.php                   # 100+ endpoints
 │
-├── frontend/                     # React SPA
+├── frontend/                         # React SPA
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── ui/               # shadcn/ui components (20+)
-│   │   │   └── ...               # App components
-│   │   ├── hooks/                # Custom React hooks
-│   │   ├── layouts/              # DashboardLayout, AuthLayout
-│   │   ├── pages/                # Page components
-│   │   │   ├── admin/            # Admin panel pages
-│   │   │   └── auth/             # Login, Register pages
+│   │   │   ├── chat/                 # ChatWidget, ChatModal
+│   │   │   ├── layout/               # Headers, Layouts
+│   │   │   ├── reviews/              # StarRating, ReviewModal
+│   │   │   └── ui/                   # Componentes Radix
+│   │   ├── contexts/                 # ChatContext
+│   │   ├── layouts/                  # SiteLayout
+│   │   ├── pages/
+│   │   │   ├── admin/                # AdminPanel, Users, Plans...
+│   │   │   ├── auth/                 # Login, Register
+│   │   │   ├── deals/                # DealList, ChatView
+│   │   │   ├── finance/              # FinanceView
+│   │   │   ├── reports/              # ReportsView (graficos)
+│   │   │   ├── services/             # MyServices
+│   │   │   └── public/               # CompanyList
 │   │   ├── store/
-│   │   │   └── slices/           # Redux slices
-│   │   ├── services/             # API services
-│   │   ├── lib/                  # Utilities
-│   │   └── test/                 # Test setup, mocks
-│   └── tests/                    # Vitest tests
+│   │   │   └── slices/               # Redux: auth, deals, reviews...
+│   │   ├── services/                 # api.js (Axios)
+│   │   └── lib/                      # Utils, config
+│   └── tests/                        # Vitest + Playwright
 │
 └── README.md
 ```
 
-### Principais Models (Backend)
+### Principais Models
 
-| Model | Tabela | Descricao |
-|-------|--------|-----------|
-| User | users | Usuarios do sistema |
-| CompanyProfile | company_profiles | Perfil de empresa |
-| ClientProfile | client_profiles | Perfil de cliente |
-| Service | services | Servicos cadastrados |
-| Category | categories | Categorias hierarquicas |
-| Deal | deals | Negociacoes |
-| Message | messages | Mensagens do chat |
-| Order | orders | Ordens de servico |
-| OrderLog | order_logs | Historico de status |
-| Transaction | transactions | Transacoes financeiras |
-| Plan | plans | Planos de assinatura |
-| Subscription | subscriptions | Assinaturas ativas |
-| Ranking | rankings | Score por ciclo |
-| Notification | notifications | Notificacoes do usuario |
-| Banner | banners | Banners promocionais |
-
-### Principais Componentes (Frontend)
-
-| Componente | Descricao |
-|------------|-----------|
-| DashboardLayout | Layout principal com sidebar |
-| Sidebar | Navegacao lateral colapsavel |
-| Header | Cabecalho com notificacoes e perfil |
-| NotificationDropdown | Dropdown de notificacoes |
-| ThemeToggle | Alternador dark/light mode |
-| GlassStatCard | Cards de estatisticas com efeito glass |
-| InactivityWarningModal | Modal de aviso de inatividade |
-
-### Principais Hooks (Frontend)
-
-| Hook | Descricao |
-|------|-----------|
-| useInactivityTimeout | Detecta inatividade e faz logout automatico |
-| useAuth | Acesso ao estado de autenticacao |
-| useTheme | Controle do tema dark/light |
+| Model | Descricao |
+|-------|-----------|
+| User | Usuarios (cliente, empresa, admin) |
+| CompanyProfile | Perfil da empresa |
+| ClientProfile | Perfil do cliente |
+| Service | Servicos oferecidos |
+| Category | Categorias hierarquicas |
+| Deal | Negociacoes |
+| Message | Mensagens do chat |
+| Review | Avaliacoes |
+| Plan | Planos de assinatura |
+| Subscription | Assinaturas ativas |
+| Ranking | Score por ciclo |
+| Notification | Notificacoes |
+| Transaction | Transacoes financeiras |
+| Banner | Banners promocionais |
 
 ---
 
@@ -317,13 +307,22 @@ Sistema-condominios/
 
 | Metodo | Rota | Descricao |
 |--------|------|-----------|
-| POST | /api/auth/register | Registro de usuario |
+| POST | /api/auth/register/cliente | Registro cliente |
+| POST | /api/auth/register/empresa | Registro empresa |
 | POST | /api/auth/login | Login |
 | POST | /api/auth/logout | Logout |
-| GET | /api/auth/me | Usuario atual |
 | POST | /api/auth/forgot-password | Solicitar reset |
 | POST | /api/auth/reset-password | Redefinir senha |
-| POST | /api/auth/extend-session | Estender sessao |
+| GET | /api/auth/session | Info da sessao |
+
+### Usuario
+
+| Metodo | Rota | Descricao |
+|--------|------|-----------|
+| GET | /api/users/me | Dados do usuario |
+| PUT | /api/users/me | Atualizar perfil |
+| POST | /api/users/me/foto | Upload foto |
+| POST | /api/users/me/cover | Upload capa |
 
 ### Servicos
 
@@ -331,9 +330,10 @@ Sistema-condominios/
 |--------|------|-----------|
 | GET | /api/services | Listar servicos |
 | POST | /api/services | Criar servico |
-| GET | /api/services/:id | Detalhe do servico |
-| PUT | /api/services/:id | Atualizar servico |
-| DELETE | /api/services/:id | Remover servico |
+| GET | /api/services/:id | Detalhe |
+| PUT | /api/services/:id | Atualizar |
+| DELETE | /api/services/:id | Remover |
+| GET | /api/my-services | Meus servicos |
 
 ### Negociacoes
 
@@ -341,206 +341,116 @@ Sistema-condominios/
 |--------|------|-----------|
 | GET | /api/deals | Listar negociacoes |
 | POST | /api/deals | Iniciar negociacao |
-| GET | /api/deals/:id | Detalhe da negociacao |
-| PATCH | /api/deals/:id/status | Atualizar status |
+| GET | /api/deals/:id | Detalhe |
+| PATCH | /api/deals/:id | Atualizar status |
 | GET | /api/deals/:id/messages | Listar mensagens |
 | POST | /api/deals/:id/messages | Enviar mensagem |
+
+### Avaliacoes
+
+| Metodo | Rota | Descricao |
+|--------|------|-----------|
+| POST | /api/reviews | Criar avaliacao |
+| GET | /api/reviews/received | Avaliacoes recebidas (empresa) |
+| GET | /api/reviews/given | Avaliacoes dadas (cliente) |
+| POST | /api/reviews/:id/respond | Responder avaliacao |
+
+### Metricas
+
+| Metodo | Rota | Descricao |
+|--------|------|-----------|
+| GET | /api/metrics/dashboard | KPIs da empresa |
+| GET | /api/metrics/charts | Dados para graficos |
+| GET | /api/metrics/client | Metricas do cliente |
 
 ### Notificacoes
 
 | Metodo | Rota | Descricao |
 |--------|------|-----------|
-| GET | /api/notifications | Listar notificacoes |
-| GET | /api/notifications/unread-count | Contador de nao lidas |
-| PATCH | /api/notifications/:id/read | Marcar como lida |
-| POST | /api/notifications/mark-all-read | Marcar todas como lidas |
-| DELETE | /api/notifications/:id | Excluir notificacao |
-
-### Assinaturas
-
-| Metodo | Rota | Descricao |
-|--------|------|-----------|
-| GET | /api/subscription | Assinatura atual |
-| GET | /api/plans | Planos disponiveis |
-| POST | /api/subscription/change-plan | Alterar plano |
-| POST | /api/subscription/cancel | Cancelar assinatura |
-
-### Financeiro
-
-| Metodo | Rota | Descricao |
-|--------|------|-----------|
-| GET | /api/finance/summary | Resumo financeiro |
-| GET | /api/finance/transactions | Historico de transacoes |
-
-### Ranking
-
-| Metodo | Rota | Descricao |
-|--------|------|-----------|
-| GET | /api/ranking | Ranking atual |
-| GET | /api/ranking/me | Minha posicao |
+| GET | /api/notifications | Listar |
+| GET | /api/notifications/unread-count | Contador |
+| PATCH | /api/notifications/:id/read | Marcar lida |
+| POST | /api/notifications/mark-all-read | Marcar todas |
 
 ### Rotas Publicas
 
 | Metodo | Rota | Descricao |
 |--------|------|-----------|
 | GET | /api/public/categories | Categorias |
-| GET | /api/public/companies | Empresas publicas |
-| GET | /api/public/companies/:id | Detalhe da empresa |
-| GET | /api/public/services | Servicos publicos |
+| GET | /api/public/companies | Empresas |
+| GET | /api/public/companies/:id | Detalhe empresa |
+| GET | /api/public/companies/:id/reviews | Avaliacoes |
+| GET | /api/public/services | Servicos |
+| GET | /api/public/banners | Banners ativos |
+
+### Admin
+
+| Metodo | Rota | Descricao |
+|--------|------|-----------|
+| GET | /api/admin/users | Listar usuarios |
+| POST | /api/admin/users | Criar usuario |
+| PATCH | /api/admin/users/:id | Atualizar |
+| DELETE | /api/admin/users/:id | Remover |
+| GET | /api/admin/categories | Categorias |
+| POST | /api/admin/categories | Criar categoria |
+| GET | /api/admin/plans | Planos |
+| GET | /api/admin/banners | Banners |
+| GET | /api/admin/finance | Visao financeira |
 
 ---
 
-## Testes
+## Usuarios de Teste
 
-### Backend
+Apos executar `php artisan db:seed`:
 
-```bash
-cd backend
-
-# Rodar todos os testes
-php artisan test
-
-# Rodar testes especificos
-php artisan test --filter=AuthTest
-php artisan test --filter=DealTest
-php artisan test --filter=ServiceTest
-```
-
-**Cobertura de testes backend:**
-- Autenticacao (registro, login, logout, recuperacao)
-- CRUD de servicos
-- Fluxo de negociacao
-- Gestao de assinaturas
-- Sistema de ranking
-
-### Frontend
-
-```bash
-cd frontend
-
-# Rodar todos os testes
-npm test
-
-# Rodar com coverage
-npm run test:coverage
-
-# Rodar em modo watch
-npm run test:watch
-```
-
-**Cobertura de testes frontend (239 testes):**
-- Redux Slices (auth, deals, services, notifications, subscription)
-- Hooks (useInactivityTimeout)
-- Componentes (NotificationDropdown, Dashboard, etc.)
-- Paginas (Login, Register, Home, Dashboard)
-- Integracao com MSW para mock de API
+| Tipo | Email | Senha |
+|------|-------|-------|
+| Admin | admin@servicepro.com.br | admin123 |
+| Empresa | empresa@teste.com | teste123 |
+| Cliente | cliente@teste.com | teste123 |
 
 ---
 
-## Seguranca e LGPD
-
-### Medidas de Seguranca
-
-| Recurso | Implementacao |
-|---------|---------------|
-| **Autenticacao** | Laravel Sanctum com tokens por sessao |
-| **CSRF** | Protecao nativa do Laravel |
-| **Rate Limiting** | Limitacao de requisicoes por IP |
-| **Senhas** | Hash bcrypt (padrao Laravel) |
-| **Sanitizacao** | Middleware remove dados pessoais das mensagens |
-| **Anonimizacao** | Handles gerados automaticamente nas negociacoes |
-| **Timeout** | Logout automatico apos 30 minutos de inatividade |
-| **SSL** | HTTPS obrigatorio em producao |
-
-### Conformidade LGPD
-
-| Requisito | Implementacao |
-|-----------|---------------|
-| **Soft Delete** | Coluna `deleted_at` em todas as tabelas sensiveis |
-| **Consentimento** | Aceite de termos no registro |
-| **Portabilidade** | Exportacao de dados do usuario |
-| **Exclusao** | Possibilidade de deletar conta |
-| **Minimizacao** | Coleta apenas de dados necessarios |
-
----
-
-## Scripts Uteis
+## Scripts
 
 ### Backend
 
 ```bash
 # Migrations
-php artisan migrate                    # Executar migrations
-php artisan migrate:fresh --seed       # Reset completo com seed
-
-# Seeders
-php artisan db:seed                    # Todos os seeders
-php artisan db:seed --class=FakeDataSeeder  # Dados fake
+php artisan migrate              # Executar
+php artisan migrate:fresh --seed # Reset com seed
 
 # Cache
-php artisan config:cache               # Cache de configuracao
-php artisan route:cache                # Cache de rotas
-php artisan optimize                   # Otimizar para producao
+php artisan config:cache         # Cache config
+php artisan route:cache          # Cache rotas
+php artisan optimize             # Otimizar
+
+# Testes
+php artisan test                 # Rodar testes
 ```
 
 ### Frontend
 
 ```bash
 # Desenvolvimento
-npm run dev                            # Servidor dev com HMR
+npm run dev                      # Servidor dev
 
 # Build
-npm run build                          # Build de producao
-npm run preview                        # Preview do build
+npm run build                    # Producao
+npm run preview                  # Preview build
 
-# Qualidade
-npm run lint                           # ESLint
-npm run format                         # Prettier
+# Testes
+npm run test                     # Vitest
+npm run test:coverage            # Com coverage
+npm run test:e2e                 # Playwright
 ```
-
----
-
-## Changelog
-
-### v1.2.0 (2024)
-- Sistema de notificacoes completo
-- Timeout por inatividade com aviso
-- Melhorias nos testes (239 testes passando)
-- Correcao de bugs no hook useInactivityTimeout
-- Atualizacao do MSW para API mocking
-
-### v1.1.0 (2024)
-- Modernizacao UI com shadcn/ui
-- DashboardLayout com sidebar colapsavel
-- Tema dark/light com persistencia
-- 20+ componentes UI reutilizaveis
-- Glass morphism cards
-- 112 testes frontend
-
-### v1.0.0 (2024)
-- MVP completo da plataforma
-- Autenticacao 3 perfis
-- Catalogo de servicos com filtros
-- Sistema de negociacao anonimizada
-- Chat entre cliente e empresa
-- Gestao de ordens
-- Sistema de assinaturas
-- Ranking por semestre
-- Painel administrativo
-- 54 testes backend
 
 ---
 
 ## Licenca
 
-Este projeto e proprietario. Todos os direitos reservados.
+Projeto proprietario. Todos os direitos reservados.
 
 ---
 
-## Suporte
-
-Para reportar bugs ou solicitar features, abra uma issue no repositorio.
-
----
-
-*CondoHub - Conectando condominios aos melhores prestadores de servico*
+*ServicePro - Conectando clientes aos melhores prestadores de servico*

@@ -2,7 +2,7 @@
 
 return [
 
-    'name' => env('APP_NAME', 'Plataforma Condominial'),
+    'name' => env('APP_NAME', 'ServicePro'),
 
     'env' => env('APP_ENV', 'production'),
 

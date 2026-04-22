@@ -14,8 +14,8 @@ export default function AdminPanel() {
     try {
       const response = await api.get('/admin/finance')
       setStats(response.data.data)
-    } catch (error) {
-      console.error('Erro ao carregar estatisticas:', error)
+    } catch (_error) {
+      // Silently handle error loading stats
     } finally {
       setLoading(false)
     }

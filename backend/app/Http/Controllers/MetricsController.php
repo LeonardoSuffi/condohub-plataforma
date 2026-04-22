@@ -60,15 +60,16 @@ class MetricsController extends Controller
                     ->count(),
             ],
 
-            // Faturamento (se disponivel)
+            // Negociacoes concluidas (revenue requer implementacao de valores reais)
             'revenue' => [
                 'total' => Deal::where('company_id', $companyId)
                     ->where('status', 'concluido')
-                    ->sum('valor'),
+                    ->count(),
                 'period' => Deal::where('company_id', $companyId)
                     ->where('status', 'concluido')
                     ->where('created_at', '>=', $startDate)
-                    ->sum('valor'),
+                    ->count(),
+                'note' => 'count_only', // Indica que sao contagens, nao valores monetarios
             ],
 
             // Conversao
@@ -154,7 +155,8 @@ class MetricsController extends Controller
             'spending' => [
                 'total' => Deal::where('client_id', $clientId)
                     ->where('status', 'concluido')
-                    ->sum('valor'),
+                    ->count(),
+                'note' => 'count_only', // Contagem de servicos concluidos
             ],
         ];
 
@@ -220,7 +222,7 @@ class MetricsController extends Controller
     }
 
     /**
-     * Timeline de faturamento
+     * Timeline de negociacoes concluidas por mes
      */
     protected function getRevenueTimeline(int $companyId, int $months): array
     {
@@ -230,7 +232,7 @@ class MetricsController extends Controller
             ->select(
                 DB::raw('YEAR(created_at) as year'),
                 DB::raw('MONTH(created_at) as month'),
-                DB::raw('SUM(valor) as total')
+                DB::raw('COUNT(*) as total')
             )
             ->groupBy('year', 'month')
             ->orderBy('year')
@@ -250,8 +252,8 @@ class MetricsController extends Controller
     {
         return Deal::where('deals.company_id', $companyId)
             ->join('services', 'deals.service_id', '=', 'services.id')
-            ->select('services.titulo', DB::raw('count(*) as count'))
-            ->groupBy('services.id', 'services.titulo')
+            ->select('services.title', DB::raw('count(*) as count'))
+            ->groupBy('services.id', 'services.title')
             ->orderBy('count', 'desc')
             ->limit(5)
             ->get()

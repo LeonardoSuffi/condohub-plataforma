@@ -2,11 +2,6 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchDealDetail, fetchMessages, sendMessage, updateDealStatus, clearCurrentDeal } from '../../store/slices/dealsSlice'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Send, ArrowLeft, AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -22,12 +17,10 @@ export default function ChatView() {
   const pollingRef = useRef(null)
   const mountedRef = useRef(true)
 
-  // Scroll to bottom helper
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [])
 
-  // Load deal and messages
   useEffect(() => {
     mountedRef.current = true
 
@@ -47,7 +40,6 @@ export default function ChatView() {
 
     loadData()
 
-    // Start polling for messages every 5 seconds
     pollingRef.current = setInterval(() => {
       if (mountedRef.current) {
         dispatch(fetchMessages({ dealId }))
@@ -64,7 +56,6 @@ export default function ChatView() {
     }
   }, [dispatch, dealId, navigate])
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     scrollToBottom()
   }, [messages, scrollToBottom])
@@ -79,12 +70,11 @@ export default function ChatView() {
 
     try {
       await dispatch(sendMessage({ dealId, content })).unwrap()
-      // Refresh messages after sending
       dispatch(fetchMessages({ dealId }))
     } catch (error) {
       if (mountedRef.current) {
         toast.error(error || 'Erro ao enviar mensagem')
-        setNewMessage(content) // Restore message on error
+        setNewMessage(content)
       }
     } finally {
       if (mountedRef.current) {
@@ -114,118 +104,120 @@ export default function ChatView() {
   const canSendMessages = ['aberto', 'negociando'].includes(dealStatus)
   const canAcceptReject = user?.type === 'empresa' && dealStatus === 'negociando'
 
-  // Loading state
+  const getStatusStyle = (status) => {
+    const styles = {
+      aberto: 'bg-yellow-100 text-yellow-700',
+      negociando: 'bg-blue-100 text-blue-700',
+      aceito: 'bg-green-100 text-green-700',
+      concluido: 'bg-green-100 text-green-700',
+      rejeitado: 'bg-red-100 text-red-700',
+    }
+    return styles[status] || 'bg-gray-100 text-gray-700'
+  }
+
+  const getStatusLabel = (status) => {
+    const labels = {
+      aberto: 'Aberto',
+      negociando: 'Em Negociacao',
+      aceito: 'Aceito',
+      concluido: 'Concluido',
+      rejeitado: 'Rejeitado',
+    }
+    return labels[status] || status
+  }
+
   if (loadingDetail && !currentDeal) {
     return (
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="h-[calc(100vh-14rem)] flex flex-col gap-4">
-          <Skeleton className="h-24 w-full rounded-lg" />
-          <Skeleton className="flex-1 w-full rounded-lg" />
-          <Skeleton className="h-14 w-full rounded-lg" />
+      <div className="space-y-4">
+        <div className="bg-white rounded-lg shadow p-6 animate-pulse">
+          <div className="h-6 bg-gray-200 rounded w-1/3 mb-2" />
+          <div className="h-4 bg-gray-200 rounded w-1/4" />
+        </div>
+        <div className="bg-white rounded-lg shadow h-96 animate-pulse" />
+        <div className="bg-white rounded-lg shadow p-4 animate-pulse">
+          <div className="h-12 bg-gray-200 rounded" />
         </div>
       </div>
     )
   }
 
-  // Not found state
   if (!loadingDetail && !currentDeal) {
     return (
-      <Card className="max-w-md mx-auto mt-8 mx-4">
-        <CardContent className="p-8 text-center">
-          <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <p className="text-muted-foreground mb-4">Negociacao nao encontrada</p>
-          <Button variant="outline" onClick={() => navigate('/deals')}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Voltar para negociacoes
-          </Button>
-        </CardContent>
-      </Card>
+      <div className="bg-white rounded-lg shadow p-12 text-center">
+        <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+        <p className="text-gray-500 mb-4">Negociacao nao encontrada</p>
+        <button
+          onClick={() => navigate('/deals')}
+          className="inline-flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Voltar para negociacoes
+        </button>
+      </div>
     )
   }
 
-  const getStatusBadge = () => {
-    const variants = {
-      aberto: { label: 'Aberto', variant: 'secondary' },
-      negociando: { label: 'Em Negociacao', variant: 'warning' },
-      aceito: { label: 'Aceito', variant: 'success' },
-      concluido: { label: 'Concluido', variant: 'success' },
-      rejeitado: { label: 'Rejeitado', variant: 'destructive' },
-    }
-    return variants[dealStatus] || { label: dealStatus, variant: 'secondary' }
-  }
-
-  const statusBadge = getStatusBadge()
-
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <div className="h-[calc(100vh-14rem)] flex flex-col">
-        {/* Header */}
-        <Card className="mb-4">
-        <CardContent className="p-4">
-          <div className="flex justify-between items-center">
-            <div className="min-w-0 flex-1">
-              <h1 className="text-xl font-bold text-foreground truncate">
-                {currentDeal?.service?.title || 'Negociacao'}
-              </h1>
-              <p className="text-muted-foreground text-sm mt-0.5">
-                {user?.type === 'empresa' ? (
-                  <>Com: {isAnonymous ? currentDeal?.anon_handle_b : (currentDeal?.client?.user?.name || 'Cliente')}</>
-                ) : (
-                  <>Com: {isAnonymous ? currentDeal?.anon_handle_a : (currentDeal?.company?.nome_fantasia || 'Empresa')}</>
-                )}
-              </p>
-            </div>
-            <div className="flex items-center gap-3 ml-4">
-              <Badge variant={
-                dealStatus === 'aceito' || dealStatus === 'concluido' ? 'default' :
-                dealStatus === 'negociando' ? 'secondary' :
-                dealStatus === 'rejeitado' ? 'destructive' : 'outline'
-              }>
-                {statusBadge.label}
-              </Badge>
-              {canAcceptReject && (
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => handleStatusChange('aceito')}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    Aceitar
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => handleStatusChange('rejeitado')}
-                  >
-                    Rejeitar
-                  </Button>
-                </div>
+    <div className="flex flex-col h-[calc(100vh-12rem)]">
+      {/* Header */}
+      <div className="bg-white rounded-lg shadow p-4 mb-4">
+        <div className="flex justify-between items-center">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl font-bold text-gray-900 truncate">
+              {currentDeal?.service?.title || 'Negociacao'}
+            </h1>
+            <p className="text-gray-500 text-sm mt-0.5">
+              {user?.type === 'empresa' ? (
+                <>Com: {isAnonymous ? currentDeal?.anon_handle_b : (currentDeal?.client?.user?.name || 'Cliente')}</>
+              ) : (
+                <>Com: {isAnonymous ? currentDeal?.anon_handle_a : (currentDeal?.company?.nome_fantasia || 'Empresa')}</>
               )}
-            </div>
+            </p>
           </div>
+          <div className="flex items-center gap-3 ml-4">
+            <span className={`px-3 py-1 text-sm font-medium rounded-full ${getStatusStyle(dealStatus)}`}>
+              {getStatusLabel(dealStatus)}
+            </span>
+            {canAcceptReject && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleStatusChange('aceito')}
+                  className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700"
+                >
+                  Aceitar
+                </button>
+                <button
+                  onClick={() => handleStatusChange('rejeitado')}
+                  className="px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
+                >
+                  Rejeitar
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
 
-          {isAnonymous && (
-            <div className="mt-3 p-3 bg-amber-50 border border-amber-100 rounded-lg text-amber-800 text-sm flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-              Esta conversa e anonima. Os dados de contato serao liberados apos a empresa aceitar a negociacao.
-            </div>
-          )}
+        {isAnonymous && (
+          <div className="mt-3 p-3 bg-amber-50 border border-amber-100 rounded-lg text-amber-800 text-sm flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            Esta conversa e anonima. Os dados de contato serao liberados apos a empresa aceitar a negociacao.
+          </div>
+        )}
 
-          {!isAnonymous && dealStatus === 'aceito' && (
-            <div className="mt-3 p-3 bg-green-50 border border-green-100 rounded-lg text-green-800 text-sm flex items-start gap-2">
-              <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-              Negociacao aceita! Agora voces podem trocar dados de contato diretamente.
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        {!isAnonymous && dealStatus === 'aceito' && (
+          <div className="mt-3 p-3 bg-green-50 border border-green-100 rounded-lg text-green-800 text-sm flex items-start gap-2">
+            <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            Negociacao aceita! Agora voces podem trocar dados de contato diretamente.
+          </div>
+        )}
+      </div>
 
       {/* Messages */}
-      <Card className="flex-1 overflow-hidden mb-4">
-        <CardContent className="p-4 h-full overflow-y-auto">
+      <div className="flex-1 bg-white rounded-lg shadow overflow-hidden mb-4">
+        <div className="p-4 h-full overflow-y-auto">
           <div className="space-y-3">
             {messages.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground text-sm">
+              <div className="text-center py-8 text-gray-500 text-sm">
                 Nenhuma mensagem ainda. Comece a conversa!
               </div>
             ) : (
@@ -237,10 +229,10 @@ export default function ChatView() {
                   <div
                     className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${
                       message.is_system
-                        ? 'bg-muted text-muted-foreground text-center w-full text-sm rounded-lg'
+                        ? 'bg-gray-100 text-gray-600 text-center w-full text-sm rounded-lg'
                         : message.is_mine
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-foreground'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-900'
                     }`}
                   >
                     {!message.is_system && !message.is_mine && (
@@ -263,46 +255,43 @@ export default function ChatView() {
             )}
             <div ref={messagesEndRef} />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Input */}
       {canSendMessages ? (
         <form onSubmit={handleSendMessage} className="flex gap-3">
-          <Input
+          <input
             type="text"
-            className="flex-1 h-12"
+            className="flex-1 h-12 px-4 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             placeholder="Digite sua mensagem..."
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             disabled={sending}
             maxLength={1000}
           />
-          <Button
+          <button
             type="submit"
             disabled={!newMessage.trim() || sending}
-            className="h-12 px-6"
+            className="h-12 px-6 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {sending ? (
               <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
               <>
-                <Send className="w-4 h-4 mr-2" />
+                <Send className="w-4 h-4" />
                 Enviar
               </>
             )}
-          </Button>
+          </button>
         </form>
       ) : (
-        <Card className="bg-muted">
-          <CardContent className="p-4 text-center text-muted-foreground text-sm">
-            {dealStatus === 'aceito' && 'Negociacao aceita. Continue a conversa por outros meios.'}
-            {dealStatus === 'concluido' && 'Esta negociacao foi concluida.'}
-            {dealStatus === 'rejeitado' && 'Esta negociacao foi encerrada.'}
-          </CardContent>
-        </Card>
+        <div className="bg-gray-100 rounded-lg p-4 text-center text-gray-500 text-sm">
+          {dealStatus === 'aceito' && 'Negociacao aceita. Continue a conversa por outros meios.'}
+          {dealStatus === 'concluido' && 'Esta negociacao foi concluida.'}
+          {dealStatus === 'rejeitado' && 'Esta negociacao foi encerrada.'}
+        </div>
       )}
-      </div>
     </div>
   )
 }

@@ -19,12 +19,12 @@ class ClientProfile extends Model
         'cnpj',
         'tipo',
         'telefone',
-        'nome_condominio',
-        'endereco_condominio',
+        'nome_organizacao',
+        'endereco_organizacao',
         'cidade',
         'estado',
         'cep',
-        'num_unidades',
+        'num_funcionarios',
         'cover_path',
         'preferences',
     ];
@@ -33,7 +33,7 @@ class ClientProfile extends Model
     {
         return [
             'preferences' => 'array',
-            'num_unidades' => 'integer',
+            'num_funcionarios' => 'integer',
         ];
     }
 
@@ -70,19 +70,19 @@ class ClientProfile extends Model
         return $this->cnpj ?? $this->cpf ?? '';
     }
 
-    public function isSindico(): bool
+    public function isPessoaFisica(): bool
     {
-        return $this->tipo === 'sindico';
+        return $this->tipo === 'pessoa_fisica';
     }
 
-    public function isAdministradora(): bool
+    public function isEmpresa(): bool
     {
-        return $this->tipo === 'administradora';
+        return $this->tipo === 'empresa';
     }
 
-    public function isCondominio(): bool
+    public function isAutonomo(): bool
     {
-        return $this->tipo === 'condominio';
+        return $this->tipo === 'autonomo';
     }
 
     public function getCoverUrlAttribute(): ?string

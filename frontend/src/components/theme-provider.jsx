@@ -8,7 +8,7 @@ const ThemeProviderContext = createContext({
 export function ThemeProvider({
   children,
   defaultTheme = "dark",
-  storageKey = "condohub-ui-theme",
+  storageKey = "servicepro-ui-theme",
   ...props
 }) {
   const [theme, setTheme] = useState(

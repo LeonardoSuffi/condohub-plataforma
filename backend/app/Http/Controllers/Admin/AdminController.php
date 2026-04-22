@@ -118,7 +118,7 @@ class AdminController extends Controller
                   })
                   ->orWhereHas('clientProfile', function ($q2) use ($search) {
                       $q2->where('cpf', 'like', "%{$search}%")
-                         ->orWhere('nome_condominio', 'like', "%{$search}%");
+                         ->orWhere('nome_organizacao', 'like', "%{$search}%");
                   });
             });
         }
@@ -224,14 +224,14 @@ class AdminController extends Controller
             'client' => 'sometimes|array',
             'client.cpf' => 'sometimes|nullable|string|max:14',
             'client.cnpj' => 'sometimes|nullable|string|max:18',
-            'client.tipo' => 'sometimes|string|in:sindico,administradora,condominio',
+            'client.tipo' => 'sometimes|string|in:pessoa_fisica,empresa,autonomo',
             'client.telefone' => 'sometimes|string|max:20',
-            'client.nome_condominio' => 'sometimes|string|max:255',
-            'client.endereco_condominio' => 'sometimes|string|max:255',
+            'client.nome_organizacao' => 'sometimes|string|max:255',
+            'client.endereco_organizacao' => 'sometimes|string|max:255',
             'client.cidade' => 'sometimes|string|max:100',
             'client.estado' => 'sometimes|string|max:2',
             'client.cep' => 'sometimes|string|max:10',
-            'client.num_unidades' => 'sometimes|integer|min:1',
+            'client.num_funcionarios' => 'sometimes|integer|min:0',
         ]);
 
         // Atualiza dados básicos do usuário
@@ -293,7 +293,7 @@ class AdminController extends Controller
             'company.nome_fantasia' => 'nullable|string|max:255',
             'company.segmento' => 'required_if:type,empresa|string|max:100',
             'client' => 'required_if:type,cliente|array',
-            'client.tipo' => 'required_if:type,cliente|string|in:sindico,administradora,condominio',
+            'client.tipo' => 'required_if:type,cliente|string|in:pessoa_fisica,empresa,autonomo',
         ]);
 
         // Cria usuário

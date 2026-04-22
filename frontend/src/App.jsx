@@ -5,6 +5,9 @@ import { useSelector } from 'react-redux'
 import SiteLayout from './layouts/SiteLayout'
 import AuthLayout from './components/layout/AuthLayout'
 
+// Global Components
+import ChatWidget from './components/chat/ChatWidget'
+
 // Public Pages
 import Home from './pages/Home'
 import CompanyProfile from './pages/companies/CompanyProfile'
@@ -24,6 +27,7 @@ import DealList from './pages/deals/DealList'
 import ChatView from './pages/deals/ChatView'
 import FinanceView from './pages/finance/FinanceView'
 import RankingView from './pages/RankingView'
+import ReportsView from './pages/reports/ReportsView'
 
 // Admin Pages
 import AdminPanel from './pages/admin/AdminPanel'
@@ -33,9 +37,24 @@ import AdminBanners from './pages/admin/AdminBanners'
 import AdminCategories from './pages/admin/AdminCategories'
 import AdminFinance from './pages/admin/AdminFinance'
 
-// Route Guards
+// Loading component for route guards
+const RouteLoading = () => (
+  <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+    <div className="text-center">
+      <div className="w-10 h-10 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin mx-auto" />
+      <p className="mt-3 text-gray-500 text-sm">Carregando...</p>
+    </div>
+  </div>
+)
+
+// Route Guards - Now wait for initialization
 const PrivateRoute = ({ children }) => {
-  const { isAuthenticated, user } = useSelector((state) => state.auth)
+  const { isAuthenticated, user, initialized } = useSelector((state) => state.auth)
+
+  // Wait for auth check to complete
+  if (!initialized) {
+    return <RouteLoading />
+  }
 
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" replace />
@@ -45,7 +64,12 @@ const PrivateRoute = ({ children }) => {
 }
 
 const GuestRoute = ({ children }) => {
-  const { isAuthenticated, user } = useSelector((state) => state.auth)
+  const { isAuthenticated, user, initialized } = useSelector((state) => state.auth)
+
+  // Wait for auth check to complete
+  if (!initialized) {
+    return <RouteLoading />
+  }
 
   if (isAuthenticated && user) {
     return <Navigate to="/dashboard" replace />
@@ -55,7 +79,12 @@ const GuestRoute = ({ children }) => {
 }
 
 const AdminRoute = ({ children }) => {
-  const { isAuthenticated, user } = useSelector((state) => state.auth)
+  const { isAuthenticated, user, initialized } = useSelector((state) => state.auth)
+
+  // Wait for auth check to complete
+  if (!initialized) {
+    return <RouteLoading />
+  }
 
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" replace />
@@ -69,7 +98,12 @@ const AdminRoute = ({ children }) => {
 }
 
 const EmpresaRoute = ({ children }) => {
-  const { isAuthenticated, user } = useSelector((state) => state.auth)
+  const { isAuthenticated, user, initialized } = useSelector((state) => state.auth)
+
+  // Wait for auth check to complete
+  if (!initialized) {
+    return <RouteLoading />
+  }
 
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" replace />
@@ -84,6 +118,8 @@ const EmpresaRoute = ({ children }) => {
 
 function App() {
   return (
+    <>
+    <ChatWidget />
     <Routes>
       {/* Public Pages */}
       <Route path="/" element={<Home />} />
@@ -111,6 +147,7 @@ function App() {
         <Route path="/my-services" element={<EmpresaRoute><MyServices /></EmpresaRoute>} />
         <Route path="/my-services/new" element={<EmpresaRoute><MyServices /></EmpresaRoute>} />
         <Route path="/ranking" element={<EmpresaRoute><RankingView /></EmpresaRoute>} />
+        <Route path="/reports" element={<EmpresaRoute><ReportsView /></EmpresaRoute>} />
 
         {/* Admin Routes */}
         <Route path="/admin" element={<AdminRoute><AdminPanel /></AdminRoute>} />
@@ -124,6 +161,7 @@ function App() {
       {/* 404 Redirect */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   )
 }
 
