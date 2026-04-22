@@ -57,9 +57,14 @@ export default function MyServices() {
     region: '',
     price_range: '',
     tags: [],
+    estimated_time: '',
+    includes: '',
   })
   const [tagInput, setTagInput] = useState('')
+  const [pendingImages, setPendingImages] = useState([])
+  const [previewUrls, setPreviewUrls] = useState([])
   const fileInputRef = useRef(null)
+  const formImageInputRef = useRef(null)
 
   useEffect(() => {
     dispatch(fetchMyServices())
@@ -96,17 +101,70 @@ export default function MyServices() {
     try {
       if (editingService) {
         await dispatch(updateService({ id: editingService.id, data: formData })).unwrap()
+        // Upload pending images for existing service
+        if (pendingImages.length > 0) {
+          await uploadPendingImages(editingService.id)
+        }
         toast.success('Servico atualizado!')
       } else {
         const result = await dispatch(createService(formData)).unwrap()
-        toast.success('Servico criado! Adicione imagens para destacar seu servico.')
-        setSelectedService(result)
-        setShowImageModal(true)
+        // Upload pending images for new service
+        if (pendingImages.length > 0 && result?.id) {
+          await uploadPendingImages(result.id)
+          toast.success('Servico criado com imagens!')
+        } else {
+          toast.success('Servico criado!')
+        }
       }
       closeModal()
     } catch (error) {
       toast.error(error || 'Erro ao salvar servico')
     }
+  }
+
+  const uploadPendingImages = async (serviceId) => {
+    if (pendingImages.length === 0) return
+
+    const uploadFormData = new FormData()
+    pendingImages.forEach(file => {
+      uploadFormData.append('images[]', file)
+    })
+
+    try {
+      await api.post(`/services/${serviceId}/images`, uploadFormData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      dispatch(fetchMyServices())
+    } catch (error) {
+      toast.error('Erro ao enviar algumas imagens')
+    }
+  }
+
+  const handleFormImageSelect = (e) => {
+    const files = Array.from(e.target.files)
+    if (files.length === 0) return
+
+    // Limit to 10 images total
+    const remainingSlots = 10 - pendingImages.length
+    const filesToAdd = files.slice(0, remainingSlots)
+
+    setPendingImages(prev => [...prev, ...filesToAdd])
+
+    // Create preview URLs
+    filesToAdd.forEach(file => {
+      const url = URL.createObjectURL(file)
+      setPreviewUrls(prev => [...prev, url])
+    })
+
+    if (formImageInputRef.current) {
+      formImageInputRef.current.value = ''
+    }
+  }
+
+  const removePendingImage = (index) => {
+    setPendingImages(prev => prev.filter((_, i) => i !== index))
+    URL.revokeObjectURL(previewUrls[index])
+    setPreviewUrls(prev => prev.filter((_, i) => i !== index))
   }
 
   const handleDelete = async () => {
@@ -127,6 +185,11 @@ export default function MyServices() {
   }
 
   const openModal = (service = null) => {
+    // Clear pending images
+    previewUrls.forEach(url => URL.revokeObjectURL(url))
+    setPendingImages([])
+    setPreviewUrls([])
+
     if (service) {
       setEditingService(service)
       setFormData({
@@ -136,6 +199,8 @@ export default function MyServices() {
         region: service.region,
         price_range: service.price_range,
         tags: service.tags || [],
+        estimated_time: service.estimated_time || '',
+        includes: service.includes || '',
       })
     } else {
       setEditingService(null)
@@ -146,6 +211,8 @@ export default function MyServices() {
         region: '',
         price_range: '',
         tags: [],
+        estimated_time: '',
+        includes: '',
       })
     }
     setShowModal(true)
@@ -154,6 +221,10 @@ export default function MyServices() {
   const closeModal = () => {
     setShowModal(false)
     setEditingService(null)
+    // Clear pending images
+    previewUrls.forEach(url => URL.revokeObjectURL(url))
+    setPendingImages([])
+    setPreviewUrls([])
   }
 
   const openImageModal = (service) => {
@@ -482,9 +553,82 @@ export default function MyServices() {
               </div>
 
               <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto max-h-[calc(90vh-80px)]">
+                {/* Image Upload Section */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Titulo do Servico
+                    <Camera className="w-4 h-4 inline mr-1" />
+                    Fotos do Servico
+                  </label>
+                  <div
+                    className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center cursor-pointer hover:border-emerald-400 hover:bg-gray-50 transition-all"
+                    onClick={() => formImageInputRef.current?.click()}
+                  >
+                    <input
+                      ref={formImageInputRef}
+                      type="file"
+                      multiple
+                      accept="image/jpeg,image/png,image/jpg,image/webp"
+                      className="hidden"
+                      onChange={handleFormImageSelect}
+                    />
+                    <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-600">Clique para adicionar fotos</p>
+                    <p className="text-xs text-gray-400 mt-1">JPG, PNG ou WEBP. Maximo 5MB cada.</p>
+                  </div>
+
+                  {/* Preview of pending images */}
+                  {previewUrls.length > 0 && (
+                    <div className="grid grid-cols-4 gap-2 mt-3">
+                      {previewUrls.map((url, index) => (
+                        <div key={index} className="relative group rounded-lg overflow-hidden bg-gray-100">
+                          <img src={url} alt="" className="w-full h-16 object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => removePendingImage(index)}
+                            className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="w-4 h-4 text-white" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Show existing images if editing */}
+                  {editingService?.images?.length > 0 && (
+                    <div className="mt-3">
+                      <p className="text-xs text-gray-500 mb-2">Imagens existentes ({editingService.images.length})</p>
+                      <div className="grid grid-cols-4 gap-2">
+                        {editingService.images.slice(0, 4).map((img) => (
+                          <div key={img.id} className="relative rounded-lg overflow-hidden bg-gray-100">
+                            <img src={getImageUrl(img)} alt="" className="w-full h-16 object-cover" />
+                            {img.is_cover && (
+                              <div className="absolute top-1 left-1">
+                                <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        {editingService.images.length > 4 && (
+                          <div className="flex items-center justify-center h-16 bg-gray-100 rounded-lg text-xs text-gray-500">
+                            +{editingService.images.length - 4}
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { closeModal(); openImageModal(editingService); }}
+                        className="text-sm text-emerald-600 hover:text-emerald-700 mt-2"
+                      >
+                        Gerenciar todas as fotos
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Titulo do Servico *
                   </label>
                   <input
                     type="text"
@@ -498,10 +642,10 @@ export default function MyServices() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Descricao
+                    Descricao *
                   </label>
                   <textarea
-                    placeholder="Descreva seu servico em detalhes"
+                    placeholder="Descreva seu servico em detalhes: o que inclui, diferenciais, experiencia..."
                     rows={4}
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -512,7 +656,7 @@ export default function MyServices() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Categoria
+                    Categoria *
                   </label>
                   <select
                     value={formData.category_id}
@@ -537,7 +681,7 @@ export default function MyServices() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       <MapPin className="w-4 h-4 inline mr-1" />
-                      Regiao
+                      Regiao *
                     </label>
                     <input
                       type="text"
@@ -551,15 +695,44 @@ export default function MyServices() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       <DollarSign className="w-4 h-4 inline mr-1" />
-                      Preco (R$)
+                      Faixa de Preco *
                     </label>
                     <input
                       type="text"
-                      placeholder="500-1500"
+                      placeholder="Ex: 500-1500 ou A partir de 200"
                       value={formData.price_range}
                       onChange={(e) => setFormData({ ...formData, price_range: e.target.value })}
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
                       required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <Clock className="w-4 h-4 inline mr-1" />
+                      Tempo Estimado
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: 2-3 dias, 1 semana"
+                      value={formData.estimated_time}
+                      onChange={(e) => setFormData({ ...formData, estimated_time: e.target.value })}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <CheckCircle className="w-4 h-4 inline mr-1" />
+                      O que inclui
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Material, mao de obra"
+                      value={formData.includes}
+                      onChange={(e) => setFormData({ ...formData, includes: e.target.value })}
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
                     />
                   </div>
                 </div>
@@ -571,7 +744,7 @@ export default function MyServices() {
                   </label>
                   <input
                     type="text"
-                    placeholder="Ex: eletrica, residencial"
+                    placeholder="Ex: eletrica, residencial, urgente"
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
                     onKeyDown={handleAddTag}
@@ -608,9 +781,11 @@ export default function MyServices() {
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-emerald-500/25 transition-all"
+                    className="flex-1 px-4 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-emerald-500/25 transition-all flex items-center justify-center gap-2"
                   >
+                    {pendingImages.length > 0 && <ImageIcon className="w-4 h-4" />}
                     {editingService ? 'Salvar' : 'Criar Servico'}
+                    {pendingImages.length > 0 && <span className="text-emerald-100">({pendingImages.length} fotos)</span>}
                   </button>
                 </div>
               </form>

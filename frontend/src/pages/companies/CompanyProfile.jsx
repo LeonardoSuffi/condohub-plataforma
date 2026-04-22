@@ -129,6 +129,7 @@ export default function CompanyProfile() {
   }
 
   const logoUrl = company.logo_url ? `${storageUrl}/${company.logo_url}` : null
+  const coverUrl = company.cover_path ? `${storageUrl}/${company.cover_path}` : null
   const totalViews = company.services?.reduce((acc, s) => acc + (s.views_count || 0), 0) || 0
   const memberSince = company.created_at
     ? new Date(company.created_at).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
@@ -137,16 +138,28 @@ export default function CompanyProfile() {
   return (
     <AdaptiveLayout>
       <div className="min-h-screen bg-gray-50">
-        {/* Hero Section */}
+        {/* Hero Section with Cover Image */}
         <div className="relative h-72 sm:h-80 lg:h-96 overflow-hidden">
-          {/* Background gradient */}
-          <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-900 to-black" />
-
-          {/* Decorative elements */}
-          <div className="absolute inset-0 overflow-hidden">
-            <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-br from-blue-500/20 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
-            <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-gradient-to-tr from-emerald-500/10 to-transparent rounded-full blur-3xl translate-y-1/2 -translate-x-1/3" />
-          </div>
+          {/* Cover Image or Background gradient */}
+          {coverUrl ? (
+            <>
+              <img
+                src={coverUrl}
+                alt={`${company.nome_fantasia} - Capa`}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20" />
+            </>
+          ) : (
+            <>
+              <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-900 to-black" />
+              {/* Decorative elements */}
+              <div className="absolute inset-0 overflow-hidden">
+                <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-br from-blue-500/20 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
+                <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-gradient-to-tr from-emerald-500/10 to-transparent rounded-full blur-3xl translate-y-1/2 -translate-x-1/3" />
+              </div>
+            </>
+          )}
 
           {/* Pattern overlay */}
           <div className="absolute inset-0 opacity-5">
@@ -157,7 +170,7 @@ export default function CompanyProfile() {
           <div className="absolute top-6 left-6 z-10">
             <button
               onClick={() => navigate(-1)}
-              className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm text-white rounded-lg hover:bg-white/20 transition-all"
+              className="flex items-center gap-2 px-4 py-2 bg-black/30 backdrop-blur-sm text-white rounded-lg hover:bg-black/50 transition-all"
             >
               <ArrowLeft className="h-4 w-4" />
               <span className="hidden sm:inline">Voltar</span>

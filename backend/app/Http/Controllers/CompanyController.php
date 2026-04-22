@@ -53,6 +53,7 @@ class CompanyController extends Controller
                 'company_profiles.estado',
                 'company_profiles.descricao',
                 'company_profiles.logo_path',
+                'company_profiles.cover_path',
                 'company_profiles.verified',
                 'company_profiles.slug',
                 'company_profiles.average_rating',
@@ -114,6 +115,7 @@ class CompanyController extends Controller
                     'estado' => $company->estado,
                     'descricao' => $company->descricao,
                     'logo_url' => $company->logo_path,
+                    'cover_path' => $company->cover_path,
                     'verified' => (bool) $company->verified,
                     'slug' => $company->slug,
                     'services_count' => (int) $company->services_count,
@@ -289,6 +291,7 @@ class CompanyController extends Controller
             ->select([
                 'company_profiles.*',
             ])
+            ->with('user:id,email')
             ->addSelect([
                 'services_count' => Service::selectRaw('COUNT(*)')
                     ->whereColumn('company_id', 'company_profiles.id')
@@ -299,6 +302,12 @@ class CompanyController extends Controller
                     ->selectRaw('COUNT(*)')
                     ->whereColumn('company_id', 'company_profiles.id')
                     ->where('status', 'concluido'),
+            ])
+            ->addSelect([
+                'reviews_count' => DB::table('reviews')
+                    ->selectRaw('COUNT(*)')
+                    ->whereColumn('company_id', 'company_profiles.id')
+                    ->where('status', 'approved'),
             ]);
 
         $company = null;
@@ -357,8 +366,14 @@ class CompanyController extends Controller
             'estado' => $company->estado,
             'descricao' => $company->descricao,
             'logo_url' => $company->logo_path,
+            'cover_path' => $company->cover_path,
             'verified' => (bool) $company->verified,
             'slug' => $company->slug,
+            'average_rating' => $company->average_rating ? round((float) $company->average_rating, 1) : null,
+            'reviews_count' => (int) ($company->reviews_count ?? 0),
+            'telefone' => $company->telefone,
+            'website' => $company->website,
+            'email' => $company->user?->email,
             'created_at' => $company->created_at,
             'services_count' => (int) $company->services_count,
             'deals_completed_count' => (int) $company->deals_completed_count,

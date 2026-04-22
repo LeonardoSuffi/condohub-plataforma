@@ -844,6 +844,7 @@ export default function Dashboard() {
 // Modern Company Card Component
 function CompanyCardModern({ company, storageUrl, badge }) {
   const logoUrl = company.logo_url ? `${storageUrl}/${company.logo_url}` : null
+  const coverUrl = company.cover_path ? `${storageUrl}/${company.cover_path}` : null
   const rating = company.average_rating ? parseFloat(company.average_rating).toFixed(1) : null
 
   return (
@@ -851,7 +852,11 @@ function CompanyCardModern({ company, storageUrl, badge }) {
       to={`/empresa/${company.slug || company.id}`}
       className="flex-shrink-0 w-72 bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl hover:border-gray-200 transition-all duration-300 hover:-translate-y-1"
     >
-      <div className="h-24 bg-gradient-to-br from-gray-100 to-gray-200 relative">
+      <div className="h-24 bg-gradient-to-br from-gray-100 to-gray-200 relative overflow-hidden">
+        {coverUrl && (
+          <img src={coverUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        )}
+        {coverUrl && <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />}
         {badge === 'top' && (
           <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 bg-amber-500 text-white rounded-full text-xs font-semibold">
             <Award className="w-3 h-3" />
@@ -907,46 +912,55 @@ function CompanyCardModern({ company, storageUrl, badge }) {
 // Compact Company Card for Grid
 function CompanyCardCompact({ company, storageUrl, verified }) {
   const logoUrl = company.logo_url ? `${storageUrl}/${company.logo_url}` : null
+  const coverUrl = company.cover_path ? `${storageUrl}/${company.cover_path}` : null
   const rating = company.average_rating ? parseFloat(company.average_rating).toFixed(1) : null
 
   return (
     <Link
       to={`/empresa/${company.slug || company.id}`}
-      className="group bg-white rounded-xl p-4 border border-gray-100 hover:border-emerald-200 hover:shadow-lg transition-all duration-300"
+      className="group bg-white rounded-xl overflow-hidden border border-gray-100 hover:border-emerald-200 hover:shadow-lg transition-all duration-300"
     >
-      <div className="flex items-center gap-3">
-        <div className="relative flex-shrink-0">
-          <div className="w-12 h-12 bg-gray-100 rounded-xl overflow-hidden">
-            {logoUrl ? (
-              <img src={logoUrl} alt={company.nome_fantasia} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-white font-bold">
-                {(company.nome_fantasia || 'E').charAt(0)}
+      {/* Mini cover */}
+      {coverUrl && (
+        <div className="h-16 overflow-hidden">
+          <img src={coverUrl} alt="" className="w-full h-full object-cover" />
+        </div>
+      )}
+      <div className="p-4">
+        <div className="flex items-center gap-3">
+          <div className="relative flex-shrink-0">
+            <div className={`w-12 h-12 bg-gray-100 rounded-xl overflow-hidden ${coverUrl ? '-mt-8 border-2 border-white shadow-lg' : ''}`}>
+              {logoUrl ? (
+                <img src={logoUrl} alt={company.nome_fantasia} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-white font-bold">
+                  {(company.nome_fantasia || 'E').charAt(0)}
+                </div>
+              )}
+            </div>
+            {verified && (
+              <div className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center border-2 border-white">
+                <Shield className="w-2.5 h-2.5 text-white" />
               </div>
             )}
           </div>
-          {verified && (
-            <div className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center border-2 border-white">
-              <Shield className="w-2.5 h-2.5 text-white" />
+          <div className="min-w-0 flex-1">
+            <h4 className="font-semibold text-gray-900 truncate text-sm group-hover:text-emerald-600 transition-colors">
+              {company.nome_fantasia}
+            </h4>
+            <div className="flex items-center gap-2 mt-1">
+              {rating ? (
+                <div className="flex items-center gap-0.5">
+                  <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+                  <span className="text-xs font-medium text-gray-700">{rating}</span>
+                </div>
+              ) : (
+                <span className="text-xs text-gray-400">Sem avaliacoes</span>
+              )}
+              {company.cidade && (
+                <span className="text-xs text-gray-400 truncate">{company.cidade}</span>
+              )}
             </div>
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <h4 className="font-semibold text-gray-900 truncate text-sm group-hover:text-emerald-600 transition-colors">
-            {company.nome_fantasia}
-          </h4>
-          <div className="flex items-center gap-2 mt-1">
-            {rating ? (
-              <div className="flex items-center gap-0.5">
-                <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
-                <span className="text-xs font-medium text-gray-700">{rating}</span>
-              </div>
-            ) : (
-              <span className="text-xs text-gray-400">Sem avaliacoes</span>
-            )}
-            {company.cidade && (
-              <span className="text-xs text-gray-400 truncate">{company.cidade}</span>
-            )}
           </div>
         </div>
       </div>

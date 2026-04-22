@@ -34,6 +34,8 @@ import {
   Target,
   Users,
   AlertCircle,
+  ImageIcon,
+  Upload,
 } from 'lucide-react'
 
 export default function Profile() {
@@ -41,10 +43,12 @@ export default function Profile() {
   const { user, loading, error, initialized } = useSelector((state) => state.auth)
   const [isEditing, setIsEditing] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [uploadingCover, setUploadingCover] = useState(false)
   const [stats, setStats] = useState({})
   const [recentDeals, setRecentDeals] = useState([])
   const [loadingStats, setLoadingStats] = useState(true)
   const photoInputRef = useRef(null)
+  const coverInputRef = useRef(null)
 
   const [formData, setFormData] = useState({
     name: '',
@@ -154,9 +158,61 @@ export default function Profile() {
     }
   }
 
+  const handleCoverUpload = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('A imagem de capa deve ter no maximo 5MB')
+      return
+    }
+
+    setUploadingCover(true)
+    const formDataObj = new FormData()
+    formDataObj.append('cover', file)
+
+    try {
+      const response = await api.post('/users/me/cover', formDataObj)
+      toast.success('Capa atualizada!')
+      // Update the profile with the new cover
+      const updatedProfile = isEmpresa
+        ? { ...user.company_profile, cover_path: response.data.data.cover_path }
+        : { ...user.client_profile, cover_path: response.data.data.cover_path }
+
+      dispatch(setUser({
+        ...user,
+        [isEmpresa ? 'company_profile' : 'client_profile']: updatedProfile
+      }))
+    } catch (error) {
+      toast.error('Erro ao enviar capa')
+    } finally {
+      setUploadingCover(false)
+    }
+  }
+
+  const handleRemoveCover = async () => {
+    if (!profile?.cover_path) return
+
+    try {
+      await api.delete('/users/me/cover')
+      toast.success('Capa removida!')
+      const updatedProfile = isEmpresa
+        ? { ...user.company_profile, cover_path: null }
+        : { ...user.client_profile, cover_path: null }
+
+      dispatch(setUser({
+        ...user,
+        [isEmpresa ? 'company_profile' : 'client_profile']: updatedProfile
+      }))
+    } catch (error) {
+      toast.error('Erro ao remover capa')
+    }
+  }
+
   const storageUrl = STORAGE_URL
   const isEmpresa = user?.type === 'empresa'
   const profile = isEmpresa ? user?.company_profile : user?.client_profile
+  const coverUrl = profile?.cover_path ? `${storageUrl}/${profile.cover_path}` : null
 
   const formatDate = (date) => {
     return new Date(date).toLocaleDateString('pt-BR')
@@ -202,19 +258,67 @@ export default function Profile() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Hero Header - Full Width */}
+      {/* Hero Header - Full Width with Cover Image */}
       <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-        {/* Animated Background Orbs */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div
-            className="absolute -top-40 -right-40 w-[600px] h-[600px] bg-gradient-to-br from-violet-500/30 via-blue-500/20 to-transparent rounded-full blur-3xl animate-pulse"
-            style={{ animationDuration: '4s' }}
-          />
-          <div
-            className="absolute -bottom-40 -left-40 w-[500px] h-[500px] bg-gradient-to-tr from-emerald-500/20 via-teal-500/10 to-transparent rounded-full blur-3xl animate-pulse"
-            style={{ animationDuration: '5s', animationDelay: '1s' }}
-          />
-        </div>
+        {/* Cover Image */}
+        {coverUrl ? (
+          <div className="absolute inset-0">
+            <img
+              src={coverUrl}
+              alt="Capa"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/70 to-slate-900/30" />
+          </div>
+        ) : (
+          <>
+            {/* Animated Background Orbs (fallback when no cover) */}
+            <div className="absolute inset-0 overflow-hidden">
+              <div
+                className="absolute -top-40 -right-40 w-[600px] h-[600px] bg-gradient-to-br from-violet-500/30 via-blue-500/20 to-transparent rounded-full blur-3xl animate-pulse"
+                style={{ animationDuration: '4s' }}
+              />
+              <div
+                className="absolute -bottom-40 -left-40 w-[500px] h-[500px] bg-gradient-to-tr from-emerald-500/20 via-teal-500/10 to-transparent rounded-full blur-3xl animate-pulse"
+                style={{ animationDuration: '5s', animationDelay: '1s' }}
+              />
+            </div>
+          </>
+        )}
+
+        {/* Cover Edit Button */}
+        {isEmpresa && (
+          <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+            <input
+              ref={coverInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleCoverUpload}
+            />
+            <button
+              onClick={() => coverInputRef.current?.click()}
+              disabled={uploadingCover}
+              className="flex items-center gap-2 px-4 py-2 bg-black/40 backdrop-blur-sm text-white text-sm font-medium rounded-xl hover:bg-black/60 transition-all border border-white/20"
+            >
+              {uploadingCover ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Camera className="w-4 h-4" />
+              )}
+              {coverUrl ? 'Alterar Capa' : 'Adicionar Capa'}
+            </button>
+            {coverUrl && (
+              <button
+                onClick={handleRemoveCover}
+                className="p-2 bg-black/40 backdrop-blur-sm text-white rounded-xl hover:bg-red-500/80 transition-all border border-white/20"
+                title="Remover capa"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Grid Pattern */}
         <div
