@@ -13,11 +13,23 @@ use Illuminate\Http\Request;
 class PublicController extends Controller
 {
     /**
-     * Lista categorias publicamente
+     * Lista categorias publicamente (apenas pais com filhos aninhados)
      */
     public function categories()
     {
         $categories = Category::where('active', true)
+            ->whereNull('parent_id') // Apenas categorias pai
+            ->withCount(['services' => function ($query) {
+                $query->where('status', 'ativo');
+            }])
+            ->with(['children' => function ($query) {
+                $query->where('active', true)
+                    ->withCount(['services' => function ($q) {
+                        $q->where('status', 'ativo');
+                    }])
+                    ->orderBy('order')
+                    ->orderBy('name');
+            }])
             ->orderBy('order')
             ->orderBy('name')
             ->get();

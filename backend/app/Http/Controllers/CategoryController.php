@@ -17,8 +17,13 @@ class CategoryController extends Controller
         $categories = Category::active()
             ->parents()
             ->ordered()
+            ->withCount(['services' => function ($query) {
+                $query->where('status', 'ativo');
+            }])
             ->with(['children' => function ($query) {
-                $query->active()->ordered();
+                $query->active()->ordered()->withCount(['services' => function ($q) {
+                    $q->where('status', 'ativo');
+                }]);
             }])
             ->get();
 

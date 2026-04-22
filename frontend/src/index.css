@@ -1,41 +1,149 @@
+/**
+ * ============================================================================
+ * SERVICEPRO - DESIGN SYSTEM STYLESHEET
+ * ============================================================================
+ *
+ * Este arquivo contem todos os estilos base, componentes e utilitarios
+ * do design system da plataforma ServicePro.
+ *
+ * @version     1.0.0
+ * @author      ServicePro Team
+ * @license     Proprietary
+ *
+ * ============================================================================
+ * INDICE
+ * ============================================================================
+ *
+ * 1. IMPORTS & TAILWIND
+ *    - Google Fonts
+ *    - Tailwind Directives
+ *
+ * 2. DESIGN TOKENS (CSS Custom Properties)
+ *    2.1 Core Colors
+ *    2.2 Semantic Colors
+ *    2.3 Status Colors
+ *    2.4 Sidebar Theme
+ *    2.5 Glass Effect Tokens
+ *    2.6 Dark Mode Overrides
+ *
+ * 3. BASE STYLES
+ *    3.1 Reset & Defaults
+ *    3.2 Typography
+ *    3.3 Scrollbar
+ *    3.4 Selection
+ *
+ * 4. COMPONENTS
+ *    4.1 Glass Effects
+ *    4.2 Gradients
+ *    4.3 Buttons
+ *    4.4 Glow Effects
+ *    4.5 Hero & Sections
+ *    4.6 Cards
+ *    4.7 Forms
+ *    4.8 Badges
+ *    4.9 Page Layout
+ *    4.10 Loading States
+ *    4.11 Modals
+ *    4.12 Tables
+ *
+ * 5. UTILITIES
+ *    5.1 Text Effects
+ *    5.2 Transitions
+ *    5.3 Scrollbar Utilities
+ *    5.4 Animations
+ *
+ * ============================================================================
+ */
+
+
+/* ==========================================================================
+   1. IMPORTS & TAILWIND
+   ========================================================================== */
+
+/**
+ * Google Fonts - Inter
+ * Fonte principal da plataforma, otimizada para interfaces digitais
+ */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
+/**
+ * Tailwind CSS Directives
+ * Ordem importante: base -> components -> utilities
+ */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+
+/* ==========================================================================
+   2. DESIGN TOKENS (CSS Custom Properties)
+   ========================================================================== */
+
 @layer base {
   :root {
+    /* ------------------------------------------------------------------
+       2.1 Core Colors
+       ------------------------------------------------------------------ */
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
+
+    /* ------------------------------------------------------------------
+       2.2 Semantic Colors
+       ------------------------------------------------------------------ */
+
+    /* Card */
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
+
+    /* Popover */
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
+
+    /* Primary - Azul principal da marca */
     --primary: 217 91% 60%;
     --primary-foreground: 210 40% 98%;
+
+    /* Secondary */
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
+
+    /* Muted - Elementos desabilitados ou secundarios */
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
+
+    /* Accent - Cyan para destaques */
     --accent: 186 94% 50%;
     --accent-foreground: 222.2 47.4% 11.2%;
+
+    /* Destructive - Acoes perigosas */
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
+
+    /* Border & Input */
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
+
+    /* Focus Ring */
     --ring: 217 91% 60%;
+
+    /* Border Radius padrao */
     --radius: 0.75rem;
 
-    /* Status colors */
+    /* ------------------------------------------------------------------
+       2.3 Status Colors
+       ------------------------------------------------------------------ */
     --success: 142.1 76.2% 36.3%;
     --success-foreground: 355.7 100% 97.3%;
+
     --warning: 38 92% 50%;
     --warning-foreground: 48 96% 89%;
+
     --info: 199 89% 48%;
     --info-foreground: 210 40% 98%;
 
-    /* Sidebar */
+    /* ------------------------------------------------------------------
+       2.4 Sidebar Theme
+       ------------------------------------------------------------------ */
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 217 91% 60%;
@@ -45,41 +153,67 @@
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217 91% 60%;
 
-    /* Glass effect tokens */
+    /* ------------------------------------------------------------------
+       2.5 Glass Effect Tokens
+       ------------------------------------------------------------------ */
     --glass-bg: rgba(255, 255, 255, 0.8);
     --glass-border: rgba(0, 0, 0, 0.1);
   }
 
+  /* --------------------------------------------------------------------
+     2.6 Dark Mode Overrides
+     -------------------------------------------------------------------- */
   .dark {
+    /* Core Colors */
     --background: 222 47% 4%;
     --foreground: 210 40% 98%;
+
+    /* Card */
     --card: 222 35% 8%;
     --card-foreground: 210 40% 98%;
+
+    /* Popover */
     --popover: 222 40% 6%;
     --popover-foreground: 210 40% 98%;
+
+    /* Primary */
     --primary: 217 91% 60%;
     --primary-foreground: 222 47% 4%;
+
+    /* Secondary */
     --secondary: 222 30% 14%;
     --secondary-foreground: 210 40% 98%;
+
+    /* Muted */
     --muted: 222 30% 14%;
     --muted-foreground: 215 20% 55%;
+
+    /* Accent */
     --accent: 186 94% 50%;
     --accent-foreground: 222 47% 4%;
+
+    /* Destructive */
     --destructive: 0 62.8% 50%;
     --destructive-foreground: 210 40% 98%;
+
+    /* Border & Input */
     --border: 222 20% 16%;
     --input: 222 20% 16%;
+
+    /* Focus Ring */
     --ring: 217 91% 60%;
 
-    /* Status colors dark */
+    /* Status Colors - Dark */
     --success: 142.1 70.6% 45.3%;
     --success-foreground: 144.9 80.4% 10%;
+
     --warning: 38 92% 50%;
     --warning-foreground: 20.5 91.2% 14.1%;
+
     --info: 199 89% 48%;
     --info-foreground: 210 40% 98%;
 
-    /* Sidebar dark - glass effect */
+    /* Sidebar - Dark */
     --sidebar-background: 222 50% 5%;
     --sidebar-foreground: 210 40% 90%;
     --sidebar-primary: 217 91% 60%;
@@ -89,17 +223,28 @@
     --sidebar-border: 222 20% 12%;
     --sidebar-ring: 217 91% 60%;
 
-    /* Glass effect tokens - dark */
+    /* Glass Effect - Dark */
     --glass-bg: rgba(15, 23, 42, 0.6);
     --glass-border: rgba(255, 255, 255, 0.08);
   }
 }
 
+
+/* ==========================================================================
+   3. BASE STYLES
+   ========================================================================== */
+
 @layer base {
+  /* --------------------------------------------------------------------
+     3.1 Reset & Defaults
+     -------------------------------------------------------------------- */
   * {
     @apply border-border;
   }
 
+  /* --------------------------------------------------------------------
+     3.2 Typography
+     -------------------------------------------------------------------- */
   html {
     font-family: 'Inter', sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -110,7 +255,10 @@
     @apply min-h-screen bg-background text-foreground antialiased;
   }
 
-  /* Custom scrollbar - modern thin style */
+  /* --------------------------------------------------------------------
+     3.3 Scrollbar
+     Estilo fino e moderno para scrollbars
+     -------------------------------------------------------------------- */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -128,17 +276,31 @@
     @apply bg-primary/40;
   }
 
-  /* Selection color */
+  /* --------------------------------------------------------------------
+     3.4 Selection
+     Cor de selecao de texto personalizada
+     -------------------------------------------------------------------- */
   ::selection {
     @apply bg-primary/20 text-foreground;
   }
 }
 
-@layer components {
-  /* ============================================ */
-  /* GLASS EFFECT COMPONENTS */
-  /* ============================================ */
 
+/* ==========================================================================
+   4. COMPONENTS
+   ========================================================================== */
+
+@layer components {
+
+  /* ========================================================================
+     4.1 Glass Effects
+     Efeitos de vidro/blur para cards e elementos flutuantes
+     ======================================================================== */
+
+  /**
+   * Efeito glass padrao
+   * Uso: <div class="glass">...</div>
+   */
   .glass {
     background: var(--glass-bg);
     backdrop-filter: blur(16px) saturate(180%);
@@ -146,10 +308,18 @@
     border: 1px solid var(--glass-border);
   }
 
+  /**
+   * Card com efeito glass
+   * Uso: <div class="glass-card">...</div>
+   */
   .glass-card {
     @apply glass rounded-xl;
   }
 
+  /**
+   * Efeito glass mais sutil (menos blur)
+   * Uso: Para elementos que nao precisam de tanto destaque
+   */
   .glass-subtle {
     background: var(--glass-bg);
     backdrop-filter: blur(8px);
@@ -157,6 +327,10 @@
     border: 1px solid var(--glass-border);
   }
 
+  /**
+   * Glass especifico para navbar
+   * Uso: Header/navegacao fixa
+   */
   .glass-navbar {
     background: rgba(10, 15, 26, 0.8);
     backdrop-filter: blur(20px) saturate(180%);
@@ -164,18 +338,31 @@
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   }
 
-  /* ============================================ */
-  /* GRADIENT COMPONENTS */
-  /* ============================================ */
 
+  /* ========================================================================
+     4.2 Gradients
+     Gradientes para textos e bordas
+     ======================================================================== */
+
+  /**
+   * Texto com gradiente azul -> cyan
+   * Uso: <h1 class="gradient-text">Titulo</h1>
+   */
   .gradient-text {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-primary-400 to-accent-cyan;
   }
 
+  /**
+   * Texto com gradiente azul -> violeta
+   */
   .gradient-text-violet {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-primary-500 to-accent-violet;
   }
 
+  /**
+   * Borda com gradiente
+   * Uso: Botoes ou cards com borda gradiente
+   */
   .gradient-border {
     position: relative;
     background: linear-gradient(var(--background), var(--background)) padding-box,
@@ -183,6 +370,10 @@
     border: 1px solid transparent;
   }
 
+  /**
+   * Glow (brilho) atras do elemento
+   * Uso: Destaque especial para elementos importantes
+   */
   .gradient-glow {
     position: relative;
   }
@@ -198,10 +389,18 @@
     filter: blur(10px);
   }
 
-  /* ============================================ */
-  /* BUTTON VARIANTS */
-  /* ============================================ */
 
+  /* ========================================================================
+     4.3 Buttons
+     Sistema de botoes com gradientes e efeitos
+     ======================================================================== */
+
+  /* ---------- Gradient Buttons ---------- */
+
+  /**
+   * Botao principal com gradiente azul
+   * Uso: CTAs principais
+   */
   .btn-gradient {
     @apply relative px-6 py-3 font-semibold text-white rounded-xl overflow-hidden transition-all duration-300;
     background: linear-gradient(135deg, #2563eb 0%, #3b82f6 50%, #60a5fa 100%);
@@ -217,6 +416,10 @@
     transform: translateY(0);
   }
 
+  /**
+   * Botao gradiente cyan
+   * Uso: CTAs secundarios ou destaques
+   */
   .btn-gradient-cyan {
     background: linear-gradient(135deg, #0891b2 0%, #22d3ee 100%);
     box-shadow: 0 0 20px rgba(34, 211, 238, 0.3);
@@ -226,6 +429,10 @@
     box-shadow: 0 0 30px rgba(34, 211, 238, 0.5);
   }
 
+  /**
+   * Botao gradiente violeta
+   * Uso: Acoes especiais ou premium
+   */
   .btn-gradient-violet {
     background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
     box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
@@ -235,6 +442,10 @@
     box-shadow: 0 0 30px rgba(139, 92, 246, 0.5);
   }
 
+  /**
+   * Botao ghost com glow no hover
+   * Uso: Acoes secundarias
+   */
   .btn-ghost-glow {
     @apply px-6 py-3 font-semibold rounded-xl border border-primary/30 text-primary bg-transparent transition-all duration-300;
   }
@@ -244,10 +455,52 @@
     box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
   }
 
-  /* ============================================ */
-  /* GLOW EFFECTS */
-  /* ============================================ */
+  /* ---------- Standard Buttons ---------- */
 
+  /**
+   * Botao primario padrao
+   */
+  .btn-primary {
+    @apply px-4 py-2 bg-primary text-primary-foreground font-medium rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /**
+   * Botao secundario
+   */
+  .btn-secondary {
+    @apply px-4 py-2 border border-input bg-background text-foreground font-medium rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /**
+   * Botao de perigo/destrutivo
+   */
+  .btn-danger {
+    @apply px-4 py-2 bg-destructive text-destructive-foreground font-medium rounded-lg hover:bg-destructive/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /**
+   * Botao de sucesso
+   */
+  .btn-success {
+    @apply px-4 py-2 bg-success text-success-foreground font-medium rounded-lg hover:bg-success/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /**
+   * Botao informativo
+   */
+  .btn-info {
+    @apply px-4 py-2 bg-info text-info-foreground font-medium rounded-lg hover:bg-info/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+
+  /* ========================================================================
+     4.4 Glow Effects
+     Efeitos de brilho para icones e elementos
+     ======================================================================== */
+
+  /**
+   * Ring de glow no hover
+   */
   .glow-ring {
     @apply relative;
   }
@@ -268,6 +521,9 @@
     opacity: 0.6;
   }
 
+  /**
+   * Icone com glow azul
+   */
   .icon-glow {
     @apply relative p-3 rounded-xl bg-primary/10 text-primary;
   }
@@ -281,6 +537,9 @@
     z-index: -1;
   }
 
+  /**
+   * Icone com glow cyan
+   */
   .icon-glow-cyan {
     @apply bg-accent-cyan/10 text-accent-cyan;
   }
@@ -289,6 +548,9 @@
     background: radial-gradient(circle at center, rgba(34, 211, 238, 0.3) 0%, transparent 70%);
   }
 
+  /**
+   * Icone com glow violeta
+   */
   .icon-glow-violet {
     @apply bg-accent-violet/10 text-accent-violet;
   }
@@ -297,14 +559,22 @@
     background: radial-gradient(circle at center, rgba(139, 92, 246, 0.3) 0%, transparent 70%);
   }
 
-  /* ============================================ */
-  /* HERO & SECTION BACKGROUNDS */
-  /* ============================================ */
 
+  /* ========================================================================
+     4.5 Hero & Sections
+     Backgrounds para secoes hero e areas de destaque
+     ======================================================================== */
+
+  /**
+   * Background escuro para hero sections
+   */
   .hero-dark {
     background: linear-gradient(135deg, #0a0f1a 0%, #172554 50%, #0f172a 100%);
   }
 
+  /**
+   * Background mesh com gradientes multiplos
+   */
   .hero-mesh {
     background:
       radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
@@ -312,15 +582,23 @@
       linear-gradient(135deg, #0a0f1a 0%, #0f172a 100%);
   }
 
+  /**
+   * Gradiente sutil para secoes
+   */
   .section-gradient {
     background: linear-gradient(180deg, transparent 0%, rgba(59, 130, 246, 0.03) 50%, transparent 100%);
   }
 
+  /**
+   * Gradiente para CTAs
+   */
   .cta-gradient {
     background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
   }
 
-  /* Grid pattern overlay */
+  /**
+   * Padrao de grid overlay
+   */
   .grid-pattern {
     background-image:
       linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
@@ -328,10 +606,22 @@
     background-size: 60px 60px;
   }
 
-  /* ============================================ */
-  /* CARD VARIANTS */
-  /* ============================================ */
 
+  /* ========================================================================
+     4.6 Cards
+     Estilos de cards e containers
+     ======================================================================== */
+
+  /**
+   * Card basico
+   */
+  .card {
+    @apply bg-card border border-border rounded-xl p-6;
+  }
+
+  /**
+   * Card com hover de elevacao
+   */
   .card-hover {
     @apply transition-all duration-300;
   }
@@ -341,6 +631,9 @@
     box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.3);
   }
 
+  /**
+   * Card com glow no hover
+   */
   .card-glow-hover {
     @apply transition-all duration-300;
   }
@@ -349,6 +642,9 @@
     box-shadow: 0 0 30px rgba(59, 130, 246, 0.15);
   }
 
+  /**
+   * Card de estatisticas
+   */
   .stat-card {
     @apply glass-card p-6 transition-all duration-300;
   }
@@ -358,18 +654,22 @@
     box-shadow: 0 0 30px rgba(59, 130, 246, 0.1);
   }
 
-  /* ============================================ */
-  /* LEGACY CLASSES - mantidas para compatibilidade */
-  /* ============================================ */
 
-  .card {
-    @apply bg-card border border-border rounded-xl p-6;
-  }
+  /* ========================================================================
+     4.7 Forms
+     Estilos de formularios e inputs
+     ======================================================================== */
 
+  /**
+   * Label de formulario
+   */
   .label {
     @apply block text-sm font-medium text-foreground mb-1;
   }
 
+  /**
+   * Input padrao
+   */
   .input {
     @apply w-full px-4 py-3 border border-input rounded-xl bg-background/50 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all duration-200;
   }
@@ -378,40 +678,36 @@
     @apply bg-muted cursor-not-allowed opacity-50;
   }
 
+  /**
+   * Textarea
+   */
   textarea.input {
     @apply resize-none;
   }
 
+  /**
+   * Select
+   */
   select.input {
     @apply cursor-pointer;
   }
 
-  /* Legacy Buttons */
-  .btn-primary {
-    @apply px-4 py-2 bg-primary text-primary-foreground font-medium rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
-  }
 
-  .btn-secondary {
-    @apply px-4 py-2 border border-input bg-background text-foreground font-medium rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
-  }
+  /* ========================================================================
+     4.8 Badges
+     Etiquetas e indicadores de status
+     ======================================================================== */
 
-  .btn-danger {
-    @apply px-4 py-2 bg-destructive text-destructive-foreground font-medium rounded-lg hover:bg-destructive/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
-  }
-
-  .btn-success {
-    @apply px-4 py-2 bg-success text-success-foreground font-medium rounded-lg hover:bg-success/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
-  }
-
-  .btn-info {
-    @apply px-4 py-2 bg-info text-info-foreground font-medium rounded-lg hover:bg-info/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
-  }
-
-  /* Legacy Badges */
+  /**
+   * Badge base
+   */
   .badge {
     @apply inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full;
   }
 
+  /**
+   * Variantes de badges
+   */
   .badge-success {
     @apply bg-success/10 text-success;
   }
@@ -436,12 +732,23 @@
     @apply bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400;
   }
 
+  /**
+   * Badge com efeito glow
+   */
   .badge-glow {
     @apply relative;
     box-shadow: 0 0 10px currentColor;
   }
 
-  /* Page Header */
+
+  /* ========================================================================
+     4.9 Page Layout
+     Elementos de layout de pagina
+     ======================================================================== */
+
+  /**
+   * Cabecalho de pagina
+   */
   .page-header {
     @apply mb-6;
   }
@@ -454,12 +761,22 @@
     @apply text-muted-foreground mt-1;
   }
 
-  /* Loading Spinner */
+
+  /* ========================================================================
+     4.10 Loading States
+     Estados de carregamento
+     ======================================================================== */
+
+  /**
+   * Spinner de loading
+   */
   .spinner {
     @apply w-8 h-8 border-2 border-muted border-t-primary rounded-full animate-spin;
   }
 
-  /* Empty State */
+  /**
+   * Estado vazio
+   */
   .empty-state {
     @apply text-center py-12;
   }
@@ -472,31 +789,69 @@
     @apply text-muted-foreground;
   }
 
-  /* Modal Overlay */
+
+  /* ========================================================================
+     4.11 Modals
+     Janelas modais e overlays
+     ======================================================================== */
+
+  /**
+   * Overlay do modal (fundo)
+   */
   .modal-overlay {
     @apply fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4;
   }
 
+  /**
+   * Conteudo do modal
+   */
   .modal-content {
     @apply bg-card rounded-xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto border border-border shadow-lg;
   }
 
+  /**
+   * Titulo do modal
+   */
   .modal-title {
     @apply text-lg font-semibold text-foreground mb-4;
   }
 
-  /* Table */
+
+  /* ========================================================================
+     4.12 Tables
+     Estilos de tabelas
+     ======================================================================== */
+
+  /**
+   * Cabecalho de tabela
+   */
   .table-header {
     @apply px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider;
   }
 
+  /**
+   * Celula de tabela
+   */
   .table-cell {
     @apply px-6 py-4 whitespace-nowrap text-sm;
   }
 }
 
+
+/* ==========================================================================
+   5. UTILITIES
+   ========================================================================== */
+
 @layer utilities {
-  /* Text shadow for dark backgrounds */
+
+  /* ========================================================================
+     5.1 Text Effects
+     Efeitos de texto como sombras
+     ======================================================================== */
+
+  /**
+   * Sombra de texto para fundos escuros
+   */
   .text-shadow {
     text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
   }
@@ -505,12 +860,28 @@
     text-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
   }
 
-  /* Smooth transitions */
+
+  /* ========================================================================
+     5.2 Transitions
+     Transicoes suaves personalizadas
+     ======================================================================== */
+
+  /**
+   * Transicao suave padrao
+   */
   .transition-smooth {
     @apply transition-all duration-300 ease-out;
   }
 
-  /* Hide scrollbar but keep functionality */
+
+  /* ========================================================================
+     5.3 Scrollbar Utilities
+     Controle de scrollbar
+     ======================================================================== */
+
+  /**
+   * Esconde scrollbar mantendo funcionalidade
+   */
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -520,14 +891,31 @@
     display: none;
   }
 
-  /* Gradient animation */
+
+  /* ========================================================================
+     5.4 Animations
+     Animacoes customizadas
+     ======================================================================== */
+
+  /**
+   * Animacao de gradiente (shift de cores)
+   */
   .animate-gradient {
     background-size: 200% 200%;
     animation: gradient-shift 3s ease infinite;
   }
 
   @keyframes gradient-shift {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
   }
 }
+
+
+/* ==========================================================================
+   FIM DO ARQUIVO
+   ========================================================================== */
