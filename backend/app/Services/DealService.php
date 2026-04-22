@@ -12,6 +12,12 @@ use Illuminate\Support\Str;
 
 class DealService
 {
+    protected NotificationService $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
     /**
      * Cria um novo deal
      */
@@ -38,6 +44,12 @@ class DealService
             $deal->update(['status' => 'negociando']);
         }
 
+        // Notifica a empresa sobre a nova proposta
+        $deal->loadMissing(['company.user', 'service']);
+        if ($deal->company?->user) {
+            $this->notificationService->notifyNewDeal($deal->company->user, $deal);
+        }
+
         return $deal;
     }
 
@@ -50,11 +62,13 @@ class DealService
 
         // Validações de transição
         $validTransitions = [
-            'aberto' => ['negociando', 'rejeitado'],
-            'negociando' => ['aceito', 'rejeitado'],
-            'aceito' => ['concluido', 'rejeitado'],
-            'concluido' => [],
-            'rejeitado' => [],
+            'aberto' => ['negociando', 'rejeitado', 'cancelado', 'arquivado'],
+            'negociando' => ['aceito', 'rejeitado', 'cancelado', 'arquivado'],
+            'aceito' => ['concluido', 'rejeitado', 'arquivado'],
+            'concluido' => ['arquivado'],
+            'rejeitado' => ['arquivado'],
+            'cancelado' => ['arquivado'],
+            'arquivado' => [],
         ];
 
         if (!in_array($newStatus, $validTransitions[$currentStatus] ?? [])) {
@@ -72,6 +86,14 @@ class DealService
             ];
         }
 
+        // Apenas cliente pode cancelar
+        if ($newStatus === 'cancelado' && !$user->isCliente()) {
+            return [
+                'success' => false,
+                'message' => 'Apenas o cliente pode cancelar a solicitação.',
+            ];
+        }
+
         // Atualiza o status
         $deal->status = $newStatus;
 
@@ -85,10 +107,26 @@ class DealService
             $deal->completed_at = now();
         }
 
+        if ($newStatus === 'cancelado') {
+            $deal->cancelled_at = now();
+        }
+
         $deal->save();
 
-        // Mensagem de sistema no chat
-        $this->createSystemMessage($deal, $newStatus);
+        // Mensagem de sistema no chat (exceto para arquivado)
+        if ($newStatus !== 'arquivado') {
+            $this->createSystemMessage($deal, $newStatus);
+        }
+
+        // Notifica a outra parte sobre a mudanca de status
+        $deal->loadMissing(['company.user', 'client.user']);
+        $recipientUser = $user->isEmpresa()
+            ? $deal->client?->user
+            : $deal->company?->user;
+
+        if ($recipientUser && $newStatus !== 'arquivado') {
+            $this->notificationService->notifyDealStatusChange($recipientUser, $deal, $newStatus);
+        }
 
         return [
             'success' => true,
@@ -122,7 +160,8 @@ class DealService
         $messages = [
             'negociando' => 'A negociação foi iniciada.',
             'aceito' => 'A negociação foi aceita! Os dados de contato foram liberados.',
-            'rejeitado' => 'A negociação foi encerrada.',
+            'rejeitado' => 'A negociação foi encerrada pela empresa.',
+            'cancelado' => 'A solicitação foi cancelada pelo cliente.',
             'concluido' => 'O serviço foi concluído com sucesso!',
         ];
 
@@ -218,7 +257,9 @@ class DealService
             'negociando' => 'Negociação iniciada com sucesso.',
             'aceito' => 'Negociação aceita! Dados de contato liberados.',
             'rejeitado' => 'Negociação encerrada.',
+            'cancelado' => 'Solicitação cancelada.',
             'concluido' => 'Serviço concluído com sucesso!',
+            'arquivado' => 'Conversa arquivada.',
             default => 'Status atualizado.',
         };
     }

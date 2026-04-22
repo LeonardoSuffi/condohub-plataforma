@@ -26,12 +26,18 @@ class NotificationService
      */
     public function notifyNewDeal(User $user, $deal): Notification
     {
+        $serviceName = $deal->service?->titulo ?? 'servico';
+
         return $this->create(
             $user,
             'deal_new',
             'Nova proposta recebida',
-            'Voce recebeu uma nova proposta de negociacao.',
-            ['deal_id' => $deal->id]
+            "Voce recebeu uma nova solicitacao para '{$serviceName}'.",
+            [
+                'deal_id' => $deal->id,
+                'service_id' => $deal->service_id,
+                'action_url' => '/deals',
+            ]
         );
     }
 
@@ -40,19 +46,34 @@ class NotificationService
      */
     public function notifyDealStatusChange(User $user, $deal, string $newStatus): Notification
     {
+        $serviceName = $deal->service?->titulo ?? 'negociacao';
+
+        $statusTitles = [
+            'negociando' => 'Negociacao iniciada',
+            'aceito' => 'Proposta aceita!',
+            'rejeitado' => 'Proposta recusada',
+            'concluido' => 'Servico concluido!',
+            'cancelado' => 'Negociacao cancelada',
+        ];
+
         $statusMessages = [
-            'aceito' => 'Sua proposta foi aceita!',
-            'rejeitado' => 'Sua proposta foi recusada.',
-            'fechado' => 'A negociacao foi concluida com sucesso!',
-            'cancelado' => 'A negociacao foi cancelada.',
+            'negociando' => "A negociacao para '{$serviceName}' foi iniciada.",
+            'aceito' => "Sua proposta para '{$serviceName}' foi aceita! Os dados de contato foram liberados.",
+            'rejeitado' => "A negociacao para '{$serviceName}' foi encerrada.",
+            'concluido' => "O servico '{$serviceName}' foi marcado como concluido!",
+            'cancelado' => "A negociacao para '{$serviceName}' foi cancelada.",
         ];
 
         return $this->create(
             $user,
             'deal_status',
-            'Status da negociacao atualizado',
+            $statusTitles[$newStatus] ?? 'Status atualizado',
             $statusMessages[$newStatus] ?? 'O status da negociacao foi alterado.',
-            ['deal_id' => $deal->id, 'status' => $newStatus]
+            [
+                'deal_id' => $deal->id,
+                'status' => $newStatus,
+                'action_url' => '/deals',
+            ]
         );
     }
 
@@ -61,12 +82,18 @@ class NotificationService
      */
     public function notifyNewMessage(User $user, $deal, $message): Notification
     {
+        $serviceName = $deal->service?->titulo ?? 'negociacao';
+
         return $this->create(
             $user,
             'message',
             'Nova mensagem',
-            'Voce recebeu uma nova mensagem na negociacao.',
-            ['deal_id' => $deal->id, 'message_id' => $message->id]
+            "Voce recebeu uma nova mensagem na negociacao de '{$serviceName}'.",
+            [
+                'deal_id' => $deal->id,
+                'message_id' => $message->id,
+                'action_url' => '/deals',
+            ]
         );
     }
 

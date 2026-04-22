@@ -850,9 +850,9 @@ function CompanyCardModern({ company, storageUrl, badge }) {
   return (
     <Link
       to={`/empresa/${company.slug || company.id}`}
-      className="flex-shrink-0 w-72 bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl hover:border-gray-200 transition-all duration-300 hover:-translate-y-1"
+      className="flex-shrink-0 w-72 bg-white rounded-2xl border border-gray-100 hover:shadow-xl hover:border-gray-200 transition-all duration-300 hover:-translate-y-1 relative"
     >
-      <div className="h-24 bg-gradient-to-br from-gray-100 to-gray-200 relative overflow-hidden">
+      <div className="h-24 bg-gradient-to-br from-gray-100 to-gray-200 relative overflow-hidden rounded-t-2xl">
         {coverUrl && (
           <img src={coverUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
         )}
@@ -873,16 +873,17 @@ function CompanyCardModern({ company, storageUrl, badge }) {
             <Shield className="w-3 h-3 text-white" />
           </div>
         )}
-        <div className="absolute -bottom-6 left-4">
-          <div className="w-14 h-14 bg-white rounded-xl border-2 border-white shadow-lg overflow-hidden">
-            {logoUrl ? (
-              <img src={logoUrl} alt={company.nome_fantasia} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-white font-bold text-lg">
-                {(company.nome_fantasia || 'E').charAt(0)}
-              </div>
-            )}
-          </div>
+      </div>
+      {/* Logo posicionada fora do container com overflow-hidden */}
+      <div className="absolute top-[4.5rem] left-4 z-10">
+        <div className="w-14 h-14 bg-white rounded-xl border-2 border-white shadow-lg overflow-hidden">
+          {logoUrl ? (
+            <img src={logoUrl} alt={company.nome_fantasia} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-white font-bold text-lg">
+              {(company.nome_fantasia || 'E').charAt(0)}
+            </div>
+          )}
         </div>
       </div>
       <div className="pt-10 px-4 pb-4">
@@ -918,18 +919,18 @@ function CompanyCardCompact({ company, storageUrl, verified }) {
   return (
     <Link
       to={`/empresa/${company.slug || company.id}`}
-      className="group bg-white rounded-xl overflow-hidden border border-gray-100 hover:border-emerald-200 hover:shadow-lg transition-all duration-300"
+      className="group bg-white rounded-xl border border-gray-100 hover:border-emerald-200 hover:shadow-lg transition-all duration-300 relative"
     >
       {/* Mini cover */}
       {coverUrl && (
-        <div className="h-16 overflow-hidden">
+        <div className="h-16 overflow-hidden rounded-t-xl">
           <img src={coverUrl} alt="" className="w-full h-full object-cover" />
         </div>
       )}
-      <div className="p-4">
+      <div className={`p-4 ${coverUrl ? 'pt-6' : ''}`}>
         <div className="flex items-center gap-3">
-          <div className="relative flex-shrink-0">
-            <div className={`w-12 h-12 bg-gray-100 rounded-xl overflow-hidden ${coverUrl ? '-mt-8 border-2 border-white shadow-lg' : ''}`}>
+          <div className={`relative flex-shrink-0 ${coverUrl ? '-mt-10' : ''}`}>
+            <div className="w-12 h-12 bg-gray-100 rounded-xl overflow-hidden border-2 border-white shadow-lg">
               {logoUrl ? (
                 <img src={logoUrl} alt={company.nome_fantasia} className="w-full h-full object-cover" />
               ) : (

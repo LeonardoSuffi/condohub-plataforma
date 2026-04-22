@@ -108,12 +108,12 @@ class DealController extends Controller
     }
 
     /**
-     * Atualiza status do deal (aceitar/rejeitar)
+     * Atualiza status do deal (aceitar/rejeitar/cancelar/arquivar)
      */
     public function updateStatus(Request $request, $id)
     {
         $validated = $request->validate([
-            'status' => 'required|in:negociando,aceito,rejeitado,concluido',
+            'status' => 'required|in:negociando,aceito,rejeitado,concluido,cancelado,arquivado',
         ]);
 
         $user = $request->user();

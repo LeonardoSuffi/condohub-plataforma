@@ -5,15 +5,18 @@ namespace App\Http\Controllers;
 use App\Models\Deal;
 use App\Models\Message;
 use App\Services\DealService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 
 class MessageController extends Controller
 {
     protected DealService $dealService;
+    protected NotificationService $notificationService;
 
-    public function __construct(DealService $dealService)
+    public function __construct(DealService $dealService, NotificationService $notificationService)
     {
         $this->dealService = $dealService;
+        $this->notificationService = $notificationService;
     }
 
     /**
@@ -99,6 +102,16 @@ class MessageController extends Controller
         // Se o deal estava "aberto", muda para "negociando"
         if ($deal->status === 'aberto') {
             $deal->update(['status' => 'negociando']);
+        }
+
+        // Notifica a outra parte sobre a nova mensagem
+        $deal->loadMissing(['company.user', 'client.user', 'service']);
+        $recipientUser = $user->isEmpresa()
+            ? $deal->client?->user
+            : $deal->company?->user;
+
+        if ($recipientUser) {
+            $this->notificationService->notifyNewMessage($recipientUser, $deal, $message);
         }
 
         return $this->success(

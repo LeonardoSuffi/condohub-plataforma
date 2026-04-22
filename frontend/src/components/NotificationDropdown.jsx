@@ -8,6 +8,21 @@ import {
   markAllAsRead,
   deleteNotification
 } from '../store/slices/notificationSlice'
+import {
+  Bell,
+  MessageSquare,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Briefcase,
+  Star,
+  Clock,
+  X,
+  Check,
+  ChevronRight,
+  Inbox,
+  BellOff,
+} from 'lucide-react'
 
 export default function NotificationDropdown() {
   const dispatch = useDispatch()
@@ -15,16 +30,16 @@ export default function NotificationDropdown() {
   const { notifications, unreadCount, loading } = useSelector((state) => state.notifications)
   const { isAuthenticated, user } = useSelector((state) => state.auth)
   const [isOpen, setIsOpen] = useState(false)
+  const [isAnimating, setIsAnimating] = useState(false)
   const dropdownRef = useRef(null)
   const pollingRef = useRef(null)
-
-  // All hooks must be called unconditionally and in the same order
+  const fastPollingRef = useRef(null)
 
   // Click outside handler
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false)
+        handleClose()
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -33,13 +48,11 @@ export default function NotificationDropdown() {
 
   // Polling for unread count - only when authenticated and user exists
   useEffect(() => {
-    // Clear any existing interval
     if (pollingRef.current) {
       clearInterval(pollingRef.current)
       pollingRef.current = null
     }
 
-    // Only start polling if authenticated with user data
     if (!isAuthenticated || !user) {
       return
     }
@@ -47,10 +60,12 @@ export default function NotificationDropdown() {
     // Initial fetch
     dispatch(fetchUnreadCount())
 
-    // Start polling every 60 seconds
+    // Standard polling every 30 seconds
     pollingRef.current = setInterval(() => {
-      dispatch(fetchUnreadCount())
-    }, 60000)
+      if (!isOpen) {
+        dispatch(fetchUnreadCount())
+      }
+    }, 30000)
 
     return () => {
       if (pollingRef.current) {
@@ -60,25 +75,63 @@ export default function NotificationDropdown() {
     }
   }, [dispatch, isAuthenticated, user])
 
-  // Fetch notifications when dropdown opens
+  // Fast polling when dropdown is open
   useEffect(() => {
+    if (fastPollingRef.current) {
+      clearInterval(fastPollingRef.current)
+      fastPollingRef.current = null
+    }
+
     if (isOpen && isAuthenticated && user) {
       dispatch(fetchNotifications())
+
+      // Fast polling every 10 seconds when open
+      fastPollingRef.current = setInterval(() => {
+        dispatch(fetchNotifications())
+      }, 10000)
+    }
+
+    return () => {
+      if (fastPollingRef.current) {
+        clearInterval(fastPollingRef.current)
+        fastPollingRef.current = null
+      }
     }
   }, [isOpen, dispatch, isAuthenticated, user])
+
+  const handleOpen = useCallback(() => {
+    setIsOpen(true)
+    setIsAnimating(true)
+  }, [])
+
+  const handleClose = useCallback(() => {
+    setIsAnimating(false)
+    setTimeout(() => setIsOpen(false), 150)
+  }, [])
+
+  const handleToggle = useCallback(() => {
+    if (isOpen) {
+      handleClose()
+    } else {
+      handleOpen()
+    }
+  }, [isOpen, handleOpen, handleClose])
 
   const handleNotificationClick = useCallback((notification) => {
     if (!notification.read_at) {
       dispatch(markAsRead(notification.id))
     }
 
-    // Navigate based on notification type
-    if (notification.data?.deal_id) {
-      navigate(`/chat/${notification.data.deal_id}`)
+    // Navigate based on notification data
+    const actionUrl = notification.data?.action_url
+    if (actionUrl) {
+      navigate(actionUrl)
+    } else if (notification.data?.deal_id) {
+      navigate(`/deals`)
     }
 
-    setIsOpen(false)
-  }, [dispatch, navigate])
+    handleClose()
+  }, [dispatch, navigate, handleClose])
 
   const handleMarkAllRead = useCallback(() => {
     dispatch(markAllAsRead())
@@ -89,49 +142,82 @@ export default function NotificationDropdown() {
     dispatch(deleteNotification(notificationId))
   }, [dispatch])
 
-  const getNotificationIcon = (type) => {
+  const getNotificationConfig = (notification) => {
+    const type = notification.type
+    const status = notification.data?.status
+
+    // Deal status specific colors
+    if (type === 'deal_status') {
+      switch (status) {
+        case 'aceito':
+          return {
+            icon: CheckCircle,
+            bgColor: 'bg-emerald-100',
+            iconColor: 'text-emerald-600',
+            borderColor: 'border-l-emerald-500',
+          }
+        case 'rejeitado':
+        case 'cancelado':
+          return {
+            icon: XCircle,
+            bgColor: 'bg-red-100',
+            iconColor: 'text-red-600',
+            borderColor: 'border-l-red-500',
+          }
+        case 'concluido':
+          return {
+            icon: CheckCircle,
+            bgColor: 'bg-blue-100',
+            iconColor: 'text-blue-600',
+            borderColor: 'border-l-blue-500',
+          }
+        default:
+          return {
+            icon: AlertCircle,
+            bgColor: 'bg-amber-100',
+            iconColor: 'text-amber-600',
+            borderColor: 'border-l-amber-500',
+          }
+      }
+    }
+
+    // Type-based colors
     switch (type) {
       case 'deal_new':
-      case 'deal_status':
-        return (
-          <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-            <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
-            </svg>
-          </div>
-        )
+        return {
+          icon: Briefcase,
+          bgColor: 'bg-indigo-100',
+          iconColor: 'text-indigo-600',
+          borderColor: 'border-l-indigo-500',
+        }
       case 'message':
-        return (
-          <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
-            </svg>
-          </div>
-        )
+        return {
+          icon: MessageSquare,
+          bgColor: 'bg-sky-100',
+          iconColor: 'text-sky-600',
+          borderColor: 'border-l-sky-500',
+        }
       case 'order_status':
-        return (
-          <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-            <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z" />
-            </svg>
-          </div>
-        )
+        return {
+          icon: Clock,
+          bgColor: 'bg-purple-100',
+          iconColor: 'text-purple-600',
+          borderColor: 'border-l-purple-500',
+        }
       case 'subscription':
-        return (
-          <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
-            <svg className="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
-            </svg>
-          </div>
-        )
+        return {
+          icon: Star,
+          bgColor: 'bg-yellow-100',
+          iconColor: 'text-yellow-600',
+          borderColor: 'border-l-yellow-500',
+        }
       default:
-        return (
-          <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-            </svg>
-          </div>
-        )
+        return {
+          icon: Bell,
+          bgColor: 'bg-gray-100',
+          iconColor: 'text-gray-600',
+          borderColor: 'border-l-gray-400',
+        }
     }
   }
 
@@ -143,112 +229,172 @@ export default function NotificationDropdown() {
     const diffHours = Math.floor(diffMs / 3600000)
     const diffDays = Math.floor(diffMs / 86400000)
 
-    if (diffMins < 1) return 'Agora'
-    if (diffMins < 60) return `${diffMins}m atras`
+    if (diffMins < 1) return 'Agora mesmo'
+    if (diffMins < 60) return `${diffMins} min atras`
     if (diffHours < 24) return `${diffHours}h atras`
-    if (diffDays < 7) return `${diffDays}d atras`
-    return date.toLocaleDateString('pt-BR')
+    if (diffDays === 1) return 'Ontem'
+    if (diffDays < 7) return `${diffDays} dias atras`
+    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
   }
 
-  // Don't render if not authenticated - but AFTER all hooks
+  // Don't render if not authenticated
   if (!isAuthenticated || !user) {
     return null
   }
 
   return (
     <div className="relative" ref={dropdownRef}>
+      {/* Bell Button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+        onClick={handleToggle}
+        className={`relative p-2 rounded-lg transition-all duration-200 ${
+          isOpen
+            ? 'bg-slate-100 text-slate-700'
+            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+        }`}
       >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-        </svg>
+        <Bell className={`w-5 h-5 transition-transform duration-200 ${isOpen ? 'scale-110' : ''}`} />
+
+        {/* Animated Badge */}
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-xs font-medium rounded-full flex items-center justify-center">
-            {unreadCount > 9 ? '9+' : unreadCount}
+          <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center">
+            <span className="absolute w-5 h-5 bg-red-400 rounded-full animate-ping opacity-75" />
+            <span className="relative w-5 h-5 bg-gradient-to-br from-red-500 to-red-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm">
+              {unreadCount > 99 ? '99' : unreadCount}
+            </span>
           </span>
         )}
       </button>
 
+      {/* Dropdown */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-96 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-50">
+        <div
+          className={`absolute right-0 mt-2 w-96 bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden z-50 transform origin-top-right transition-all duration-150 ${
+            isAnimating ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+          }`}
+        >
           {/* Header */}
-          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-            <h3 className="font-semibold text-gray-900">Notificacoes</h3>
-            {unreadCount > 0 && (
-              <button
-                onClick={handleMarkAllRead}
-                className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
-              >
-                Marcar todas como lidas
-              </button>
-            )}
+          <div className="px-5 py-4 bg-gradient-to-r from-slate-800 to-slate-900">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/10 backdrop-blur rounded-xl flex items-center justify-center">
+                  <Bell className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white">Notificacoes</h3>
+                  <p className="text-xs text-slate-300">
+                    {unreadCount > 0 ? `${unreadCount} nao lida${unreadCount > 1 ? 's' : ''}` : 'Todas lidas'}
+                  </p>
+                </div>
+              </div>
+              {unreadCount > 0 && (
+                <button
+                  onClick={handleMarkAllRead}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  Marcar lidas
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Notifications List */}
-          <div className="max-h-96 overflow-y-auto">
+          <div className="max-h-[400px] overflow-y-auto">
             {loading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin" />
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="relative">
+                  <div className="w-10 h-10 border-3 border-slate-200 border-t-slate-700 rounded-full animate-spin" />
+                </div>
+                <p className="mt-3 text-sm text-gray-500">Carregando...</p>
               </div>
             ) : notifications.length === 0 ? (
-              <div className="py-8 text-center">
-                <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-                </svg>
-                <p className="text-gray-500 text-sm">Nenhuma notificacao</p>
+              <div className="py-12 px-6 text-center">
+                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Inbox className="w-8 h-8 text-gray-400" />
+                </div>
+                <h4 className="font-medium text-gray-900 mb-1">Tudo em dia!</h4>
+                <p className="text-sm text-gray-500">
+                  Voce nao tem notificacoes no momento.
+                </p>
               </div>
             ) : (
               <div className="divide-y divide-gray-100">
-                {notifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    onClick={() => handleNotificationClick(notification)}
-                    className={`px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors ${
-                      !notification.read_at ? 'bg-blue-50/50' : ''
-                    }`}
-                  >
-                    <div className="flex gap-3">
-                      {getNotificationIcon(notification.type)}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className={`text-sm ${!notification.read_at ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>
-                            {notification.title}
-                          </p>
-                          <button
-                            onClick={(e) => handleDelete(e, notification.id)}
-                            className="p-1 text-gray-400 hover:text-gray-600 rounded transition-colors"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
+                {notifications.map((notification) => {
+                  const config = getNotificationConfig(notification)
+                  const Icon = config.icon
+
+                  return (
+                    <div
+                      key={notification.id}
+                      onClick={() => handleNotificationClick(notification)}
+                      className={`group relative px-4 py-3.5 cursor-pointer transition-all duration-200 border-l-4 ${
+                        !notification.read_at
+                          ? `bg-slate-50/80 ${config.borderColor}`
+                          : 'border-l-transparent hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex gap-3">
+                        {/* Icon */}
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${config.bgColor}`}>
+                          <Icon className={`w-5 h-5 ${config.iconColor}`} />
                         </div>
-                        <p className="text-sm text-gray-500 truncate">{notification.message}</p>
-                        <p className="text-xs text-gray-400 mt-1">{formatTime(notification.created_at)}</p>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className={`text-sm leading-tight ${
+                              !notification.read_at
+                                ? 'font-semibold text-gray-900'
+                                : 'font-medium text-gray-700'
+                            }`}>
+                              {notification.title}
+                            </p>
+                            <button
+                              onClick={(e) => handleDelete(e, notification.id)}
+                              className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                          <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">
+                            {notification.message}
+                          </p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <Clock className="w-3 h-3 text-gray-400" />
+                            <span className="text-xs text-gray-400">
+                              {formatTime(notification.created_at)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Unread indicator */}
+                        {!notification.read_at && (
+                          <div className="w-2.5 h-2.5 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex-shrink-0 mt-1.5 shadow-sm" />
+                        )}
                       </div>
-                      {!notification.read_at && (
-                        <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-2" />
-                      )}
+
+                      {/* Hover arrow */}
+                      <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
 
           {/* Footer */}
           {notifications.length > 0 && (
-            <div className="px-4 py-3 border-t border-gray-100 bg-gray-50">
+            <div className="px-4 py-3 border-t border-gray-100 bg-gray-50/50">
               <button
                 onClick={() => {
                   navigate('/notifications')
-                  setIsOpen(false)
+                  handleClose()
                 }}
-                className="w-full text-center text-sm text-gray-600 hover:text-gray-900 font-medium transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-2 text-sm font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
               >
                 Ver todas as notificacoes
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           )}

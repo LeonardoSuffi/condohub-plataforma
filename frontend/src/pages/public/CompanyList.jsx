@@ -531,10 +531,10 @@ function CompanyCard({ company, viewMode, storageUrl }) {
   return (
     <Link
       to={`/empresa/${company.slug || company.id}`}
-      className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl hover:border-gray-200 transition-all duration-300 hover:-translate-y-1 group"
+      className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl hover:border-gray-200 transition-all duration-300 hover:-translate-y-1 group relative"
     >
       {/* Header with Cover Image */}
-      <div className="h-24 bg-gradient-to-br from-gray-100 to-gray-200 relative overflow-hidden">
+      <div className="h-24 bg-gradient-to-br from-gray-100 to-gray-200 relative overflow-hidden rounded-t-2xl">
         {coverUrl && (
           <img src={coverUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
         )}
@@ -555,18 +555,18 @@ function CompanyCard({ company, viewMode, storageUrl }) {
             <Shield className="w-3 h-3 text-white" />
           </div>
         )}
+      </div>
 
-        {/* Logo */}
-        <div className="absolute -bottom-6 left-4">
-          <div className="w-14 h-14 bg-white rounded-xl border-2 border-white shadow-lg overflow-hidden">
-            {logoUrl ? (
-              <img src={logoUrl} alt={company.nome_fantasia} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-white font-bold text-lg">
-                {(company.nome_fantasia || 'E').charAt(0)}
-              </div>
-            )}
-          </div>
+      {/* Logo - fora do container com overflow */}
+      <div className="absolute top-[4.5rem] left-4 z-10">
+        <div className="w-14 h-14 bg-white rounded-xl border-2 border-white shadow-lg overflow-hidden">
+          {logoUrl ? (
+            <img src={logoUrl} alt={company.nome_fantasia} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-white font-bold text-lg">
+              {(company.nome_fantasia || 'E').charAt(0)}
+            </div>
+          )}
         </div>
       </div>
 

@@ -365,10 +365,10 @@ function CompanyCard({ company, storageUrl, showBadge, badgeText, index, accentC
     return (
       <Link
         to={`/empresa/${company.slug || company.id}`}
-        className="group bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-gray-200 hover:-translate-y-1"
+        className="group bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-gray-200 hover:-translate-y-1 relative"
       >
         {/* Header with gradient */}
-        <div className={`h-20 bg-gradient-to-br ${gradient} relative`}>
+        <div className={`h-20 bg-gradient-to-br ${gradient} relative rounded-t-2xl`}>
           {/* Badges */}
           {showBadge === 'new' && (
             <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 bg-emerald-500 text-white rounded-full text-xs font-semibold">
@@ -392,20 +392,20 @@ function CompanyCard({ company, storageUrl, showBadge, badgeText, index, accentC
               <Shield className="w-3 h-3" />
             </div>
           )}
+        </div>
 
-          {/* Logo */}
-          <div className="absolute -bottom-6 left-3">
-            <div className="w-12 h-12 bg-white rounded-xl shadow-lg flex items-center justify-center overflow-hidden border-2 border-white">
-              {logoUrl ? (
-                <img src={logoUrl} alt={company.nome_fantasia} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
-                  <span className="text-lg font-bold text-slate-600">
-                    {(company.nome_fantasia || 'E').charAt(0)}
-                  </span>
-                </div>
-              )}
-            </div>
+        {/* Logo - fora do container com overflow */}
+        <div className="absolute top-14 left-3 z-10">
+          <div className="w-12 h-12 bg-white rounded-xl shadow-lg flex items-center justify-center overflow-hidden border-2 border-white">
+            {logoUrl ? (
+              <img src={logoUrl} alt={company.nome_fantasia} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
+                <span className="text-lg font-bold text-slate-600">
+                  {(company.nome_fantasia || 'E').charAt(0)}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -443,10 +443,10 @@ function CompanyCard({ company, storageUrl, showBadge, badgeText, index, accentC
   return (
     <Link
       to={`/empresa/${company.slug || company.id}`}
-      className="group flex-shrink-0 w-72 bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-gray-200 snap-start hover:-translate-y-1"
+      className="group flex-shrink-0 w-72 bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 hover:border-gray-200 snap-start hover:-translate-y-1 relative"
     >
       {/* Header with gradient */}
-      <div className={`h-24 bg-gradient-to-br ${gradient} relative`}>
+      <div className={`h-24 bg-gradient-to-br ${gradient} relative rounded-t-2xl`}>
         {/* Badges */}
         {showBadge === 'new' && (
           <div className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1 bg-emerald-500 text-white rounded-full text-xs font-semibold shadow-lg">
@@ -471,20 +471,20 @@ function CompanyCard({ company, storageUrl, showBadge, badgeText, index, accentC
             <Shield className="w-3 h-3" />
           </div>
         )}
+      </div>
 
-        {/* Logo */}
-        <div className="absolute -bottom-8 left-4">
-          <div className="w-16 h-16 bg-white rounded-xl shadow-lg flex items-center justify-center overflow-hidden border-4 border-white group-hover:scale-105 transition-transform duration-300">
-            {logoUrl ? (
-              <img src={logoUrl} alt={company.nome_fantasia} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
-                <span className="text-xl font-bold text-slate-600">
-                  {(company.nome_fantasia || 'E').charAt(0)}
-                </span>
-              </div>
-            )}
-          </div>
+      {/* Logo - fora do container com overflow */}
+      <div className="absolute top-16 left-4 z-10">
+        <div className="w-16 h-16 bg-white rounded-xl shadow-lg flex items-center justify-center overflow-hidden border-4 border-white group-hover:scale-105 transition-transform duration-300">
+          {logoUrl ? (
+            <img src={logoUrl} alt={company.nome_fantasia} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
+              <span className="text-xl font-bold text-slate-600">
+                {(company.nome_fantasia || 'E').charAt(0)}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 

@@ -110,16 +110,35 @@ export default function ChatModal() {
       const messages = {
         aceito: 'Negociacao aceita! Dados de contato liberados.',
         rejeitado: 'Negociacao rejeitada.',
+        cancelado: 'Solicitacao cancelada.',
         concluido: 'Negociacao concluida com sucesso!',
       }
       toast.success(messages[newStatus] || 'Status atualizado!')
-      if (newStatus === 'rejeitado') {
+      if (['rejeitado', 'cancelado'].includes(newStatus)) {
         switchDeal(null)
       }
       dispatch(fetchDeals({ per_page: 50 }))
-      dispatch(fetchDealDetail(activeDealId))
+      if (activeDealId && !['rejeitado', 'cancelado'].includes(newStatus)) {
+        dispatch(fetchDealDetail(activeDealId))
+      }
     } catch (error) {
       toast.error(error || 'Erro ao atualizar status')
+      throw error
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleDeleteDeal = async () => {
+    setActionLoading(true)
+    try {
+      // Soft delete - just hide from the user's list
+      await dispatch(updateDealStatus({ id: activeDealId, status: 'arquivado' })).unwrap()
+      toast.success('Conversa excluida!')
+      switchDeal(null)
+      dispatch(fetchDeals({ per_page: 50 }))
+    } catch (error) {
+      toast.error(error || 'Erro ao excluir conversa')
       throw error
     } finally {
       setActionLoading(false)
@@ -144,6 +163,8 @@ export default function ChatModal() {
       aceito: 'bg-emerald-100 text-emerald-700',
       concluido: 'bg-emerald-100 text-emerald-700',
       rejeitado: 'bg-red-100 text-red-700',
+      cancelado: 'bg-orange-100 text-orange-700',
+      arquivado: 'bg-gray-100 text-gray-500',
     }
     return styles[status] || 'bg-gray-100 text-gray-700'
   }
@@ -155,20 +176,22 @@ export default function ChatModal() {
       aceito: 'Aceito',
       concluido: 'Concluido',
       rejeitado: 'Rejeitado',
+      cancelado: 'Cancelado',
+      arquivado: 'Arquivado',
     }
     return labels[status] || status
   }
 
-  // Filter deals by tab
+  // Filter deals by tab (arquivados nao aparecem)
   const getDealsForTab = (tab) => {
-    const allDeals = deals || []
+    const allDeals = (deals || []).filter(d => d.status !== 'arquivado')
     switch (tab) {
       case 'pendentes':
         return allDeals.filter(d => ['aberto', 'negociando'].includes(d.status))
       case 'contatos':
         return allDeals.filter(d => d.status === 'aceito')
       case 'finalizado':
-        return allDeals.filter(d => ['concluido', 'rejeitado'].includes(d.status))
+        return allDeals.filter(d => ['concluido', 'rejeitado', 'cancelado'].includes(d.status))
       default:
         return allDeals
     }
@@ -183,11 +206,12 @@ export default function ChatModal() {
     return serviceName.includes(searchLower) || companyName.includes(searchLower) || clientName.includes(searchLower)
   })
 
-  // Count for each tab
+  // Count for each tab (arquivados nao contam)
+  const nonArchivedDeals = (deals || []).filter(d => d.status !== 'arquivado')
   const tabCounts = {
-    pendentes: (deals || []).filter(d => ['aberto', 'negociando'].includes(d.status)).length,
-    contatos: (deals || []).filter(d => d.status === 'aceito').length,
-    finalizado: (deals || []).filter(d => ['concluido', 'rejeitado'].includes(d.status)).length,
+    pendentes: nonArchivedDeals.filter(d => ['aberto', 'negociando'].includes(d.status)).length,
+    contatos: nonArchivedDeals.filter(d => d.status === 'aceito').length,
+    finalizado: nonArchivedDeals.filter(d => ['concluido', 'rejeitado', 'cancelado'].includes(d.status)).length,
   }
 
   if (!isOpen) return null
@@ -432,6 +456,8 @@ export default function ChatModal() {
                 onAccept={() => handleStatusChange('aceito')}
                 onReject={() => handleStatusChange('rejeitado')}
                 onComplete={() => handleStatusChange('concluido')}
+                onCancel={() => handleStatusChange('cancelado')}
+                onDelete={handleDeleteDeal}
                 loading={actionLoading}
               />
 
