@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use App\Notifications\ResetPasswordNotification;
 
 class User extends Authenticatable
 {
@@ -31,6 +32,8 @@ class User extends Authenticatable
         // 2FA and LGPD
         'two_factor_enabled',
         'gdpr_consent_at',
+        // Notification preferences
+        'notification_preferences',
     ];
 
     protected $hidden = [
@@ -55,6 +58,7 @@ class User extends Authenticatable
             'failed_login_attempts' => 'integer',
             'two_factor_enabled' => 'boolean',
             'gdpr_consent_at' => 'datetime',
+            'notification_preferences' => 'array',
         ];
     }
 
@@ -154,5 +158,51 @@ class User extends Authenticatable
         }
 
         return null;
+    }
+
+    /**
+     * Get notification preferences with defaults
+     */
+    public function getNotificationPreferences(): array
+    {
+        $defaults = [
+            'deals' => true,
+            'messages' => true,
+            'status' => true,
+            'promo' => false,
+            // Privacy settings
+            'visible_in_ranking' => true,
+            'share_anonymous_data' => true,
+        ];
+
+        $preferences = $this->notification_preferences ?? [];
+
+        return array_merge($defaults, $preferences);
+    }
+
+    /**
+     * Check if a specific notification type is enabled
+     */
+    public function hasNotificationEnabled(string $type): bool
+    {
+        $preferences = $this->getNotificationPreferences();
+        return $preferences[$type] ?? true;
+    }
+
+    /**
+     * Check if user is visible in rankings
+     */
+    public function isVisibleInRanking(): bool
+    {
+        $preferences = $this->getNotificationPreferences();
+        return $preferences['visible_in_ranking'] ?? true;
+    }
+
+    /**
+     * Send the password reset notification.
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new ResetPasswordNotification($token));
     }
 }

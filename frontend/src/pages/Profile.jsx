@@ -47,6 +47,10 @@ export default function Profile() {
   const [stats, setStats] = useState({})
   const [recentDeals, setRecentDeals] = useState([])
   const [loadingStats, setLoadingStats] = useState(true)
+  const [imageTimestamp, setImageTimestamp] = useState(Date.now())
+  const [coverTimestamp, setCoverTimestamp] = useState(Date.now())
+  const [photoError, setPhotoError] = useState(false)
+  const [coverError, setCoverError] = useState(false)
   const photoInputRef = useRef(null)
   const coverInputRef = useRef(null)
 
@@ -147,6 +151,8 @@ export default function Profile() {
     try {
       const response = await api.post('/users/me/foto', formDataObj)
       toast.success('Foto atualizada!')
+      setPhotoError(false)
+      setImageTimestamp(Date.now())
       dispatch(setUser({
         ...user,
         foto_path: response.data.data.foto_path
@@ -174,6 +180,8 @@ export default function Profile() {
     try {
       const response = await api.post('/users/me/cover', formDataObj)
       toast.success('Capa atualizada!')
+      setCoverError(false)
+      setCoverTimestamp(Date.now())
       // Update the profile with the new cover
       const updatedProfile = isEmpresa
         ? { ...user.company_profile, cover_path: response.data.data.cover_path }
@@ -212,7 +220,8 @@ export default function Profile() {
   const storageUrl = STORAGE_URL
   const isEmpresa = user?.type === 'empresa'
   const profile = isEmpresa ? user?.company_profile : user?.client_profile
-  const coverUrl = profile?.cover_path ? `${storageUrl}/${profile.cover_path}` : null
+  const coverUrl = profile?.cover_path ? `${storageUrl}/${profile.cover_path}?t=${coverTimestamp}` : null
+  const photoUrl = user?.foto_path ? `${storageUrl}/${user.foto_path}?t=${imageTimestamp}` : null
 
   const formatDate = (date) => {
     return new Date(date).toLocaleDateString('pt-BR')
@@ -261,12 +270,13 @@ export default function Profile() {
       {/* Hero Header - Full Width with Cover Image */}
       <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         {/* Cover Image */}
-        {coverUrl ? (
+        {coverUrl && !coverError ? (
           <div className="absolute inset-0">
             <img
               src={coverUrl}
               alt="Capa"
               className="w-full h-full object-cover"
+              onError={() => setCoverError(true)}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/70 to-slate-900/30" />
           </div>
@@ -335,8 +345,13 @@ export default function Profile() {
             {/* Avatar */}
             <div className="relative flex-shrink-0">
               <div className="w-28 h-28 sm:w-36 sm:h-36 bg-white rounded-2xl shadow-2xl border-4 border-white/20 overflow-hidden">
-                {user?.foto_path ? (
-                  <img src={`${storageUrl}/${user.foto_path}`} alt="" className="w-full h-full object-cover" />
+                {photoUrl && !photoError ? (
+                  <img
+                    src={photoUrl}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    onError={() => setPhotoError(true)}
+                  />
                 ) : (
                   <div className="w-full h-full bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center">
                     <span className="text-white text-4xl sm:text-5xl font-bold">
@@ -406,6 +421,15 @@ export default function Profile() {
                   <Edit3 className="w-4 h-4" />
                   Editar Perfil
                 </button>
+                {isEmpresa && (profile?.slug || profile?.id) && (
+                  <Link
+                    to={`/empresa/${profile.slug || profile.id}`}
+                    className="group flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-emerald-500/30 transition-all"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Ver Perfil Comercial
+                  </Link>
+                )}
                 <Link
                   to="/settings"
                   className="flex items-center gap-2 px-5 py-2.5 bg-white/10 backdrop-blur-sm text-white font-medium rounded-xl border border-white/20 hover:bg-white/20 transition-all"
@@ -637,41 +661,64 @@ export default function Profile() {
 
             {/* Quick Links for Empresa */}
             {isEmpresa && (
-              <div className="grid sm:grid-cols-2 gap-4">
-                <Link
-                  to="/my-services"
-                  className="group bg-white rounded-2xl shadow-sm border border-gray-100 p-5 hover:shadow-lg hover:border-gray-200 transition-all"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-500 rounded-xl flex items-center justify-center">
-                        <Briefcase className="w-6 h-6 text-white" />
+              <div className="space-y-4">
+                {/* Perfil Comercial - Destaque */}
+                {profile?.slug && (
+                  <Link
+                    to={`/empresa/${profile.slug}`}
+                    className="group block bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl shadow-lg p-5 hover:shadow-xl hover:shadow-emerald-500/20 transition-all"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                          <ExternalLink className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-white">Ver Perfil Comercial</h3>
+                          <p className="text-sm text-white/80">Veja como clientes veem sua empresa</p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-bold text-gray-900">Meus Servicos</h3>
-                        <p className="text-sm text-gray-500">Gerencie seu catalogo</p>
-                      </div>
+                      <ArrowUpRight className="w-5 h-5 text-white/80 group-hover:text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
                     </div>
-                    <ArrowUpRight className="w-5 h-5 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
-                  </div>
-                </Link>
-                <Link
-                  to="/deals"
-                  className="group bg-white rounded-2xl shadow-sm border border-gray-100 p-5 hover:shadow-lg hover:border-gray-200 transition-all"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
-                        <MessageSquare className="w-6 h-6 text-white" />
+                  </Link>
+                )}
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Link
+                    to="/my-services"
+                    className="group bg-white rounded-2xl shadow-sm border border-gray-100 p-5 hover:shadow-lg hover:border-gray-200 transition-all"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-500 rounded-xl flex items-center justify-center">
+                          <Briefcase className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-gray-900">Meus Servicos</h3>
+                          <p className="text-sm text-gray-500">Gerencie seu catalogo</p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-bold text-gray-900">Negociacoes</h3>
-                        <p className="text-sm text-gray-500">Acompanhe propostas</p>
-                      </div>
+                      <ArrowUpRight className="w-5 h-5 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
                     </div>
-                    <ArrowUpRight className="w-5 h-5 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
-                  </div>
-                </Link>
+                  </Link>
+                  <Link
+                    to="/deals"
+                    className="group bg-white rounded-2xl shadow-sm border border-gray-100 p-5 hover:shadow-lg hover:border-gray-200 transition-all"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
+                          <MessageSquare className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-gray-900">Negociacoes</h3>
+                          <p className="text-sm text-gray-500">Acompanhe propostas</p>
+                        </div>
+                      </div>
+                      <ArrowUpRight className="w-5 h-5 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
+                    </div>
+                  </Link>
+                </div>
               </div>
             )}
           </div>

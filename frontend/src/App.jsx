@@ -17,11 +17,13 @@ import CompanyList from './pages/public/CompanyList'
 import Login from './pages/auth/Login'
 import RegisterEmpresa from './pages/auth/RegisterEmpresa'
 import RegisterCliente from './pages/auth/RegisterCliente'
+import ResetPassword from './pages/auth/ResetPassword'
 
 // Main Pages
 import Dashboard from './pages/Dashboard'
 import Profile from './pages/Profile'
 import Settings from './pages/Settings'
+import Notifications from './pages/Notifications'
 import MyServices from './pages/services/MyServices'
 import DealList from './pages/deals/DealList'
 import ChatView from './pages/deals/ChatView'
@@ -132,6 +134,7 @@ function App() {
         <Route path="/register" element={<Navigate to="/register/cliente" replace />} />
         <Route path="/register/empresa" element={<GuestRoute><RegisterEmpresa /></GuestRoute>} />
         <Route path="/register/cliente" element={<GuestRoute><RegisterCliente /></GuestRoute>} />
+        <Route path="/reset-password" element={<ResetPassword />} />
       </Route>
 
       {/* Protected Routes - Site Layout */}
@@ -139,6 +142,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/notifications" element={<Notifications />} />
         <Route path="/deals" element={<DealList />} />
         <Route path="/chat/:dealId" element={<ChatView />} />
         <Route path="/finance" element={<FinanceView />} />

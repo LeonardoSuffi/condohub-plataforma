@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
+import toast from 'react-hot-toast'
 import api from '@/services/api'
 import AdaptiveLayout from '@/components/layout/AdaptiveLayout'
 import ContactModal from '@/components/modals/ContactModal'
+import ReviewCard from '@/components/reviews/ReviewCard'
+import StarRating from '@/components/reviews/StarRating'
 import { STORAGE_URL } from '@/lib/config'
 import {
   Building2,
@@ -27,6 +30,12 @@ import {
   MessageSquare,
   ChevronRight,
   Sparkles,
+  TrendingUp,
+  Zap,
+  Share2,
+  Heart,
+  ExternalLink,
+  Loader2,
 } from 'lucide-react'
 
 export default function CompanyProfile() {
@@ -41,6 +50,21 @@ export default function CompanyProfile() {
   const [contactModalOpen, setContactModalOpen] = useState(false)
   const [selectedService, setSelectedService] = useState(null)
 
+  // Reviews
+  const [reviews, setReviews] = useState([])
+  const [reviewStats, setReviewStats] = useState(null)
+  const [loadingReviews, setLoadingReviews] = useState(true)
+  const [reviewsPage, setReviewsPage] = useState(1)
+  const [reviewsPagination, setReviewsPagination] = useState(null)
+  const [respondingReviewId, setRespondingReviewId] = useState(null)
+
+  // Image error states
+  const [logoError, setLogoError] = useState(false)
+  const [coverError, setCoverError] = useState(false)
+
+  // Check if current user owns this company
+  const isOwner = isAuthenticated && user?.type === 'empresa' && company?.user_id === user?.id
+
   const storageUrl = STORAGE_URL
 
   useEffect(() => {
@@ -51,12 +75,55 @@ export default function CompanyProfile() {
     try {
       setLoading(true)
       setError(null)
+      setLogoError(false)
+      setCoverError(false)
       const response = await api.get(`/public/companies/${id}`)
       setCompany(response.data.data)
     } catch (err) {
       setError('Empresa nao encontrada')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadReviews = async (page = 1) => {
+    if (!company?.id) return
+
+    try {
+      setLoadingReviews(true)
+      const response = await api.get(`/public/companies/${company.id}/reviews?page=${page}`)
+      setReviews(response.data.data?.data || [])
+      setReviewStats(response.data.stats)
+      setReviewsPagination(response.data.data)
+      setReviewsPage(page)
+    } catch (err) {
+      console.error('Failed to load reviews:', err)
+    } finally {
+      setLoadingReviews(false)
+    }
+  }
+
+  // Load reviews when company is loaded
+  useEffect(() => {
+    if (company?.id) {
+      loadReviews()
+    }
+  }, [company?.id])
+
+  const handleRespondToReview = async (reviewId, responseText) => {
+    setRespondingReviewId(reviewId)
+    try {
+      await api.post(`/reviews/${reviewId}/respond`, {
+        response: responseText
+      })
+      toast.success('Resposta enviada com sucesso!')
+      // Reload reviews to show the response
+      await loadReviews(reviewsPage)
+    } catch (err) {
+      console.error('Failed to respond to review:', err)
+      toast.error('Erro ao enviar resposta')
+    } finally {
+      setRespondingReviewId(null)
     }
   }
 
@@ -87,16 +154,56 @@ export default function CompanyProfile() {
     return (
       <AdaptiveLayout>
         <div className="min-h-screen bg-gray-50">
-          {/* Hero skeleton */}
-          <div className="h-80 bg-gradient-to-br from-slate-800 to-slate-900 animate-pulse" />
-          <div className="max-w-6xl mx-auto px-4 -mt-20">
-            <div className="bg-white rounded-2xl shadow-xl p-8">
-              <div className="flex items-center gap-6">
-                <div className="w-32 h-32 bg-gray-200 rounded-2xl animate-pulse" />
-                <div className="flex-1 space-y-3">
-                  <div className="h-8 bg-gray-200 rounded w-64 animate-pulse" />
-                  <div className="h-4 bg-gray-200 rounded w-48 animate-pulse" />
+          {/* Hero skeleton - Full Width */}
+          <div className="relative w-screen left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]">
+            <div className="h-[450px] bg-gradient-to-br from-slate-800 to-slate-900 relative overflow-hidden">
+              {/* Animated background */}
+              <div className="absolute inset-0">
+                <div className="absolute -top-40 -right-40 w-[600px] h-[600px] bg-blue-500/20 rounded-full blur-3xl animate-pulse" />
+                <div className="absolute -bottom-40 -left-40 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+              </div>
+
+              {/* Content skeleton */}
+              <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-32">
+                <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6">
+                  <div className="w-32 h-32 sm:w-40 sm:h-40 bg-white/10 rounded-2xl animate-pulse" />
+                  <div className="flex-1 space-y-4 text-center sm:text-left">
+                    <div className="h-6 bg-white/10 rounded-full w-32 mx-auto sm:mx-0 animate-pulse" />
+                    <div className="h-10 bg-white/10 rounded-xl w-64 mx-auto sm:mx-0 animate-pulse" />
+                    <div className="h-4 bg-white/10 rounded w-48 mx-auto sm:mx-0 animate-pulse" />
+                  </div>
                 </div>
+              </div>
+
+              {/* Stats skeleton */}
+              <div className="absolute bottom-0 left-0 right-0 translate-y-1/2 max-w-6xl mx-auto px-4">
+                <div className="bg-white/95 backdrop-blur rounded-2xl shadow-xl p-6">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                    {[...Array(4)].map((_, i) => (
+                      <div key={i} className="flex flex-col items-center gap-3">
+                        <div className="w-12 h-12 bg-gray-200 rounded-xl animate-pulse" />
+                        <div className="h-6 bg-gray-200 rounded w-16 animate-pulse" />
+                        <div className="h-3 bg-gray-100 rounded w-20 animate-pulse" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Content skeleton */}
+          <div className="max-w-6xl mx-auto px-4 pt-32 pb-12">
+            <div className="grid lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 space-y-6">
+                <div className="bg-white rounded-2xl p-6 space-y-4">
+                  <div className="h-6 bg-gray-200 rounded w-40 animate-pulse" />
+                  <div className="h-4 bg-gray-100 rounded w-full animate-pulse" />
+                  <div className="h-4 bg-gray-100 rounded w-3/4 animate-pulse" />
+                </div>
+              </div>
+              <div className="space-y-6">
+                <div className="bg-white rounded-2xl p-6 h-48 animate-pulse" />
               </div>
             </div>
           </div>
@@ -138,175 +245,228 @@ export default function CompanyProfile() {
   return (
     <AdaptiveLayout>
       <div className="min-h-screen bg-gray-50">
-        {/* Hero Section with Cover Image */}
-        <div className="relative h-72 sm:h-80 lg:h-96 overflow-hidden">
-          {/* Cover Image or Background gradient */}
-          {coverUrl ? (
+        {/* ========== HERO SECTION - FULL WIDTH ========== */}
+        <div className="relative w-screen left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] overflow-hidden">
+          {/* Background */}
+          {coverUrl && !coverError ? (
             <>
               <img
                 src={coverUrl}
                 alt={`${company.nome_fantasia} - Capa`}
                 className="absolute inset-0 w-full h-full object-cover"
+                onError={() => setCoverError(true)}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20" />
+              <div className="absolute inset-0 bg-gradient-to-b from-slate-900/90 via-slate-900/80 to-slate-900/95" />
             </>
           ) : (
-            <>
-              <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-900 to-black" />
-              {/* Decorative elements */}
-              <div className="absolute inset-0 overflow-hidden">
-                <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-br from-blue-500/20 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
-                <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-gradient-to-tr from-emerald-500/10 to-transparent rounded-full blur-3xl translate-y-1/2 -translate-x-1/3" />
-              </div>
-            </>
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" />
           )}
 
-          {/* Pattern overlay */}
-          <div className="absolute inset-0 opacity-5">
-            <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '32px 32px' }} />
+          {/* Animated Orbs */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div
+              className="absolute -top-40 -right-40 w-[600px] h-[600px] bg-gradient-to-br from-blue-500/30 via-indigo-500/20 to-transparent rounded-full blur-3xl animate-pulse"
+              style={{ animationDuration: '4s' }}
+            />
+            <div
+              className="absolute -bottom-40 -left-40 w-[500px] h-[500px] bg-gradient-to-tr from-emerald-500/20 via-teal-500/10 to-transparent rounded-full blur-3xl animate-pulse"
+              style={{ animationDuration: '5s', animationDelay: '1s' }}
+            />
+            <div
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-to-r from-purple-500/10 via-transparent to-cyan-500/10 rounded-full blur-3xl"
+            />
           </div>
 
-          {/* Back button */}
-          <div className="absolute top-6 left-6 z-10">
-            <button
-              onClick={() => navigate(-1)}
-              className="flex items-center gap-2 px-4 py-2 bg-black/30 backdrop-blur-sm text-white rounded-lg hover:bg-black/50 transition-all"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">Voltar</span>
-            </button>
-          </div>
+          {/* Grid Pattern */}
+          <div
+            className="absolute inset-0 opacity-[0.03]"
+            style={{
+              backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+              backgroundSize: '50px 50px'
+            }}
+          />
 
-          {/* Verified badge on hero */}
-          {company.verified && (
-            <div className="absolute top-6 right-6 z-10">
-              <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/90 backdrop-blur-sm text-white rounded-full text-sm font-medium">
-                <Shield className="h-4 w-4" />
-                Empresa Verificada
+          {/* Top Navigation Bar */}
+          <div className="relative z-20">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => navigate(-1)}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white/10 backdrop-blur-md text-white rounded-xl hover:bg-white/20 transition-all border border-white/10"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span className="hidden sm:inline font-medium">Voltar</span>
+                </button>
+
+                <div className="flex items-center gap-3">
+                  {company.verified && (
+                    <div className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500/90 backdrop-blur-md text-white rounded-xl text-sm font-semibold shadow-lg shadow-emerald-500/25">
+                      <Shield className="h-4 w-4" />
+                      <span className="hidden sm:inline">Verificada</span>
+                    </div>
+                  )}
+                  <button
+                    onClick={async () => {
+                      const shareData = {
+                        title: company.nome_fantasia,
+                        text: `Confira ${company.nome_fantasia} no ServicePro!`,
+                        url: window.location.href
+                      }
+
+                      try {
+                        if (navigator.share && navigator.canShare?.(shareData)) {
+                          await navigator.share(shareData)
+                        } else {
+                          await navigator.clipboard.writeText(window.location.href)
+                          toast.success('Link copiado para a area de transferencia!')
+                        }
+                      } catch (err) {
+                        if (err.name !== 'AbortError') {
+                          await navigator.clipboard.writeText(window.location.href)
+                          toast.success('Link copiado para a area de transferencia!')
+                        }
+                      }
+                    }}
+                    className="p-2.5 bg-white/10 backdrop-blur-md text-white rounded-xl hover:bg-white/20 transition-all border border-white/10"
+                  >
+                    <Share2 className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </div>
-          )}
+          </div>
+
+          {/* Hero Content */}
+          <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-32 pt-8">
+            <div className="flex flex-col lg:flex-row lg:items-end gap-8">
+              {/* Logo & Company Info */}
+              <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6 flex-1">
+                {/* Logo */}
+                <div className="relative group">
+                  <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500 rounded-3xl blur opacity-40 group-hover:opacity-60 transition-opacity" />
+                  <div className="relative w-32 h-32 sm:w-40 sm:h-40 bg-white rounded-2xl shadow-2xl flex items-center justify-center overflow-hidden ring-4 ring-white/20">
+                    {logoUrl && !logoError ? (
+                      <img
+                        src={logoUrl}
+                        alt={company.nome_fantasia}
+                        className="w-full h-full object-cover"
+                        onError={() => setLogoError(true)}
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
+                        <span className="text-5xl font-bold text-slate-600">
+                          {getInitials(company.nome_fantasia)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Company Details */}
+                <div className="text-center sm:text-left">
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-3">
+                    {company.segmento && (
+                      <span className="px-3 py-1 bg-white/10 backdrop-blur-sm text-white/90 rounded-full text-sm font-medium border border-white/10">
+                        {company.segmento}
+                      </span>
+                    )}
+                    {company.average_rating && (
+                      <span className="flex items-center gap-1.5 px-3 py-1 bg-amber-500/20 backdrop-blur-sm text-amber-300 rounded-full text-sm font-semibold border border-amber-400/20">
+                        <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                        {parseFloat(company.average_rating).toFixed(1)}
+                      </span>
+                    )}
+                  </div>
+
+                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-3 tracking-tight">
+                    {company.nome_fantasia}
+                  </h1>
+
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-white/70">
+                    {(company.cidade || company.estado) && (
+                      <span className="flex items-center gap-2 text-sm">
+                        <MapPin className="h-4 w-4" />
+                        {[company.cidade, company.estado].filter(Boolean).join(', ')}
+                      </span>
+                    )}
+                    {memberSince && (
+                      <span className="flex items-center gap-2 text-sm">
+                        <Calendar className="h-4 w-4" />
+                        Desde {memberSince}
+                      </span>
+                    )}
+                    {company.reviews_count > 0 && (
+                      <span className="flex items-center gap-2 text-sm">
+                        <MessageSquare className="h-4 w-4" />
+                        {company.reviews_count} avaliacoes
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* CTA Section */}
+              <div className="flex flex-col items-center lg:items-end gap-4">
+                <button
+                  onClick={handleContactClick}
+                  className="group relative px-8 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-2xl shadow-2xl shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all duration-300 hover:scale-[1.02] flex items-center gap-3"
+                >
+                  <MessageSquare className="h-5 w-5" />
+                  Solicitar Orcamento
+                  <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                </button>
+                {!isAuthenticated && (
+                  <p className="text-sm text-white/50">Faca login para contatar</p>
+                )}
+              </div>
+            </div>
+          </div>
+
         </div>
 
-        {/* Main Content */}
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Profile Card */}
-          <div className="relative -mt-32 sm:-mt-28 mb-8">
-            <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-              <div className="p-6 sm:p-8">
-                <div className="flex flex-col sm:flex-row gap-6">
-                  {/* Logo */}
-                  <div className="flex-shrink-0">
-                    <div className="w-28 h-28 sm:w-36 sm:h-36 bg-white rounded-2xl shadow-lg border-4 border-white flex items-center justify-center overflow-hidden mx-auto sm:mx-0">
-                      {logoUrl ? (
-                        <img src={logoUrl} alt={company.nome_fantasia} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
-                          <span className="text-4xl font-bold text-slate-600">
-                            {getInitials(company.nome_fantasia)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 text-center sm:text-left">
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                      <div>
-                        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-                          {company.nome_fantasia}
-                        </h1>
-
-                        <div className="flex flex-wrap justify-center sm:justify-start items-center gap-3 text-gray-500 mb-4">
-                          {company.segmento && (
-                            <span className="flex items-center gap-1.5 text-sm">
-                              <Briefcase className="h-4 w-4" />
-                              {company.segmento}
-                            </span>
-                          )}
-                          {(company.cidade || company.estado) && (
-                            <span className="flex items-center gap-1.5 text-sm">
-                              <MapPin className="h-4 w-4" />
-                              {[company.cidade, company.estado].filter(Boolean).join(', ')}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Rating */}
-                        <div className="flex items-center justify-center sm:justify-start gap-4">
-                          {company.average_rating ? (
-                            <>
-                              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 rounded-lg">
-                                <Star className="h-5 w-5 text-amber-500 fill-amber-500" />
-                                <span className="text-lg font-bold text-amber-700">{parseFloat(company.average_rating).toFixed(1)}</span>
-                              </div>
-                              <span className="text-sm text-gray-500">
-                                {company.reviews_count || 0} avaliacoes
-                              </span>
-                            </>
-                          ) : (
-                            <span className="text-sm text-gray-500 px-3 py-1.5 bg-gray-50 rounded-lg">
-                              Sem avaliacoes ainda
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* CTA Button */}
-                      <div className="flex flex-col gap-2">
-                        <button
-                          onClick={handleContactClick}
-                          className="px-6 py-3 bg-slate-800 text-white font-semibold rounded-xl hover:bg-slate-900 transition-all flex items-center justify-center gap-2"
-                        >
-                          <MessageSquare className="h-4 w-4" />
-                          Solicitar Orcamento
-                        </button>
-                        {!isAuthenticated && (
-                          <p className="text-xs text-gray-400 text-center">Faca login para contatar</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+        {/* Stats Bar - OUTSIDE hero, overlapping */}
+        <div className="relative z-30 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 -mt-20">
+          <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+            <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-gray-100">
+              <div className="p-6 text-center group hover:bg-gray-50 transition-colors">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl mb-3 shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform">
+                  <Briefcase className="h-6 w-6 text-white" />
                 </div>
+                <div className="text-3xl font-bold text-gray-900">{company.services_count || 0}</div>
+                <p className="text-sm text-gray-500 font-medium">Servicos</p>
               </div>
-
-              {/* Stats Bar */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 border-t border-gray-100">
-                <div className="p-4 sm:p-6 text-center border-r border-b sm:border-b-0 border-gray-100">
-                  <div className="flex items-center justify-center gap-2 text-2xl sm:text-3xl font-bold text-slate-800">
-                    <Briefcase className="h-5 w-5 text-slate-400" />
-                    {company.services_count || 0}
-                  </div>
-                  <p className="text-sm text-gray-500 mt-1">Servicos</p>
+              <div className="p-6 text-center group hover:bg-gray-50 transition-colors">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl mb-3 shadow-lg shadow-emerald-500/30 group-hover:scale-110 transition-transform">
+                  <ThumbsUp className="h-6 w-6 text-white" />
                 </div>
-                <div className="p-4 sm:p-6 text-center border-b sm:border-b-0 sm:border-r border-gray-100">
-                  <div className="flex items-center justify-center gap-2 text-2xl sm:text-3xl font-bold text-emerald-600">
-                    <ThumbsUp className="h-5 w-5 text-emerald-400" />
-                    {company.deals_completed_count || 0}
-                  </div>
-                  <p className="text-sm text-gray-500 mt-1">Realizados</p>
+                <div className="text-3xl font-bold text-emerald-600">{company.deals_completed_count || 0}</div>
+                <p className="text-sm text-gray-500 font-medium">Realizados</p>
+              </div>
+              <div className="p-6 text-center group hover:bg-gray-50 transition-colors">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl mb-3 shadow-lg shadow-amber-500/30 group-hover:scale-110 transition-transform">
+                  <Eye className="h-6 w-6 text-white" />
                 </div>
-                <div className="p-4 sm:p-6 text-center border-r border-gray-100">
-                  <div className="flex items-center justify-center gap-2 text-2xl sm:text-3xl font-bold text-slate-800">
-                    <Eye className="h-5 w-5 text-slate-400" />
-                    {totalViews}
-                  </div>
-                  <p className="text-sm text-gray-500 mt-1">Visualizacoes</p>
+                <div className="text-3xl font-bold text-gray-900">{totalViews}</div>
+                <p className="text-sm text-gray-500 font-medium">Visualizacoes</p>
+              </div>
+              <div className="p-6 text-center group hover:bg-gray-50 transition-colors">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl mb-3 shadow-lg shadow-purple-500/30 group-hover:scale-110 transition-transform">
+                  <TrendingUp className="h-6 w-6 text-white" />
                 </div>
-                <div className="p-4 sm:p-6 text-center">
-                  <div className="flex items-center justify-center gap-2 text-2xl sm:text-3xl font-bold text-slate-800">
-                    <Calendar className="h-5 w-5 text-slate-400" />
-                    {memberSince ? new Date(company.created_at).getFullYear() : '-'}
-                  </div>
-                  <p className="text-sm text-gray-500 mt-1">Na plataforma</p>
+                <div className="text-3xl font-bold text-gray-900">
+                  {company.average_rating ? parseFloat(company.average_rating).toFixed(1) : '-'}
                 </div>
+                <p className="text-sm text-gray-500 font-medium">Avaliacao</p>
               </div>
             </div>
           </div>
+        </div>
 
+        {/* ========== MAIN CONTENT ========== */}
+        <div className="pt-12 pb-12">
           {/* Content Grid */}
-          <div className="grid lg:grid-cols-3 gap-8 pb-12">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid lg:grid-cols-3 gap-8">
             {/* Main Content */}
             <div className="lg:col-span-2 space-y-8">
               {/* About */}
@@ -420,6 +580,125 @@ export default function CompanyProfile() {
                   </div>
                 )}
               </div>
+
+              {/* Reviews Section */}
+            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              <div className="p-6 border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    <Star className="h-6 w-6 text-amber-400 fill-amber-400" />
+                    Avaliacoes
+                    {reviewStats?.total > 0 && (
+                      <span className="text-sm font-normal text-gray-500">
+                        ({reviewStats.total})
+                      </span>
+                    )}
+                  </h2>
+                </div>
+              </div>
+
+              <div className="p-6">
+                {loadingReviews ? (
+                  <div className="flex justify-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                  </div>
+                ) : reviewStats?.total > 0 ? (
+                  <div className="space-y-6">
+                    {/* Stats Overview */}
+                    <div className="flex flex-col md:flex-row gap-6 p-6 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl">
+                      {/* Average Rating */}
+                      <div className="flex flex-col items-center justify-center text-center">
+                        <div className="text-5xl font-bold text-gray-900 mb-2">
+                          {reviewStats.average?.toFixed(1) || '0.0'}
+                        </div>
+                        <StarRating rating={reviewStats.average || 0} readonly size="md" />
+                        <p className="text-sm text-gray-500 mt-2">
+                          {reviewStats.total} {reviewStats.total === 1 ? 'avaliacao' : 'avaliacoes'}
+                        </p>
+                      </div>
+
+                      {/* Rating Distribution */}
+                      <div className="flex-1">
+                        <div className="space-y-2">
+                          {[5, 4, 3, 2, 1].map((stars) => {
+                            const count = reviewStats.distribution?.[stars] || 0
+                            const percentage = reviewStats.total > 0
+                              ? Math.round((count / reviewStats.total) * 100)
+                              : 0
+
+                            return (
+                              <div key={stars} className="flex items-center gap-3">
+                                <div className="flex items-center gap-1 w-12">
+                                  <span className="text-sm font-medium text-gray-700">{stars}</span>
+                                  <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                                </div>
+                                <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-amber-400 rounded-full transition-all duration-300"
+                                    style={{ width: `${percentage}%` }}
+                                  />
+                                </div>
+                                <span className="text-sm text-gray-500 w-10 text-right">
+                                  {count}
+                                </span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Reviews List */}
+                    <div className="space-y-4">
+                      {reviews.map((review) => (
+                        <ReviewCard
+                          key={review.id}
+                          review={{
+                            ...review,
+                            client_name: review.client?.user?.name || 'Cliente',
+                          }}
+                          showResponse={true}
+                          canRespond={isOwner && !review.response}
+                          onRespond={handleRespondToReview}
+                          responding={respondingReviewId === review.id}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Pagination */}
+                    {reviewsPagination?.last_page > 1 && (
+                      <div className="flex items-center justify-center gap-2 pt-4">
+                        <button
+                          onClick={() => loadReviews(reviewsPage - 1)}
+                          disabled={reviewsPage === 1}
+                          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          Anterior
+                        </button>
+                        <span className="text-sm text-gray-500">
+                          Pagina {reviewsPage} de {reviewsPagination.last_page}
+                        </span>
+                        <button
+                          onClick={() => loadReviews(reviewsPage + 1)}
+                          disabled={reviewsPage === reviewsPagination.last_page}
+                          className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          Proxima
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="py-12 text-center">
+                    <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Star className="w-7 h-7 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Nenhuma avaliacao ainda</h3>
+                    <p className="text-gray-500">Seja o primeiro a avaliar esta empresa</p>
+                  </div>
+                )}
+              </div>
+            </div>
             </div>
 
             {/* Sidebar */}
@@ -510,6 +789,7 @@ export default function CompanyProfile() {
                 </div>
               )}
             </div>
+          </div>
           </div>
         </div>
       </div>
