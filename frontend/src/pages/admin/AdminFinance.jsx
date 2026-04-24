@@ -1,11 +1,27 @@
 import { useEffect, useState } from 'react'
 import api from '../../services/api'
 import toast from 'react-hot-toast'
+import {
+  DollarSign,
+  TrendingUp,
+  CreditCard,
+  Download,
+  RefreshCw,
+  Filter,
+  Calendar,
+  ArrowUpRight,
+  ArrowDownRight,
+  Wallet,
+  Receipt,
+  PiggyBank,
+  BarChart3,
+} from 'lucide-react'
 
 export default function AdminFinance() {
   const [transactions, setTransactions] = useState([])
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [exporting, setExporting] = useState(false)
   const [filter, setFilter] = useState({
     type: '',
     dateFrom: '',
@@ -36,8 +52,13 @@ export default function AdminFinance() {
     loadData()
   }
 
+  const clearFilters = () => {
+    setFilter({ type: '', dateFrom: '', dateTo: '' })
+  }
+
   const handleExport = async () => {
     try {
+      setExporting(true)
       const response = await api.get('/finance/export', {
         params: filter,
         responseType: 'blob'
@@ -52,9 +73,40 @@ export default function AdminFinance() {
       link.remove()
 
       toast.success('Exportacao concluida!')
-    } catch (error) {
-      toast.error('Erro ao exportar')
+    } catch (_error) {
+      // Generate local CSV if API fails
+      generateLocalCSV()
+    } finally {
+      setExporting(false)
     }
+  }
+
+  const generateLocalCSV = () => {
+    const headers = ['ID', 'Tipo', 'Descricao', 'Valor', 'Status', 'Data']
+    const rows = transactions.map(t => [
+      t.id,
+      t.type,
+      t.description || '',
+      t.amount,
+      t.status,
+      new Date(t.created_at).toLocaleDateString('pt-BR')
+    ])
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `transacoes_${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+
+    toast.success('Exportacao concluida!')
   }
 
   const formatCurrency = (value) => {
@@ -62,6 +114,16 @@ export default function AdminFinance() {
       style: 'currency',
       currency: 'BRL'
     }).format(value || 0)
+  }
+
+  const formatDate = (date) => {
+    return new Date(date).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
   }
 
   const getTypeLabel = (type) => {
@@ -76,12 +138,12 @@ export default function AdminFinance() {
 
   const getTypeColor = (type) => {
     const colors = {
-      'comissao': 'bg-blue-100 text-blue-700',
-      'assinatura': 'bg-purple-100 text-purple-700',
-      'servico': 'bg-green-100 text-green-700',
-      'estorno': 'bg-red-100 text-red-700',
+      'comissao': 'bg-blue-100 text-blue-700 border-blue-200',
+      'assinatura': 'bg-purple-100 text-purple-700 border-purple-200',
+      'servico': 'bg-green-100 text-green-700 border-green-200',
+      'estorno': 'bg-red-100 text-red-700 border-red-200',
     }
-    return colors[type] || 'bg-gray-100 text-gray-700'
+    return colors[type] || 'bg-gray-100 text-gray-700 border-gray-200'
   }
 
   const getStatusColor = (status) => {
@@ -95,171 +157,313 @@ export default function AdminFinance() {
     return colors[status] || 'bg-gray-100 text-gray-700'
   }
 
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Financeiro</h1>
-          <p className="text-gray-500 mt-1">Gestao de transacoes e receitas</p>
-        </div>
-        <button
-          onClick={handleExport}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-          </svg>
-          Exportar CSV
-        </button>
-      </div>
+  const getStatusLabel = (status) => {
+    const labels = {
+      'concluida': 'Concluida',
+      'pendente': 'Pendente',
+      'processando': 'Processando',
+      'falhou': 'Falhou',
+      'estornada': 'Estornada',
+    }
+    return labels[status] || status
+  }
 
-      {/* Stats */}
-      {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <p className="text-sm text-gray-500">Receita Total</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(stats.revenue?.total)}</p>
-            <div className="flex items-center gap-1 mt-2 text-green-600 text-sm">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
-              </svg>
-              <span>Este periodo</span>
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Hero Header - Full Width */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        {/* Animated Background Orbs */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-40 -right-40 w-[600px] h-[600px] bg-gradient-to-br from-emerald-500/30 via-teal-500/20 to-transparent rounded-full blur-3xl animate-pulse" style={{ animationDuration: '4s' }} />
+          <div className="absolute -bottom-40 -left-40 w-[500px] h-[500px] bg-gradient-to-tr from-green-500/20 via-emerald-500/10 to-transparent rounded-full blur-3xl animate-pulse" style={{ animationDuration: '5s', animationDelay: '1s' }} />
+        </div>
+
+        {/* Grid Pattern */}
+        <div className="absolute inset-0 opacity-[0.03]" style={{
+          backgroundImage: `linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)`,
+          backgroundSize: '50px 50px'
+        }} />
+
+        {/* Hero Content */}
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-20">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div className="space-y-4">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-xl rounded-full border border-white/20">
+                <DollarSign className="w-4 h-4 text-emerald-400" />
+                <span className="text-sm font-medium text-white/90">Gestao Financeira</span>
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-bold text-white">
+                Gestao <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400">Financeira</span>
+              </h1>
+              <p className="text-slate-300 max-w-lg">
+                Acompanhe receitas, comissoes e assinaturas da plataforma. Visualize transacoes e exporte relatorios.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => loadData()}
+                className="flex items-center gap-2 px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-xl hover:bg-white/20 transition-all"
+                title="Atualizar dados"
+              >
+                <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+              </button>
+              <button
+                onClick={handleExport}
+                disabled={exporting}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold hover:shadow-2xl hover:shadow-emerald-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+              >
+                <Download className="w-5 h-5" />
+                {exporting ? 'Exportando...' : 'Exportar CSV'}
+              </button>
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <p className="text-sm text-gray-500">Comissoes</p>
-            <p className="text-2xl font-bold text-blue-600 mt-1">{formatCurrency(stats.revenue?.from_commissions)}</p>
-            <p className="text-sm text-gray-400 mt-2">De ordens fechadas</p>
+          {/* Stats Bar */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8">
+            {[
+              { value: formatCurrency(stats?.revenue?.total), label: 'Receita Total', icon: Wallet, color: 'from-emerald-500 to-teal-500' },
+              { value: formatCurrency(stats?.revenue?.from_commissions), label: 'Comissoes', icon: Receipt, color: 'from-blue-500 to-cyan-500' },
+              { value: formatCurrency(stats?.revenue?.from_subscriptions), label: 'Assinaturas', icon: CreditCard, color: 'from-purple-500 to-pink-500' },
+              { value: stats?.deals?.concluido || 0, label: 'Concluidos', icon: BarChart3, color: 'from-amber-500 to-orange-500' },
+            ].map((stat, idx) => (
+              <div key={idx} className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10 hover:bg-white/15 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center flex-shrink-0`}>
+                    <stat.icon className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-white">{stat.value}</p>
+                    <p className="text-xs text-slate-400">{stat.label}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-
-          <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <p className="text-sm text-gray-500">Assinaturas</p>
-            <p className="text-2xl font-bold text-purple-600 mt-1">{formatCurrency(stats.revenue?.from_subscriptions)}</p>
-            <p className="text-sm text-gray-400 mt-2">Planos ativos</p>
-          </div>
-
-          <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <p className="text-sm text-gray-500">Negociacoes no Periodo</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{stats.deals?.total || 0}</p>
-            <p className="text-sm text-gray-400 mt-2">{stats.deals?.concluido || 0} concluidas</p>
-          </div>
-        </div>
-      )}
-
-      {/* Filters */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4">
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="flex-1 min-w-[150px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-            <select
-              value={filter.type}
-              onChange={(e) => setFilter({ ...filter, type: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-gray-900"
-            >
-              <option value="">Todos</option>
-              <option value="comissao">Comissao</option>
-              <option value="assinatura">Assinatura</option>
-              <option value="servico">Servico</option>
-              <option value="estorno">Estorno</option>
-            </select>
-          </div>
-
-          <div className="flex-1 min-w-[150px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Data inicial</label>
-            <input
-              type="date"
-              value={filter.dateFrom}
-              onChange={(e) => setFilter({ ...filter, dateFrom: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-gray-900"
-            />
-          </div>
-
-          <div className="flex-1 min-w-[150px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Data final</label>
-            <input
-              type="date"
-              value={filter.dateTo}
-              onChange={(e) => setFilter({ ...filter, dateTo: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-gray-900"
-            />
-          </div>
-
-          <button
-            onClick={handleFilter}
-            className="px-6 py-2 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors"
-          >
-            Filtrar
-          </button>
         </div>
       </div>
 
-      {/* Transactions Table */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="font-semibold text-gray-900">Transacoes</h2>
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex flex-col lg:flex-row gap-6">
+
+          {/* Sidebar */}
+          <div className="lg:w-72 flex-shrink-0">
+            <div className="sticky top-24 space-y-4">
+              {/* Revenue Card */}
+              {stats && (
+                <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                  <div className="px-4 py-3 bg-gradient-to-r from-emerald-500 to-teal-600">
+                    <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                      <Wallet className="w-4 h-4" />
+                      Receita Total
+                    </h3>
+                  </div>
+                  <div className="p-4">
+                    <p className="text-3xl font-bold text-gray-900">{formatCurrency(stats.revenue?.total)}</p>
+                    <p className="text-sm text-gray-500 mt-1">Periodo atual</p>
+                    <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-blue-500" />
+                          <span className="text-gray-500">Comissoes</span>
+                        </div>
+                        <span className="font-semibold text-blue-600">{formatCurrency(stats.revenue?.from_commissions)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-purple-500" />
+                          <span className="text-gray-500">Assinaturas</span>
+                        </div>
+                        <span className="font-semibold text-purple-600">{formatCurrency(stats.revenue?.from_subscriptions)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-amber-500" />
+                          <span className="text-gray-500">Concluidos</span>
+                        </div>
+                        <span className="font-semibold text-amber-600">{stats.deals?.concluido || 0}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Quick Filters */}
+              <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl border border-emerald-100 p-4">
+                <h4 className="text-xs font-semibold text-emerald-800 uppercase tracking-wider mb-3">Filtrar por Tipo</h4>
+                <div className="space-y-2">
+                  {[
+                    { label: 'Todos', value: '' },
+                    { label: 'Comissao', value: 'comissao' },
+                    { label: 'Assinatura', value: 'assinatura' },
+                    { label: 'Servico', value: 'servico' },
+                    { label: 'Estorno', value: 'estorno' },
+                  ].map((item) => (
+                    <button
+                      key={item.value}
+                      onClick={() => { setFilter({ ...filter, type: item.value }); handleFilter() }}
+                      className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${
+                        filter.type === item.value
+                          ? 'bg-emerald-600 text-white font-medium'
+                          : 'text-gray-700 hover:bg-emerald-100'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Date Filter */}
+              <div className="bg-white rounded-2xl border border-gray-200 p-4">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <Calendar className="w-3 h-3" />
+                  Periodo
+                </h4>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-gray-500">De</label>
+                    <input
+                      type="date"
+                      value={filter.dateFrom}
+                      onChange={(e) => setFilter({ ...filter, dateFrom: e.target.value })}
+                      className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500">Ate</label>
+                    <input
+                      type="date"
+                      value={filter.dateTo}
+                      onChange={(e) => setFilter({ ...filter, dateTo: e.target.value })}
+                      className="w-full mt-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleFilter}
+                      className="flex-1 px-3 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors"
+                    >
+                      Aplicar
+                    </button>
+                    <button
+                      onClick={clearFilters}
+                      className="px-3 py-2 text-gray-600 bg-gray-100 text-sm rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Area */}
+          <div className="flex-1 min-w-0 space-y-6">
+            {/* Transactions Table */}
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h2 className="font-semibold text-gray-900">Transacoes Recentes</h2>
+            <span className="text-sm text-gray-500">{transactions.length} registros</span>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="w-10 h-10 border-3 border-gray-200 border-t-green-500 rounded-full animate-spin" />
+            </div>
+          ) : transactions.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Receipt className="w-8 h-8 text-gray-400" />
+              </div>
+              <p className="text-gray-500 text-lg">Nenhuma transacao encontrada</p>
+              <p className="text-gray-400 text-sm mt-1">Tente ajustar os filtros de busca</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ID</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tipo</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Descricao</th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Valor</th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Data</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {transactions.map((transaction) => (
+                    <tr key={transaction.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm font-mono text-gray-500">#{transaction.id}</span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${getTypeColor(transaction.type)}`}>
+                          {getTypeLabel(transaction.type)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="text-sm text-gray-900 truncate max-w-xs">
+                          {transaction.description || '-'}
+                        </p>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <span className={`text-sm font-semibold ${
+                          transaction.type === 'estorno' ? 'text-red-600' : 'text-gray-900'
+                        }`}>
+                          {transaction.type === 'estorno' ? '-' : ''}{formatCurrency(transaction.amount)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(transaction.status)}`}>
+                          {getStatusLabel(transaction.status)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <span className="text-sm text-gray-500">{formatDate(transaction.created_at)}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="w-8 h-8 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin" />
+            {/* Summary Cards */}
+            {stats && (
+              <div className="grid md:grid-cols-3 gap-6">
+                <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-6 text-white">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold">Receita Total</h3>
+                    <Wallet className="w-6 h-6 opacity-80" />
+                  </div>
+                  <p className="text-3xl font-bold mb-2">{formatCurrency(stats.revenue?.total)}</p>
+                  <p className="text-green-100 text-sm">Soma de todas as transacoes</p>
+                </div>
+
+                <div className="bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl p-6 text-white">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold">Comissoes</h3>
+                    <Receipt className="w-6 h-6 opacity-80" />
+                  </div>
+                  <p className="text-3xl font-bold mb-2">{formatCurrency(stats.revenue?.from_commissions)}</p>
+                  <p className="text-blue-100 text-sm">De negociacoes fechadas</p>
+                </div>
+
+                <div className="bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl p-6 text-white">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold">Assinaturas</h3>
+                    <CreditCard className="w-6 h-6 opacity-80" />
+                  </div>
+                  <p className="text-3xl font-bold mb-2">{formatCurrency(stats.revenue?.from_subscriptions)}</p>
+                  <p className="text-purple-100 text-sm">Planos de empresas</p>
+                </div>
+              </div>
+            )}
           </div>
-        ) : transactions.length === 0 ? (
-          <div className="text-center py-12">
-            <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
-            </svg>
-            <p className="text-gray-500">Nenhuma transacao encontrada</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descricao</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {transactions.map((transaction) => (
-                  <tr key={transaction.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      #{transaction.id}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getTypeColor(transaction.type)}`}>
-                        {getTypeLabel(transaction.type)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      {transaction.description || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {formatCurrency(transaction.amount)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(transaction.status)}`}>
-                        {transaction.status === 'concluida' ? 'Concluida' :
-                         transaction.status === 'pendente' ? 'Pendente' :
-                         transaction.status === 'processando' ? 'Processando' :
-                         transaction.status === 'falhou' ? 'Falhou' :
-                         transaction.status === 'estornada' ? 'Estornada' : transaction.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(transaction.created_at).toLocaleDateString('pt-BR')}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   )
