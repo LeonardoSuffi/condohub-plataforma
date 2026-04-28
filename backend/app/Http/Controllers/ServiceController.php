@@ -94,7 +94,7 @@ class ServiceController extends Controller
             'description' => 'required|string|max:2000',
             'region' => 'required|string|max:100',
             'price_range' => 'required|string|max:50',
-            'tags' => 'nullable|array',
+            'tags' => 'nullable|array|max:' . config('security.limits.max_tags', 20),
             'tags.*' => 'string|max:50',
         ]);
 
@@ -139,7 +139,7 @@ class ServiceController extends Controller
             'region' => 'sometimes|string|max:100',
             'price_range' => 'sometimes|string|max:50',
             'status' => 'sometimes|in:ativo,inativo',
-            'tags' => 'nullable|array',
+            'tags' => 'nullable|array|max:' . config('security.limits.max_tags', 20),
             'tags.*' => 'string|max:50',
         ]);
 
@@ -257,7 +257,7 @@ class ServiceController extends Controller
             ->findOrFail($id);
 
         $request->validate([
-            'order' => 'required|array',
+            'order' => 'required|array|max:' . config('security.limits.max_reorder_items', 100),
             'order.*' => 'required|integer|exists:service_images,id',
         ]);
 

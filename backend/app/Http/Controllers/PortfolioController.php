@@ -169,7 +169,7 @@ class PortfolioController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'items' => 'required|array',
+            'items' => 'required|array|max:' . config('security.limits.max_reorder_items', 100),
             'items.*.id' => 'required|integer',
             'items.*.order' => 'required|integer|min:0',
         ]);

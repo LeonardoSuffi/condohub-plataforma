@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\CompanyProfile;
 use App\Models\ClientProfile;
+use App\Models\ActivityLog;
 use App\Services\CompanyCacheService;
 use App\Http\Controllers\CompanyController;
 use Illuminate\Http\Request;
@@ -100,11 +101,22 @@ class UserController extends Controller
     {
         $user = $request->user();
 
-        // Validação base
+        // Validação base com complexidade de senha
         $rules = [
             'name' => 'sometimes|string|max:255',
             'email' => 'sometimes|string|email|max:255|unique:users,email,' . $user->id,
-            'password' => 'sometimes|string|min:8|confirmed',
+            'password' => [
+                'sometimes',
+                'string',
+                'min:' . config('security.password.min_length', 8),
+                'confirmed',
+                'regex:' . config('security.password.complexity_regex', '/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).+$/'),
+            ],
+        ];
+
+        // Mensagens customizadas
+        $messages = [
+            'password.regex' => config('security.password.complexity_message', 'A senha deve conter pelo menos: 1 letra maiuscula, 1 minuscula, 1 numero e 1 caractere especial.'),
         ];
 
         // Adiciona regras específicas por tipo
@@ -112,27 +124,27 @@ class UserController extends Controller
             $rules = array_merge($rules, [
                 'nome_fantasia' => 'sometimes|string|max:255',
                 'segmento' => 'sometimes|string|max:100',
-                'telefone' => 'sometimes|string|max:20',
+                'telefone' => ['sometimes', 'string', 'max:20', 'regex:' . config('security.validation.phone_regex', '/^\(?[1-9]{2}\)?\s?(?:9\d{4}|\d{4})-?\d{4}$/')],
                 'endereco' => 'sometimes|string|max:255',
                 'cidade' => 'sometimes|string|max:100',
-                'estado' => 'sometimes|string|size:2',
+                'estado' => 'sometimes|string|size:2|in:' . implode(',', config('security.validation.estados', ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'])),
                 'cep' => 'sometimes|string|max:10',
                 'descricao' => 'sometimes|string|max:1000',
             ]);
         } elseif ($user->isCliente()) {
             $rules = array_merge($rules, [
-                'telefone' => 'sometimes|string|max:20',
+                'telefone' => ['sometimes', 'string', 'max:20', 'regex:' . config('security.validation.phone_regex', '/^\(?[1-9]{2}\)?\s?(?:9\d{4}|\d{4})-?\d{4}$/')],
                 'nome_organizacao' => 'sometimes|string|max:255',
                 'endereco_organizacao' => 'sometimes|string|max:255',
                 'cidade' => 'sometimes|string|max:100',
-                'estado' => 'sometimes|string|size:2',
+                'estado' => 'sometimes|string|size:2|in:' . implode(',', config('security.validation.estados', ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'])),
                 'cep' => 'sometimes|string|max:10',
                 'num_funcionarios' => 'sometimes|integer|min:0',
                 'preferences' => 'sometimes|array',
             ]);
         }
 
-        $validated = $request->validate($rules);
+        $validated = $request->validate($rules, $messages ?? []);
 
         // Atualiza dados do usuário
         if (isset($validated['name'])) {
@@ -171,6 +183,13 @@ class UserController extends Controller
             $user->load('companyProfile', 'activeSubscription.plan');
         } elseif ($user->isCliente()) {
             $user->load('clientProfile');
+        }
+
+        // Log de atualizacao de perfil (apenas se houve mudancas significativas)
+        if (!empty($validated)) {
+            ActivityLog::log($user, ActivityLog::ACTION_PROFILE_UPDATE, $user, [
+                'fields_updated' => array_keys($validated),
+            ]);
         }
 
         return $this->success($user, 'Perfil atualizado com sucesso');
@@ -359,5 +378,47 @@ class UserController extends Controller
         }
 
         return $this->success(null, 'Capa removida com sucesso');
+    }
+
+    /**
+     * Get notification preferences
+     */
+    public function getNotificationPreferences(Request $request)
+    {
+        $user = $request->user();
+        return $this->success($user->getNotificationPreferences());
+    }
+
+    /**
+     * Update notification preferences
+     * Validacao estruturada para evitar campos nao permitidos
+     */
+    public function updateNotificationPreferences(Request $request)
+    {
+        // Lista de preferencias permitidas
+        $allowedPreferences = ['deals', 'messages', 'status', 'promo', 'visible_in_ranking', 'share_anonymous_data'];
+
+        $validated = $request->validate([
+            'deals' => 'sometimes|boolean',
+            'messages' => 'sometimes|boolean',
+            'status' => 'sometimes|boolean',
+            'promo' => 'sometimes|boolean',
+            'visible_in_ranking' => 'sometimes|boolean',
+            'share_anonymous_data' => 'sometimes|boolean',
+        ]);
+
+        // Filtra apenas as preferencias permitidas
+        $validated = array_intersect_key($validated, array_flip($allowedPreferences));
+
+        $user = $request->user();
+        $currentPrefs = $user->getNotificationPreferences();
+
+        // Merge with existing preferences
+        $newPrefs = array_merge($currentPrefs, $validated);
+
+        $user->notification_preferences = $newPrefs;
+        $user->save();
+
+        return $this->success($newPrefs, 'Preferencias atualizadas');
     }
 }

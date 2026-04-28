@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Notification;
+use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 
 class NotificationController extends Controller
@@ -14,9 +15,16 @@ class NotificationController extends Controller
     {
         $user = $request->user();
 
+        // Validacao de paginacao com limite maximo
+        $validated = $request->validate([
+            'per_page' => 'nullable|integer|min:1|max:' . config('security.pagination.max_per_page', 100),
+        ]);
+
+        $perPage = $validated['per_page'] ?? config('security.pagination.default_per_page', 15);
+
         $notifications = Notification::where('user_id', $user->id)
             ->orderByDesc('created_at')
-            ->paginate(20);
+            ->paginate($perPage);
 
         $unreadCount = Notification::where('user_id', $user->id)
             ->unread()
@@ -95,9 +103,20 @@ class NotificationController extends Controller
     {
         $user = $request->user();
 
+        $count = Notification::where('user_id', $user->id)
+            ->read()
+            ->count();
+
         Notification::where('user_id', $user->id)
             ->read()
             ->delete();
+
+        // Log de exclusao em massa
+        if ($count > 0) {
+            ActivityLog::log($user, ActivityLog::ACTION_NOTIFICATIONS_CLEARED, null, [
+                'count' => $count,
+            ]);
+        }
 
         return $this->success(null, 'Notificacoes lidas foram excluidas');
     }

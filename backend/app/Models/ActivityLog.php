@@ -48,6 +48,23 @@ class ActivityLog extends Model
     const ACTION_REVIEW_CREATE = 'review_create';
     const ACTION_GDPR_EXPORT = 'gdpr_export';
     const ACTION_ACCOUNT_DELETE_REQUEST = 'account_delete_request';
+    const ACTION_EMAIL_VERIFIED = 'email_verified';
+    const ACTION_NEW_DEVICE_LOGIN = 'new_device_login';
+    const ACTION_FAILED_LOGIN = 'failed_login';
+    const ACTION_CAPTCHA_TRIGGERED = 'captcha_triggered';
+    const ACTION_SENSITIVE_DATA_ACCESS = 'sensitive_data_access';
+    const ACTION_ADMIN_USER_UPDATE = 'admin_user_update';
+    const ACTION_ADMIN_USER_BLOCK = 'admin_user_block';
+    const ACTION_ADMIN_USER_UNBLOCK = 'admin_user_unblock';
+    const ACTION_ADMIN_USER_CREATE = 'admin_user_create';
+    const ACTION_ADMIN_USER_DELETE = 'admin_user_delete';
+    const ACTION_ADMIN_PASSWORD_RESET = 'admin_password_reset';
+    const ACTION_ADMIN_SUBSCRIPTION_CHANGE = 'admin_subscription_change';
+    const ACTION_ADMIN_COMPANY_VERIFY = 'admin_company_verify';
+    const ACTION_ADMIN_PLAN_CREATE = 'admin_plan_create';
+    const ACTION_ADMIN_PLAN_UPDATE = 'admin_plan_update';
+    const ACTION_ADMIN_SETTINGS_UPDATE = 'admin_settings_update';
+    const ACTION_NOTIFICATIONS_CLEARED = 'notifications_cleared';
 
     // Relationships
 
@@ -88,6 +105,20 @@ class ActivityLog extends Model
             self::ACTION_PASSWORD_RESET,
             self::ACTION_2FA_ENABLE,
             self::ACTION_2FA_DISABLE,
+            self::ACTION_EMAIL_VERIFIED,
+            self::ACTION_NEW_DEVICE_LOGIN,
+            self::ACTION_FAILED_LOGIN,
+            self::ACTION_CAPTCHA_TRIGGERED,
+            self::ACTION_SENSITIVE_DATA_ACCESS,
+        ]);
+    }
+
+    public function scopeAdminActions($query)
+    {
+        return $query->whereIn('action', [
+            self::ACTION_ADMIN_USER_UPDATE,
+            self::ACTION_ADMIN_USER_BLOCK,
+            self::ACTION_ADMIN_USER_UNBLOCK,
         ]);
     }
 
@@ -134,6 +165,23 @@ class ActivityLog extends Model
             self::ACTION_REVIEW_CREATE => 'Avaliacao criada',
             self::ACTION_GDPR_EXPORT => 'Dados exportados',
             self::ACTION_ACCOUNT_DELETE_REQUEST => 'Exclusao de conta solicitada',
+            self::ACTION_EMAIL_VERIFIED => 'Email verificado',
+            self::ACTION_NEW_DEVICE_LOGIN => 'Login de novo dispositivo',
+            self::ACTION_FAILED_LOGIN => 'Tentativa de login falhou',
+            self::ACTION_CAPTCHA_TRIGGERED => 'CAPTCHA exigido',
+            self::ACTION_SENSITIVE_DATA_ACCESS => 'Dados sensiveis acessados',
+            self::ACTION_ADMIN_USER_UPDATE => 'Admin: usuario atualizado',
+            self::ACTION_ADMIN_USER_BLOCK => 'Admin: usuario bloqueado',
+            self::ACTION_ADMIN_USER_UNBLOCK => 'Admin: usuario desbloqueado',
+            self::ACTION_ADMIN_USER_CREATE => 'Admin: usuario criado',
+            self::ACTION_ADMIN_USER_DELETE => 'Admin: usuario excluido',
+            self::ACTION_ADMIN_PASSWORD_RESET => 'Admin: senha resetada',
+            self::ACTION_ADMIN_SUBSCRIPTION_CHANGE => 'Admin: assinatura alterada',
+            self::ACTION_ADMIN_COMPANY_VERIFY => 'Admin: empresa verificada',
+            self::ACTION_ADMIN_PLAN_CREATE => 'Admin: plano criado',
+            self::ACTION_ADMIN_PLAN_UPDATE => 'Admin: plano atualizado',
+            self::ACTION_ADMIN_SETTINGS_UPDATE => 'Admin: configuracoes atualizadas',
+            self::ACTION_NOTIFICATIONS_CLEARED => 'Notificacoes excluidas',
         ];
 
         return $labels[$this->action] ?? $this->action;

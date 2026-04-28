@@ -43,19 +43,30 @@ class SecurityHeaders
             );
         }
 
-        // Content Security Policy básico
-        // Ajuste conforme necessário para seu frontend
+        // Content Security Policy
+        // NOTA: Este CSP se aplica às respostas da API, não ao SPA React.
+        // O frontend SPA deve configurar seu próprio CSP no servidor web (nginx/apache)
+        // ou no Vite config para produção.
         if (app()->environment('production')) {
+            // CSP mais restritivo para respostas da API
             $csp = implode('; ', [
-                "default-src 'self'",
-                "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-                "style-src 'self' 'unsafe-inline'",
-                "img-src 'self' data: https:",
-                "font-src 'self' data:",
-                "connect-src 'self' " . config('app.url'),
-                "frame-ancestors 'self'",
+                "default-src 'none'",                    // Bloqueia tudo por padrão
+                "frame-ancestors 'none'",                // Previne embedding em iframes
+                "base-uri 'self'",                       // Restringe base URI
+                "form-action 'self'",                    // Restringe form submissions
             ]);
             $response->headers->set('Content-Security-Policy', $csp);
+
+            // Header adicional para APIs - impede que respostas JSON sejam renderizadas como HTML
+            if ($request->expectsJson() || $request->is('api/*')) {
+                $response->headers->set('X-Content-Type-Options', 'nosniff');
+            }
+        }
+
+        // Cache control para respostas sensíveis
+        if ($request->is('api/auth/*') || $request->is('api/admin/*')) {
+            $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+            $response->headers->set('Pragma', 'no-cache');
         }
 
         return $response;

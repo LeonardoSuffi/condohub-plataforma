@@ -23,26 +23,36 @@ class TransactionController extends Controller
     {
         $user = $request->user();
 
+        // Validacao de parametros com limites
+        $validated = $request->validate([
+            'type' => 'nullable|string|in:subscription,order,credit,debit,servico,assinatura,comissao',
+            'status' => 'nullable|string|in:pending,completed,failed,cancelled',
+            'start_date' => 'nullable|date|date_format:Y-m-d|after_or_equal:' . config('security.dates.min_filter_date', '2020-01-01'),
+            'end_date' => 'nullable|date|date_format:Y-m-d|after_or_equal:start_date|before_or_equal:' . now()->addDays(config('security.dates.max_future_days', 365))->format('Y-m-d'),
+            'per_page' => 'nullable|integer|min:1|max:' . config('security.pagination.max_per_page', 100),
+        ]);
+
         $query = Transaction::where('user_id', $user->id)
             ->with(['order.deal.service', 'subscription.plan']);
 
         // Filtro por tipo
-        if ($request->has('type')) {
-            $query->byType($request->type);
+        if (!empty($validated['type'])) {
+            $query->byType($validated['type']);
         }
 
         // Filtro por período
-        if ($request->has('start_date') && $request->has('end_date')) {
-            $query->inPeriod($request->start_date, $request->end_date);
+        if (!empty($validated['start_date']) && !empty($validated['end_date'])) {
+            $query->inPeriod($validated['start_date'], $validated['end_date']);
         }
 
         // Filtro por status
-        if ($request->has('status')) {
-            $query->where('status', $request->status);
+        if (!empty($validated['status'])) {
+            $query->where('status', $validated['status']);
         }
 
+        $perPage = $validated['per_page'] ?? config('security.pagination.default_per_page', 15);
         $transactions = $query->orderByDesc('created_at')
-            ->paginate($request->get('per_page', 15));
+            ->paginate($perPage);
 
         // Resumo financeiro
         $summary = $this->financeService->getUserSummary($user);

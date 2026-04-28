@@ -33,6 +33,24 @@ import {
   UserPlus,
   TrendingUp,
   Activity,
+  MapPin,
+  Globe,
+  FileText,
+  Settings,
+  User,
+  Briefcase,
+  Hash,
+  Clock,
+  Star,
+  Zap,
+  ChevronDown,
+  Save,
+  XCircle,
+  CheckCircle,
+  Info,
+  AlertCircle,
+  Copy,
+  ExternalLink,
 } from 'lucide-react'
 
 export default function AdminUsers() {
@@ -194,6 +212,21 @@ export default function AdminUsers() {
     }
   }
 
+  /**
+   * Escapa valor para CSV de forma segura
+   * - Converte null/undefined para string vazia
+   * - Escapa aspas duplas (RFC 4180)
+   * - Envolve em aspas duplas
+   */
+  const escapeCSVValue = (value) => {
+    if (value === null || value === undefined) {
+      return '""'
+    }
+    // Converte para string e escapa aspas duplas dobrando-as
+    const stringValue = String(value).replace(/"/g, '""')
+    return `"${stringValue}"`
+  }
+
   const generateLocalCSV = () => {
     const headers = ['ID', 'Nome', 'Email', 'Tipo', 'Status', 'Verificado', 'Plano', 'Criado em']
     const rows = users.map(u => [
@@ -207,12 +240,15 @@ export default function AdminUsers() {
       new Date(u.created_at).toLocaleDateString('pt-BR')
     ])
 
+    // SEGURANCA: Usa escapeCSVValue para prevenir CSV injection
     const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      headers.map(h => escapeCSVValue(h)).join(','),
+      ...rows.map(row => row.map(cell => escapeCSVValue(cell)).join(','))
     ].join('\n')
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    // Adiciona BOM para UTF-8 (melhor compatibilidade com Excel)
+    const BOM = '\uFEFF'
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
@@ -993,227 +1029,513 @@ function QuickStatCard({ icon: Icon, label, value, color }) {
   )
 }
 
-// User View Modal
+// User View Modal - Professional Slide-over Panel
 function UserViewModal({ user, onClose, onVerifyEmail, formatDate }) {
-  const profile = user.user?.company_profile || user.user?.client_profile
+  const [activeTab, setActiveTab] = useState('overview')
   const userData = user.user || user
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gray-900">Detalhes do Usuario</h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+  const tabs = [
+    { id: 'overview', label: 'Visao Geral', icon: Eye },
+    { id: 'profile', label: userData.type === 'empresa' ? 'Empresa' : 'Cliente', icon: userData.type === 'empresa' ? Building2 : UserCheck },
+    { id: 'activity', label: 'Atividade', icon: Activity },
+  ]
 
-        <div className="p-6 space-y-6">
-          {/* Basic Info */}
-          <div className="flex items-start gap-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-2xl flex items-center justify-center text-2xl font-bold text-white shadow-lg">
-              {userData.name?.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <h3 className="text-xl font-bold text-gray-900">{userData.name}</h3>
-              <p className="text-gray-500">{userData.email}</p>
-              <div className="flex items-center gap-2 mt-2">
-                <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                  userData.type === 'empresa' ? 'bg-blue-100 text-blue-700' :
-                  userData.type === 'cliente' ? 'bg-green-100 text-green-700' :
-                  'bg-purple-100 text-purple-700'
-                }`}>
-                  {userData.type === 'empresa' ? 'Empresa' : userData.type === 'cliente' ? 'Cliente' : 'Admin'}
-                </span>
-                {user.is_blocked && (
-                  <span className="px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700">
-                    Bloqueado
-                  </span>
-                )}
+  const typeColors = {
+    empresa: 'from-blue-500 to-indigo-600',
+    cliente: 'from-green-500 to-emerald-600',
+    admin: 'from-purple-500 to-violet-600',
+  }
+
+  const getStatusBadges = () => {
+    const badges = []
+    if (user.is_blocked || userData.deleted_at) {
+      badges.push({ label: 'Bloqueado', color: 'bg-red-500/20 text-red-300 border-red-400/30', icon: Lock })
+    } else {
+      badges.push({ label: 'Ativo', color: 'bg-green-500/20 text-green-300 border-green-400/30', icon: CheckCircle })
+    }
+    if (userData.company_profile?.verified) {
+      badges.push({ label: 'Verificado', color: 'bg-blue-500/20 text-blue-300 border-blue-400/30', icon: Shield })
+    }
+    if (!userData.email_verified_at) {
+      badges.push({ label: 'Email pendente', color: 'bg-amber-500/20 text-amber-300 border-amber-400/30', icon: AlertCircle })
+    }
+    return badges
+  }
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text)
+    toast.success('Copiado para area de transferencia')
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+      />
+
+      {/* Slide-over Panel */}
+      <div className="relative w-full max-w-2xl bg-white shadow-2xl flex flex-col animate-slide-in-right">
+        {/* Header */}
+        <div className="flex-shrink-0 bg-gradient-to-r from-slate-800 to-slate-900 px-6 py-6">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-4">
+              {/* Avatar */}
+              <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${typeColors[userData.type]} flex items-center justify-center text-3xl font-bold text-white shadow-lg ring-4 ring-white/10`}>
+                {userData.name?.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-2xl font-bold text-white">{userData.name}</h2>
+                  {userData.company_profile?.verified && (
+                    <Shield className="w-5 h-5 text-blue-400" />
+                  )}
+                </div>
+                <button
+                  onClick={() => copyToClipboard(userData.email)}
+                  className="flex items-center gap-1.5 text-slate-300 text-sm mt-1 hover:text-white transition-colors group"
+                >
+                  <Mail className="w-4 h-4" />
+                  {userData.email}
+                  <Copy className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </button>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {getStatusBadges().map((badge, idx) => (
+                    <span key={idx} className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border ${badge.color}`}>
+                      <badge.icon className="w-3 h-3" />
+                      {badge.label}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
+            <button
+              onClick={onClose}
+              className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
-          {/* Email Verification */}
+          {/* Quick Stats */}
+          {user.stats && (
+            <div className="grid grid-cols-4 gap-3 mt-6">
+              {userData.type === 'empresa' && (
+                <>
+                  <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center">
+                    <p className="text-2xl font-bold text-white">{user.stats.total_services || 0}</p>
+                    <p className="text-xs text-slate-400">Servicos</p>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center">
+                    <p className="text-2xl font-bold text-white">{user.stats.active_services || 0}</p>
+                    <p className="text-xs text-slate-400">Ativos</p>
+                  </div>
+                </>
+              )}
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center">
+                <p className="text-2xl font-bold text-white">{user.stats.total_deals || 0}</p>
+                <p className="text-xs text-slate-400">Negociacoes</p>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center">
+                <p className="text-2xl font-bold text-white">{user.stats.completed_deals || 0}</p>
+                <p className="text-xs text-slate-400">Concluidas</p>
+              </div>
+              {userData.type !== 'empresa' && (
+                <>
+                  <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center">
+                    <p className="text-2xl font-bold text-white">{user.stats.reviews_given || 0}</p>
+                    <p className="text-xs text-slate-400">Avaliacoes</p>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center">
+                    <p className="text-2xl font-bold text-white flex items-center justify-center gap-1">
+                      {user.stats.avg_rating || '-'}
+                      <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                    </p>
+                    <p className="text-xs text-slate-400">Nota media</p>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Tabs */}
+          <div className="flex gap-1 mt-6 -mb-6">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-xl transition-all ${
+                  activeTab === tab.id
+                    ? 'bg-white text-slate-900'
+                    : 'text-slate-400 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+
+          {/* Email Verification Warning */}
           {!userData.email_verified_at && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between">
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Mail className="w-5 h-5 text-amber-600" />
-                <span className="text-sm text-amber-800 font-medium">Email nao verificado</span>
+                <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+                  <Mail className="w-5 h-5 text-amber-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-amber-900">Email nao verificado</p>
+                  <p className="text-sm text-amber-600">O usuario ainda nao confirmou seu email</p>
+                </div>
               </div>
               <button
                 onClick={() => onVerifyEmail(userData.id)}
-                className="px-4 py-2 text-sm font-medium bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-colors"
+                className="px-4 py-2 text-sm font-medium bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-colors shadow-sm"
               >
                 Verificar agora
               </button>
             </div>
           )}
 
-          {/* Stats */}
-          {user.stats && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {userData.type === 'empresa' && (
-                <>
-                  <div className="bg-gray-50 rounded-xl p-4 text-center">
-                    <p className="text-2xl font-bold text-gray-900">{user.stats.total_services || 0}</p>
-                    <p className="text-xs text-gray-500">Servicos</p>
+          {/* Overview Tab */}
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+              {/* Account Info */}
+              <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-2xl p-5 border border-gray-100">
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">
+                  <Info className="w-4 h-4 text-blue-500" />
+                  Informacoes da Conta
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <InfoItem label="ID do Usuario" value={`#${userData.id}`} mono />
+                  <InfoItem label="Tipo de Conta" value={userData.type === 'empresa' ? 'Empresa' : userData.type === 'cliente' ? 'Cliente' : 'Administrador'} />
+                  <InfoItem label="Cadastrado em" value={formatDate(userData.created_at)} />
+                  <InfoItem label="Ultimo login" value={formatDate(userData.last_login_at) || 'Nunca acessou'} />
+                  <InfoItem label="IP do ultimo acesso" value={userData.last_login_ip || '-'} mono />
+                  <InfoItem label="Email verificado" value={userData.email_verified_at ? 'Sim' : 'Nao'} status={userData.email_verified_at ? 'success' : 'warning'} />
+                </div>
+              </div>
+
+              {/* Subscription */}
+              {userData.active_subscription ? (
+                <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-2xl p-5 border border-purple-100">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-purple-800 uppercase tracking-wider mb-4">
+                    <CreditCard className="w-4 h-4" />
+                    Assinatura Ativa
+                  </h3>
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-violet-600 rounded-2xl flex items-center justify-center">
+                      <Zap className="w-7 h-7 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold text-purple-900">{userData.active_subscription.plan?.name}</p>
+                      <p className="text-sm text-purple-600 capitalize">Status: {userData.active_subscription.status}</p>
+                    </div>
                   </div>
-                  <div className="bg-gray-50 rounded-xl p-4 text-center">
-                    <p className="text-2xl font-bold text-gray-900">{user.stats.active_services || 0}</p>
-                    <p className="text-xs text-gray-500">Ativos</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <InfoItem label="Inicio" value={formatDate(userData.active_subscription.starts_at)} />
+                    <InfoItem label="Termino" value={formatDate(userData.active_subscription.ends_at)} />
                   </div>
-                </>
+                </div>
+              ) : (
+                <div className="bg-gray-50 rounded-2xl p-5 border border-gray-200 text-center">
+                  <CreditCard className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                  <p className="font-medium text-gray-500">Sem assinatura ativa</p>
+                  <p className="text-sm text-gray-400">Este usuario nao possui um plano</p>
+                </div>
               )}
-              <div className="bg-gray-50 rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold text-gray-900">{user.stats.total_deals || 0}</p>
-                <p className="text-xs text-gray-500">Negociacoes</p>
+            </div>
+          )}
+
+          {/* Profile Tab - Company */}
+          {activeTab === 'profile' && userData.type === 'empresa' && userData.company_profile && (
+            <div className="space-y-6">
+              <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-2xl p-5 border border-gray-100">
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">
+                  <Building2 className="w-4 h-4 text-blue-500" />
+                  Dados da Empresa
+                  {userData.company_profile.verified && (
+                    <span className="ml-auto flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                      <Shield className="w-3 h-3" /> Verificada
+                    </span>
+                  )}
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <InfoItem label="Razao Social" value={userData.company_profile.razao_social} />
+                  <InfoItem label="Nome Fantasia" value={userData.company_profile.nome_fantasia} />
+                  <InfoItem label="CNPJ" value={userData.company_profile.cnpj} mono />
+                  <InfoItem label="Segmento" value={userData.company_profile.segmento} />
+                </div>
               </div>
-              <div className="bg-gray-50 rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold text-gray-900">{user.stats.completed_deals || 0}</p>
-                <p className="text-xs text-gray-500">Concluidas</p>
+
+              <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-2xl p-5 border border-gray-100">
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">
+                  <Phone className="w-4 h-4 text-green-500" />
+                  Contato
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <InfoItem label="Telefone" value={userData.company_profile.telefone} />
+                  <InfoItem label="WhatsApp" value={userData.company_profile.whatsapp} />
+                  {userData.company_profile.website && (
+                    <div className="col-span-2">
+                      <p className="text-xs text-gray-500 mb-1">Website</p>
+                      <a
+                        href={userData.company_profile.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-blue-600 hover:text-blue-700 font-medium"
+                      >
+                        <Globe className="w-4 h-4" />
+                        {userData.company_profile.website}
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-2xl p-5 border border-gray-100">
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">
+                  <MapPin className="w-4 h-4 text-red-500" />
+                  Endereco
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <InfoItem label="Endereco" value={[userData.company_profile.endereco, userData.company_profile.numero].filter(Boolean).join(', ')} colSpan={2} />
+                  <InfoItem label="Bairro" value={userData.company_profile.bairro} />
+                  <InfoItem label="Cidade/UF" value={[userData.company_profile.cidade, userData.company_profile.estado].filter(Boolean).join('/')} />
+                  <InfoItem label="CEP" value={userData.company_profile.cep} mono />
+                </div>
+              </div>
+
+              {userData.company_profile.descricao && (
+                <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-2xl p-5 border border-gray-100">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">
+                    <FileText className="w-4 h-4 text-gray-500" />
+                    Descricao
+                  </h3>
+                  <p className="text-gray-700 leading-relaxed">{userData.company_profile.descricao}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Profile Tab - Client */}
+          {activeTab === 'profile' && userData.type === 'cliente' && userData.client_profile && (
+            <div className="space-y-6">
+              <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-2xl p-5 border border-gray-100">
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">
+                  <UserCheck className="w-4 h-4 text-green-500" />
+                  Dados do Cliente
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <InfoItem label="Tipo" value={userData.client_profile.tipo?.replace('_', ' ')} capitalize />
+                  <InfoItem label="CPF/CNPJ" value={userData.client_profile.cpf || userData.client_profile.cnpj} mono />
+                  <InfoItem label="Organizacao" value={userData.client_profile.nome_organizacao} />
+                  <InfoItem label="Cargo" value={userData.client_profile.cargo} />
+                  <InfoItem label="Telefone" value={userData.client_profile.telefone} />
+                  <InfoItem label="Funcionarios" value={userData.client_profile.num_funcionarios} />
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-2xl p-5 border border-gray-100">
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">
+                  <MapPin className="w-4 h-4 text-red-500" />
+                  Endereco
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <InfoItem label="Endereco" value={userData.client_profile.endereco} colSpan={2} />
+                  <InfoItem label="Cidade/UF" value={[userData.client_profile.cidade, userData.client_profile.estado].filter(Boolean).join('/')} />
+                  <InfoItem label="CEP" value={userData.client_profile.cep} mono />
+                </div>
               </div>
             </div>
           )}
 
-          {/* Company Profile */}
-          {userData.company_profile && (
-            <div className="border border-gray-200 rounded-xl p-5">
-              <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-blue-500" />
-                Perfil da Empresa
-                {userData.company_profile.verified && (
-                  <Shield className="w-4 h-4 text-green-500" />
-                )}
-              </h4>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-gray-500 mb-1">Razao Social</p>
-                  <p className="font-medium text-gray-900">{userData.company_profile.razao_social || '-'}</p>
+          {/* Profile Tab - Admin */}
+          {activeTab === 'profile' && userData.type === 'admin' && (
+            <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-2xl p-6 border border-purple-100">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-14 h-14 bg-purple-100 rounded-2xl flex items-center justify-center">
+                  <Shield className="w-7 h-7 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-gray-500 mb-1">Nome Fantasia</p>
-                  <p className="font-medium text-gray-900">{userData.company_profile.nome_fantasia || '-'}</p>
+                  <h3 className="font-bold text-purple-900 text-lg">Conta Administrativa</h3>
+                  <p className="text-sm text-purple-600">Acesso total ao sistema</p>
                 </div>
-                <div>
-                  <p className="text-gray-500 mb-1">CNPJ</p>
-                  <p className="font-medium text-gray-900">{userData.company_profile.cnpj || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 mb-1">Segmento</p>
-                  <p className="font-medium text-gray-900">{userData.company_profile.segmento || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 mb-1">Telefone</p>
-                  <p className="font-medium text-gray-900">{userData.company_profile.telefone || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 mb-1">Cidade/UF</p>
-                  <p className="font-medium text-gray-900">
-                    {[userData.company_profile.cidade, userData.company_profile.estado].filter(Boolean).join('/') || '-'}
-                  </p>
-                </div>
+              </div>
+              <div className="bg-white/60 rounded-xl p-4 text-sm text-purple-700">
+                <p>Este usuario possui privilegios de administrador com acesso completo a todas as funcionalidades do sistema, incluindo gerenciamento de usuarios, configuracoes, relatorios e moderacao de conteudo.</p>
               </div>
             </div>
           )}
 
-          {/* Client Profile */}
-          {userData.client_profile && (
-            <div className="border border-gray-200 rounded-xl p-5">
-              <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <UserCheck className="w-5 h-5 text-green-500" />
-                Perfil do Cliente
-              </h4>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-gray-500 mb-1">Tipo</p>
-                  <p className="font-medium text-gray-900 capitalize">{userData.client_profile.tipo || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 mb-1">CPF/CNPJ</p>
-                  <p className="font-medium text-gray-900">{userData.client_profile.cpf || userData.client_profile.cnpj || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 mb-1">Organizacao</p>
-                  <p className="font-medium text-gray-900">{userData.client_profile.nome_organizacao || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 mb-1">Funcionarios</p>
-                  <p className="font-medium text-gray-900">{userData.client_profile.num_funcionarios || '-'}</p>
+          {/* Activity Tab */}
+          {activeTab === 'activity' && (
+            <div className="space-y-6">
+              <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-2xl p-5 border border-gray-100">
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">
+                  <Clock className="w-4 h-4 text-blue-500" />
+                  Historico de Acessos
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100">
+                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900 text-sm">Ultimo login</p>
+                      <p className="text-xs text-gray-500">{formatDate(userData.last_login_at) || 'Nunca acessou'}</p>
+                    </div>
+                    {userData.last_login_ip && (
+                      <span className="text-xs font-mono text-gray-400">{userData.last_login_ip}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100">
+                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <UserPlus className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900 text-sm">Conta criada</p>
+                      <p className="text-xs text-gray-500">{formatDate(userData.created_at)}</p>
+                    </div>
+                  </div>
+                  {userData.email_verified_at && (
+                    <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100">
+                      <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
+                        <Mail className="w-4 h-4 text-emerald-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900 text-sm">Email verificado</p>
+                        <p className="text-xs text-gray-500">{formatDate(userData.email_verified_at)}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
+
+              {user.stats && (
+                <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-2xl p-5 border border-gray-100">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">
+                    <TrendingUp className="w-4 h-4 text-green-500" />
+                    Metricas de Uso
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white rounded-xl p-4 border border-gray-100 text-center">
+                      <p className="text-3xl font-bold text-gray-900">{user.stats.total_deals || 0}</p>
+                      <p className="text-sm text-gray-500 mt-1">Negociacoes totais</p>
+                    </div>
+                    <div className="bg-white rounded-xl p-4 border border-gray-100 text-center">
+                      <p className="text-3xl font-bold text-green-600">{user.stats.completed_deals || 0}</p>
+                      <p className="text-sm text-gray-500 mt-1">Concluidas</p>
+                    </div>
+                    {userData.type === 'empresa' && (
+                      <>
+                        <div className="bg-white rounded-xl p-4 border border-gray-100 text-center">
+                          <p className="text-3xl font-bold text-blue-600">{user.stats.total_services || 0}</p>
+                          <p className="text-sm text-gray-500 mt-1">Servicos cadastrados</p>
+                        </div>
+                        <div className="bg-white rounded-xl p-4 border border-gray-100 text-center">
+                          <p className="text-3xl font-bold text-amber-600 flex items-center justify-center gap-1">
+                            {user.stats.avg_rating || '-'}
+                            <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
+                          </p>
+                          <p className="text-sm text-gray-500 mt-1">Avaliacao media</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
+        </div>
 
-          {/* Subscription */}
-          {userData.active_subscription && (
-            <div className="border border-gray-200 rounded-xl p-5">
-              <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-purple-500" />
-                Assinatura Ativa
-              </h4>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-gray-500 mb-1">Plano</p>
-                  <p className="font-medium text-gray-900">{userData.active_subscription.plan?.name}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 mb-1">Status</p>
-                  <p className="font-medium text-gray-900 capitalize">{userData.active_subscription.status}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 mb-1">Inicio</p>
-                  <p className="font-medium text-gray-900">{formatDate(userData.active_subscription.starts_at)}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 mb-1">Termino</p>
-                  <p className="font-medium text-gray-900">{formatDate(userData.active_subscription.ends_at)}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Login Info */}
-          <div className="border border-gray-200 rounded-xl p-5">
-            <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-gray-500" />
-              Informacoes de Acesso
-            </h4>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-gray-500 mb-1">Cadastrado em</p>
-                <p className="font-medium text-gray-900">{formatDate(userData.created_at)}</p>
-              </div>
-              <div>
-                <p className="text-gray-500 mb-1">Ultimo login</p>
-                <p className="font-medium text-gray-900">{formatDate(userData.last_login_at)}</p>
-              </div>
-              <div>
-                <p className="text-gray-500 mb-1">IP do ultimo login</p>
-                <p className="font-medium text-gray-900">{userData.last_login_ip || '-'}</p>
-              </div>
-              <div>
-                <p className="text-gray-500 mb-1">Email verificado</p>
-                <p className="font-medium text-gray-900">{userData.email_verified_at ? 'Sim' : 'Nao'}</p>
-              </div>
-            </div>
-          </div>
+        {/* Footer */}
+        <div className="flex-shrink-0 bg-gray-50 border-t border-gray-200 px-6 py-4">
+          <button
+            onClick={onClose}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-800 text-white rounded-xl hover:bg-slate-900 font-medium transition-colors"
+          >
+            <X className="w-4 h-4" />
+            Fechar
+          </button>
         </div>
       </div>
+
+      <style>{`
+        @keyframes slide-in-right {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        .animate-slide-in-right {
+          animation: slide-in-right 0.3s ease-out;
+        }
+      `}</style>
     </div>
   )
 }
 
-// User Edit Modal
+// Info Item Component for View Modal
+function InfoItem({ label, value, mono, status, capitalize, colSpan }) {
+  const statusColors = {
+    success: 'text-green-600',
+    warning: 'text-amber-600',
+    error: 'text-red-600',
+  }
+
+  return (
+    <div className={colSpan === 2 ? 'col-span-2' : ''}>
+      <p className="text-xs text-gray-500 mb-1">{label}</p>
+      <p className={`font-medium text-gray-900 ${mono ? 'font-mono text-sm' : ''} ${status ? statusColors[status] : ''} ${capitalize ? 'capitalize' : ''}`}>
+        {value || '-'}
+      </p>
+    </div>
+  )
+}
+
+// User Edit Modal - Professional Slide-over Panel
 function UserEditModal({ user, onClose, onSave }) {
   const [loading, setLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState('basic')
   const [formData, setFormData] = useState({
     name: user.name || '',
     email: user.email || '',
     type: user.type || 'cliente',
-    company: user.company_profile || {},
-    client: user.client_profile || {},
+    company: {
+      razao_social: user.company_profile?.razao_social || '',
+      nome_fantasia: user.company_profile?.nome_fantasia || '',
+      cnpj: user.company_profile?.cnpj || '',
+      segmento: user.company_profile?.segmento || '',
+      telefone: user.company_profile?.telefone || '',
+      whatsapp: user.company_profile?.whatsapp || '',
+      website: user.company_profile?.website || '',
+      descricao: user.company_profile?.descricao || '',
+      endereco: user.company_profile?.endereco || '',
+      numero: user.company_profile?.numero || '',
+      complemento: user.company_profile?.complemento || '',
+      bairro: user.company_profile?.bairro || '',
+      cidade: user.company_profile?.cidade || '',
+      estado: user.company_profile?.estado || '',
+      cep: user.company_profile?.cep || '',
+    },
+    client: {
+      tipo: user.client_profile?.tipo || 'pessoa_fisica',
+      cpf: user.client_profile?.cpf || '',
+      cnpj: user.client_profile?.cnpj || '',
+      nome_organizacao: user.client_profile?.nome_organizacao || '',
+      cargo: user.client_profile?.cargo || '',
+      telefone: user.client_profile?.telefone || '',
+      num_funcionarios: user.client_profile?.num_funcionarios || '',
+      endereco: user.client_profile?.endereco || '',
+      cidade: user.client_profile?.cidade || '',
+      estado: user.client_profile?.estado || '',
+      cep: user.client_profile?.cep || '',
+    },
   })
 
   const handleSubmit = async (e) => {
@@ -1230,135 +1552,642 @@ function UserEditModal({ user, onClose, onSave }) {
     }
   }
 
+  const tabs = [
+    { id: 'basic', label: 'Dados Basicos', icon: User },
+    { id: 'profile', label: user.type === 'empresa' ? 'Empresa' : 'Cliente', icon: user.type === 'empresa' ? Building2 : UserCheck },
+    { id: 'address', label: 'Endereco', icon: MapPin },
+  ]
+
+  const getStatusBadges = () => {
+    const badges = []
+    if (user.deleted_at) {
+      badges.push({ label: 'Bloqueado', color: 'bg-red-100 text-red-700 border-red-200' })
+    } else {
+      badges.push({ label: 'Ativo', color: 'bg-green-100 text-green-700 border-green-200' })
+    }
+    if (user.company_profile?.verified) {
+      badges.push({ label: 'Verificado', color: 'bg-blue-100 text-blue-700 border-blue-200' })
+    }
+    if (!user.email_verified_at) {
+      badges.push({ label: 'Email pendente', color: 'bg-amber-100 text-amber-700 border-amber-200' })
+    }
+    return badges
+  }
+
+  const typeColors = {
+    empresa: 'from-blue-500 to-indigo-600',
+    cliente: 'from-green-500 to-emerald-600',
+    admin: 'from-purple-500 to-violet-600',
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gray-900">Editar Usuario</h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <div className="fixed inset-0 z-50 flex justify-end">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+      />
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Nome</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Tipo</label>
-            <select
-              value={formData.type}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
-            >
-              <option value="cliente">Cliente</option>
-              <option value="empresa">Empresa</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
-
-          {user.type === 'empresa' && user.company_profile && (
-            <>
-              <hr className="my-6" />
-              <h3 className="font-semibold text-gray-900">Dados da Empresa</h3>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Nome Fantasia</label>
-                  <input
-                    type="text"
-                    value={formData.company.nome_fantasia || ''}
-                    onChange={(e) => setFormData({ ...formData, company: { ...formData.company, nome_fantasia: e.target.value }})}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Segmento</label>
-                  <input
-                    type="text"
-                    value={formData.company.segmento || ''}
-                    onChange={(e) => setFormData({ ...formData, company: { ...formData.company, segmento: e.target.value }})}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
-                  <input
-                    type="text"
-                    value={formData.company.telefone || ''}
-                    onChange={(e) => setFormData({ ...formData, company: { ...formData.company, telefone: e.target.value }})}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Cidade</label>
-                  <input
-                    type="text"
-                    value={formData.company.cidade || ''}
-                    onChange={(e) => setFormData({ ...formData, company: { ...formData.company, cidade: e.target.value }})}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
-                  />
+      {/* Slide-over Panel */}
+      <div className="relative w-full max-w-2xl bg-white shadow-2xl flex flex-col animate-slide-in-right">
+        {/* Header */}
+        <div className="flex-shrink-0 bg-gradient-to-r from-slate-800 to-slate-900 px-6 py-5">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-4">
+              {/* Avatar */}
+              <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${typeColors[user.type]} flex items-center justify-center text-2xl font-bold text-white shadow-lg`}>
+                {user.name?.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">{user.name}</h2>
+                <p className="text-slate-300 text-sm mt-0.5">{user.email}</p>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {getStatusBadges().map((badge, idx) => (
+                    <span key={idx} className={`px-2 py-0.5 text-xs font-medium rounded-full border ${badge.color}`}>
+                      {badge.label}
+                    </span>
+                  ))}
                 </div>
               </div>
-            </>
-          )}
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
 
-          <div className="flex gap-3 pt-4">
+          {/* Tabs */}
+          <div className="flex gap-1 mt-5 -mb-5">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-xl transition-all ${
+                  activeTab === tab.id
+                    ? 'bg-white text-slate-900'
+                    : 'text-slate-400 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Form Content */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+          <div className="p-6 space-y-6">
+
+            {/* Basic Data Tab */}
+            {activeTab === 'basic' && (
+              <div className="space-y-6">
+                <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-2xl p-5 border border-gray-100">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">
+                    <User className="w-4 h-4 text-blue-500" />
+                    Informacoes Pessoais
+                  </h3>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1.5">Nome completo</label>
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1.5">Email</label>
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <input
+                            type="email"
+                            value={formData.email}
+                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                            className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1.5">Tipo de conta</label>
+                        <select
+                          value={formData.type}
+                          onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                          className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none cursor-pointer"
+                        >
+                          <option value="cliente">Cliente</option>
+                          <option value="empresa">Empresa</option>
+                          {/* Admin nao pode ser selecionado via interface por seguranca */}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Account Info Card */}
+                <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-5 border border-blue-100">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-blue-800 uppercase tracking-wider mb-4">
+                    <Info className="w-4 h-4" />
+                    Informacoes da Conta
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="bg-white/60 rounded-xl p-3">
+                      <p className="text-gray-500 text-xs mb-1">ID do Usuario</p>
+                      <p className="font-mono font-semibold text-gray-900">#{user.id}</p>
+                    </div>
+                    <div className="bg-white/60 rounded-xl p-3">
+                      <p className="text-gray-500 text-xs mb-1">Cadastrado em</p>
+                      <p className="font-semibold text-gray-900">
+                        {new Date(user.created_at).toLocaleDateString('pt-BR')}
+                      </p>
+                    </div>
+                    <div className="bg-white/60 rounded-xl p-3">
+                      <p className="text-gray-500 text-xs mb-1">Ultimo login</p>
+                      <p className="font-semibold text-gray-900">
+                        {user.last_login_at ? new Date(user.last_login_at).toLocaleDateString('pt-BR') : 'Nunca'}
+                      </p>
+                    </div>
+                    <div className="bg-white/60 rounded-xl p-3">
+                      <p className="text-gray-500 text-xs mb-1">Plano atual</p>
+                      <p className="font-semibold text-gray-900">
+                        {user.active_subscription?.plan?.name || 'Sem plano'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Profile Tab - Company */}
+            {activeTab === 'profile' && user.type === 'empresa' && (
+              <div className="space-y-6">
+                <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-2xl p-5 border border-gray-100">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">
+                    <Building2 className="w-4 h-4 text-blue-500" />
+                    Dados da Empresa
+                  </h3>
+
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1.5">Razao Social</label>
+                        <input
+                          type="text"
+                          value={formData.company.razao_social}
+                          onChange={(e) => setFormData({ ...formData, company: { ...formData.company, razao_social: e.target.value }})}
+                          className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1.5">Nome Fantasia</label>
+                        <input
+                          type="text"
+                          value={formData.company.nome_fantasia}
+                          onChange={(e) => setFormData({ ...formData, company: { ...formData.company, nome_fantasia: e.target.value }})}
+                          className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1.5">CNPJ</label>
+                        <div className="relative">
+                          <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <input
+                            type="text"
+                            value={formData.company.cnpj}
+                            onChange={(e) => setFormData({ ...formData, company: { ...formData.company, cnpj: e.target.value }})}
+                            className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                            placeholder="00.000.000/0000-00"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1.5">Segmento</label>
+                        <div className="relative">
+                          <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <input
+                            type="text"
+                            value={formData.company.segmento}
+                            onChange={(e) => setFormData({ ...formData, company: { ...formData.company, segmento: e.target.value }})}
+                            className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1.5">Descricao da empresa</label>
+                      <textarea
+                        value={formData.company.descricao}
+                        onChange={(e) => setFormData({ ...formData, company: { ...formData.company, descricao: e.target.value }})}
+                        rows={3}
+                        className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all resize-none"
+                        placeholder="Descreva a empresa..."
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-2xl p-5 border border-gray-100">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">
+                    <Phone className="w-4 h-4 text-green-500" />
+                    Contato
+                  </h3>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1.5">Telefone</label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="text"
+                          value={formData.company.telefone}
+                          onChange={(e) => setFormData({ ...formData, company: { ...formData.company, telefone: e.target.value }})}
+                          className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                          placeholder="(00) 0000-0000"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1.5">WhatsApp</label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="text"
+                          value={formData.company.whatsapp}
+                          onChange={(e) => setFormData({ ...formData, company: { ...formData.company, whatsapp: e.target.value }})}
+                          className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                          placeholder="(00) 00000-0000"
+                        />
+                      </div>
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-gray-600 mb-1.5">Website</label>
+                      <div className="relative">
+                        <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="url"
+                          value={formData.company.website}
+                          onChange={(e) => setFormData({ ...formData, company: { ...formData.company, website: e.target.value }})}
+                          className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                          placeholder="https://www.exemplo.com.br"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Profile Tab - Client */}
+            {activeTab === 'profile' && user.type === 'cliente' && (
+              <div className="space-y-6">
+                <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-2xl p-5 border border-gray-100">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">
+                    <UserCheck className="w-4 h-4 text-green-500" />
+                    Dados do Cliente
+                  </h3>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1.5">Tipo de cliente</label>
+                      <select
+                        value={formData.client.tipo}
+                        onChange={(e) => setFormData({ ...formData, client: { ...formData.client, tipo: e.target.value }})}
+                        className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer"
+                      >
+                        <option value="pessoa_fisica">Pessoa Fisica</option>
+                        <option value="empresa">Empresa</option>
+                        <option value="autonomo">Autonomo</option>
+                        <option value="condominio">Condominio</option>
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1.5">
+                          {formData.client.tipo === 'pessoa_fisica' ? 'CPF' : 'CNPJ'}
+                        </label>
+                        <div className="relative">
+                          <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <input
+                            type="text"
+                            value={formData.client.tipo === 'pessoa_fisica' ? formData.client.cpf : formData.client.cnpj}
+                            onChange={(e) => setFormData({
+                              ...formData,
+                              client: {
+                                ...formData.client,
+                                [formData.client.tipo === 'pessoa_fisica' ? 'cpf' : 'cnpj']: e.target.value
+                              }
+                            })}
+                            className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1.5">Telefone</label>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <input
+                            type="text"
+                            value={formData.client.telefone}
+                            onChange={(e) => setFormData({ ...formData, client: { ...formData.client, telefone: e.target.value }})}
+                            className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {formData.client.tipo !== 'pessoa_fisica' && (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-1.5">Nome da organizacao</label>
+                          <input
+                            type="text"
+                            value={formData.client.nome_organizacao}
+                            onChange={(e) => setFormData({ ...formData, client: { ...formData.client, nome_organizacao: e.target.value }})}
+                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-1.5">Numero de funcionarios</label>
+                          <input
+                            type="number"
+                            value={formData.client.num_funcionarios}
+                            onChange={(e) => setFormData({ ...formData, client: { ...formData.client, num_funcionarios: e.target.value }})}
+                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1.5">Cargo</label>
+                      <div className="relative">
+                        <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="text"
+                          value={formData.client.cargo}
+                          onChange={(e) => setFormData({ ...formData, client: { ...formData.client, cargo: e.target.value }})}
+                          className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                          placeholder="Ex: Gerente, Sindico, Diretor..."
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Profile Tab - Admin */}
+            {activeTab === 'profile' && user.type === 'admin' && (
+              <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-2xl p-6 border border-purple-100">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                    <Shield className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-purple-900">Conta Administrativa</h3>
+                    <p className="text-sm text-purple-600">Este usuario possui acesso total ao sistema</p>
+                  </div>
+                </div>
+                <div className="bg-white/60 rounded-xl p-4 text-sm text-purple-700">
+                  <p>Usuarios administradores tem acesso a todas as funcionalidades do painel administrativo, incluindo gerenciamento de usuarios, configuracoes do sistema e relatorios.</p>
+                </div>
+              </div>
+            )}
+
+            {/* Address Tab */}
+            {activeTab === 'address' && (
+              <div className="space-y-6">
+                <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-2xl p-5 border border-gray-100">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">
+                    <MapPin className="w-4 h-4 text-red-500" />
+                    Endereco
+                  </h3>
+
+                  {user.type === 'empresa' ? (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="col-span-2">
+                          <label className="block text-sm font-medium text-gray-600 mb-1.5">Endereco</label>
+                          <input
+                            type="text"
+                            value={formData.company.endereco}
+                            onChange={(e) => setFormData({ ...formData, company: { ...formData.company, endereco: e.target.value }})}
+                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                            placeholder="Rua, Avenida..."
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-1.5">Numero</label>
+                          <input
+                            type="text"
+                            value={formData.company.numero}
+                            onChange={(e) => setFormData({ ...formData, company: { ...formData.company, numero: e.target.value }})}
+                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-1.5">Complemento</label>
+                          <input
+                            type="text"
+                            value={formData.company.complemento}
+                            onChange={(e) => setFormData({ ...formData, company: { ...formData.company, complemento: e.target.value }})}
+                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                            placeholder="Sala, Andar..."
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-1.5">Bairro</label>
+                          <input
+                            type="text"
+                            value={formData.company.bairro}
+                            onChange={(e) => setFormData({ ...formData, company: { ...formData.company, bairro: e.target.value }})}
+                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-1.5">Cidade</label>
+                          <input
+                            type="text"
+                            value={formData.company.cidade}
+                            onChange={(e) => setFormData({ ...formData, company: { ...formData.company, cidade: e.target.value }})}
+                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-1.5">Estado</label>
+                          <select
+                            value={formData.company.estado}
+                            onChange={(e) => setFormData({ ...formData, company: { ...formData.company, estado: e.target.value }})}
+                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer"
+                          >
+                            <option value="">UF</option>
+                            {['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'].map(uf => (
+                              <option key={uf} value={uf}>{uf}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-1.5">CEP</label>
+                          <input
+                            type="text"
+                            value={formData.company.cep}
+                            onChange={(e) => setFormData({ ...formData, company: { ...formData.company, cep: e.target.value }})}
+                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                            placeholder="00000-000"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1.5">Endereco</label>
+                        <input
+                          type="text"
+                          value={formData.client.endereco}
+                          onChange={(e) => setFormData({ ...formData, client: { ...formData.client, endereco: e.target.value }})}
+                          className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                          placeholder="Endereco completo"
+                        />
+                      </div>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-1.5">Cidade</label>
+                          <input
+                            type="text"
+                            value={formData.client.cidade}
+                            onChange={(e) => setFormData({ ...formData, client: { ...formData.client, cidade: e.target.value }})}
+                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-1.5">Estado</label>
+                          <select
+                            value={formData.client.estado}
+                            onChange={(e) => setFormData({ ...formData, client: { ...formData.client, estado: e.target.value }})}
+                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer"
+                          >
+                            <option value="">UF</option>
+                            {['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'].map(uf => (
+                              <option key={uf} value={uf}>{uf}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-1.5">CEP</label>
+                          <input
+                            type="text"
+                            value={formData.client.cep}
+                            onChange={(e) => setFormData({ ...formData, client: { ...formData.client, cep: e.target.value }})}
+                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                            placeholder="00000-000"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </form>
+
+        {/* Footer Actions */}
+        <div className="flex-shrink-0 bg-gray-50 border-t border-gray-200 px-6 py-4">
+          <div className="flex gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-3 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 font-medium transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-100 font-medium transition-colors"
             >
+              <XCircle className="w-4 h-4" />
               Cancelar
             </button>
             <button
-              type="submit"
+              onClick={handleSubmit}
               disabled={loading}
-              className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-xl hover:from-blue-700 hover:to-cyan-600 disabled:opacity-50 font-medium transition-all"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-xl hover:from-blue-700 hover:to-cyan-600 disabled:opacity-50 font-medium transition-all shadow-lg shadow-blue-500/25"
             >
-              {loading ? 'Salvando...' : 'Salvar'}
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  Salvar alteracoes
+                </>
+              )}
             </button>
           </div>
-        </form>
+        </div>
       </div>
+
+      <style>{`
+        @keyframes slide-in-right {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        .animate-slide-in-right {
+          animation: slide-in-right 0.3s ease-out;
+        }
+      `}</style>
     </div>
   )
 }
 
-// User Create Modal
+// User Create Modal - Professional Slide-over Panel
 function UserCreateModal({ onClose, onSave }) {
   const [loading, setLoading] = useState(false)
+  const [step, setStep] = useState(1)
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
+    password_confirmation: '',
     type: 'cliente',
-    company: { cnpj: '', razao_social: '', segmento: '' },
-    client: { tipo: 'pessoa_fisica' },
+    company: {
+      cnpj: '',
+      razao_social: '',
+      nome_fantasia: '',
+      segmento: '',
+      telefone: '',
+      cidade: '',
+      estado: '',
+    },
+    client: {
+      tipo: 'pessoa_fisica',
+      cpf: '',
+      telefone: '',
+    },
   })
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    if (formData.password !== formData.password_confirmation) {
+      toast.error('As senhas nao conferem')
+      return
+    }
+
     setLoading(true)
     try {
       await api.post('/admin/users', formData)
@@ -1371,140 +2200,458 @@ function UserCreateModal({ onClose, onSave }) {
     }
   }
 
+  const typeConfig = {
+    cliente: { icon: UserCheck, color: 'from-green-500 to-emerald-600', label: 'Cliente', desc: 'Usuario que busca servicos' },
+    empresa: { icon: Building2, color: 'from-blue-500 to-indigo-600', label: 'Empresa', desc: 'Prestador de servicos' },
+    // NOTA: Admin removido - nao pode criar admins via interface
+  }
+
+  const canProceed = () => {
+    if (step === 1) {
+      return formData.name && formData.email && formData.password && formData.password === formData.password_confirmation
+    }
+    if (step === 2) {
+      if (formData.type === 'empresa') {
+        return formData.company.cnpj && formData.company.razao_social && formData.company.segmento
+      }
+      return true
+    }
+    return true
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gray-900">Novo Usuario</h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
-            <X className="w-5 h-5" />
-          </button>
+    <div className="fixed inset-0 z-50 flex justify-end">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+      />
+
+      {/* Slide-over Panel */}
+      <div className="relative w-full max-w-xl bg-white shadow-2xl flex flex-col animate-slide-in-right">
+        {/* Header */}
+        <div className="flex-shrink-0 bg-gradient-to-r from-slate-800 to-slate-900 px-6 py-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-2xl flex items-center justify-center shadow-lg">
+                <UserPlus className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">Novo Usuario</h2>
+                <p className="text-slate-400 text-sm">Passo {step} de 2</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="mt-5 flex gap-2">
+            <div className={`h-1.5 flex-1 rounded-full transition-colors ${step >= 1 ? 'bg-blue-400' : 'bg-white/20'}`} />
+            <div className={`h-1.5 flex-1 rounded-full transition-colors ${step >= 2 ? 'bg-blue-400' : 'bg-white/20'}`} />
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Nome *</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
-              required
-            />
-          </div>
+        {/* Form Content */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+          <div className="p-6 space-y-6">
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
-              required
-            />
-          </div>
+            {/* Step 1: Basic Info */}
+            {step === 1 && (
+              <div className="space-y-6">
+                <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-2xl p-5 border border-gray-100">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">
+                    <User className="w-4 h-4 text-blue-500" />
+                    Dados de Acesso
+                  </h3>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Senha *</label>
-            <input
-              type="password"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
-              required
-              minLength={8}
-              placeholder="Minimo 8 caracteres"
-            />
-          </div>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1.5">Nome completo *</label>
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        placeholder="Digite o nome completo"
+                        required
+                      />
+                    </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Tipo *</label>
-            <select
-              value={formData.type}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
-            >
-              <option value="cliente">Cliente</option>
-              <option value="empresa">Empresa</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1.5">Email *</label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                          placeholder="email@exemplo.com"
+                          required
+                        />
+                      </div>
+                    </div>
 
-          {formData.type === 'empresa' && (
-            <>
-              <hr className="my-6" />
-              <h3 className="font-semibold text-gray-900">Dados da Empresa</h3>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">CNPJ *</label>
-                <input
-                  type="text"
-                  value={formData.company.cnpj}
-                  onChange={(e) => setFormData({ ...formData, company: { ...formData.company, cnpj: e.target.value }})}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
-                  required
-                />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1.5">Senha *</label>
+                        <div className="relative">
+                          <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <input
+                            type="password"
+                            value={formData.password}
+                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                            className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                            placeholder="Min. 8 caracteres"
+                            minLength={8}
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1.5">Confirmar senha *</label>
+                        <div className="relative">
+                          <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <input
+                            type="password"
+                            value={formData.password_confirmation}
+                            onChange={(e) => setFormData({ ...formData, password_confirmation: e.target.value })}
+                            className={`w-full pl-10 pr-4 py-3 bg-white border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                              formData.password_confirmation && formData.password !== formData.password_confirmation
+                                ? 'border-red-300 bg-red-50'
+                                : 'border-gray-200'
+                            }`}
+                            placeholder="Repita a senha"
+                            required
+                          />
+                        </div>
+                        {formData.password_confirmation && formData.password !== formData.password_confirmation && (
+                          <p className="text-xs text-red-500 mt-1">As senhas nao conferem</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-2xl p-5 border border-gray-100">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">
+                    <Settings className="w-4 h-4 text-purple-500" />
+                    Tipo de Conta
+                  </h3>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    {Object.entries(typeConfig).map(([type, config]) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, type })}
+                        className={`relative p-4 rounded-xl border-2 transition-all text-left ${
+                          formData.type === type
+                            ? 'border-blue-500 bg-blue-50 ring-4 ring-blue-500/20'
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {formData.type === type && (
+                          <div className="absolute top-2 right-2">
+                            <CheckCircle className="w-5 h-5 text-blue-500" />
+                          </div>
+                        )}
+                        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${config.color} flex items-center justify-center mb-3`}>
+                          <config.icon className="w-5 h-5 text-white" />
+                        </div>
+                        <p className="font-semibold text-gray-900">{config.label}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{config.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Razao Social *</label>
-                <input
-                  type="text"
-                  value={formData.company.razao_social}
-                  onChange={(e) => setFormData({ ...formData, company: { ...formData.company, razao_social: e.target.value }})}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Segmento *</label>
-                <input
-                  type="text"
-                  value={formData.company.segmento}
-                  onChange={(e) => setFormData({ ...formData, company: { ...formData.company, segmento: e.target.value }})}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
-                  required
-                />
-              </div>
-            </>
-          )}
+            )}
 
-          {formData.type === 'cliente' && (
-            <>
-              <hr className="my-6" />
-              <h3 className="font-semibold text-gray-900">Dados do Cliente</h3>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Tipo *</label>
-                <select
-                  value={formData.client.tipo}
-                  onChange={(e) => setFormData({ ...formData, client: { ...formData.client, tipo: e.target.value }})}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
-                >
-                  <option value="pessoa_fisica">Pessoa Fisica</option>
-                  <option value="empresa">Empresa</option>
-                  <option value="autonomo">Autonomo</option>
-                </select>
-              </div>
-            </>
-          )}
+            {/* Step 2: Profile Info */}
+            {step === 2 && (
+              <div className="space-y-6">
+                {/* Company Profile */}
+                {formData.type === 'empresa' && (
+                  <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-2xl p-5 border border-gray-100">
+                    <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">
+                      <Building2 className="w-4 h-4 text-blue-500" />
+                      Dados da Empresa
+                    </h3>
 
-          <div className="flex gap-3 pt-4">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1.5">CNPJ *</label>
+                        <div className="relative">
+                          <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <input
+                            type="text"
+                            value={formData.company.cnpj}
+                            onChange={(e) => setFormData({ ...formData, company: { ...formData.company, cnpj: e.target.value }})}
+                            className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                            placeholder="00.000.000/0000-00"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-1.5">Razao Social *</label>
+                          <input
+                            type="text"
+                            value={formData.company.razao_social}
+                            onChange={(e) => setFormData({ ...formData, company: { ...formData.company, razao_social: e.target.value }})}
+                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-1.5">Nome Fantasia</label>
+                          <input
+                            type="text"
+                            value={formData.company.nome_fantasia}
+                            onChange={(e) => setFormData({ ...formData, company: { ...formData.company, nome_fantasia: e.target.value }})}
+                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-1.5">Segmento *</label>
+                          <div className="relative">
+                            <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input
+                              type="text"
+                              value={formData.company.segmento}
+                              onChange={(e) => setFormData({ ...formData, company: { ...formData.company, segmento: e.target.value }})}
+                              className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                              placeholder="Ex: Tecnologia"
+                              required
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-1.5">Telefone</label>
+                          <div className="relative">
+                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input
+                              type="text"
+                              value={formData.company.telefone}
+                              onChange={(e) => setFormData({ ...formData, company: { ...formData.company, telefone: e.target.value }})}
+                              className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                              placeholder="(00) 0000-0000"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-1.5">Cidade</label>
+                          <input
+                            type="text"
+                            value={formData.company.cidade}
+                            onChange={(e) => setFormData({ ...formData, company: { ...formData.company, cidade: e.target.value }})}
+                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-1.5">Estado</label>
+                          <select
+                            value={formData.company.estado}
+                            onChange={(e) => setFormData({ ...formData, company: { ...formData.company, estado: e.target.value }})}
+                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer"
+                          >
+                            <option value="">Selecione</option>
+                            {['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'].map(uf => (
+                              <option key={uf} value={uf}>{uf}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Client Profile */}
+                {formData.type === 'cliente' && (
+                  <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-2xl p-5 border border-gray-100">
+                    <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">
+                      <UserCheck className="w-4 h-4 text-green-500" />
+                      Dados do Cliente
+                    </h3>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1.5">Tipo de cliente</label>
+                        <select
+                          value={formData.client.tipo}
+                          onChange={(e) => setFormData({ ...formData, client: { ...formData.client, tipo: e.target.value }})}
+                          className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all appearance-none cursor-pointer"
+                        >
+                          <option value="pessoa_fisica">Pessoa Fisica</option>
+                          <option value="empresa">Empresa</option>
+                          <option value="autonomo">Autonomo</option>
+                          <option value="condominio">Condominio</option>
+                        </select>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-1.5">
+                            {formData.client.tipo === 'pessoa_fisica' ? 'CPF' : 'CNPJ'}
+                          </label>
+                          <div className="relative">
+                            <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input
+                              type="text"
+                              value={formData.client.cpf}
+                              onChange={(e) => setFormData({ ...formData, client: { ...formData.client, cpf: e.target.value }})}
+                              className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-600 mb-1.5">Telefone</label>
+                          <div className="relative">
+                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input
+                              type="text"
+                              value={formData.client.telefone}
+                              onChange={(e) => setFormData({ ...formData, client: { ...formData.client, telefone: e.target.value }})}
+                              className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                              placeholder="(00) 00000-0000"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Admin Info */}
+                {formData.type === 'admin' && (
+                  <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-2xl p-6 border border-purple-100">
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-14 h-14 bg-purple-100 rounded-2xl flex items-center justify-center">
+                        <Shield className="w-7 h-7 text-purple-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-purple-900 text-lg">Conta Administrativa</h3>
+                        <p className="text-sm text-purple-600">Este usuario tera acesso total ao sistema</p>
+                      </div>
+                    </div>
+                    <div className="bg-white/60 rounded-xl p-4 text-sm text-purple-700">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" />
+                        <p>Usuarios administradores podem acessar todas as configuracoes, gerenciar usuarios, visualizar relatorios e moderar conteudo. Use com cuidado.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Summary */}
+                <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-5 border border-blue-100">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold text-blue-800 uppercase tracking-wider mb-4">
+                    <FileText className="w-4 h-4" />
+                    Resumo
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="bg-white/60 rounded-xl p-3">
+                      <p className="text-gray-500 text-xs mb-0.5">Nome</p>
+                      <p className="font-medium text-gray-900">{formData.name || '-'}</p>
+                    </div>
+                    <div className="bg-white/60 rounded-xl p-3">
+                      <p className="text-gray-500 text-xs mb-0.5">Email</p>
+                      <p className="font-medium text-gray-900">{formData.email || '-'}</p>
+                    </div>
+                    <div className="bg-white/60 rounded-xl p-3">
+                      <p className="text-gray-500 text-xs mb-0.5">Tipo</p>
+                      <p className="font-medium text-gray-900">{typeConfig[formData.type].label}</p>
+                    </div>
+                    {formData.type === 'empresa' && (
+                      <div className="bg-white/60 rounded-xl p-3">
+                        <p className="text-gray-500 text-xs mb-0.5">Empresa</p>
+                        <p className="font-medium text-gray-900">{formData.company.razao_social || '-'}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </form>
+
+        {/* Footer Actions */}
+        <div className="flex-shrink-0 bg-gray-50 border-t border-gray-200 px-6 py-4">
+          <div className="flex gap-3">
+            {step > 1 && (
+              <button
+                type="button"
+                onClick={() => setStep(step - 1)}
+                className="flex items-center justify-center gap-2 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-100 font-medium transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Voltar
+              </button>
+            )}
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-3 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 font-medium transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-100 font-medium transition-colors"
             >
+              <XCircle className="w-4 h-4" />
               Cancelar
             </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-xl hover:from-blue-700 hover:to-cyan-600 disabled:opacity-50 font-medium transition-all"
-            >
-              {loading ? 'Criando...' : 'Criar Usuario'}
-            </button>
+            {step < 2 ? (
+              <button
+                type="button"
+                onClick={() => setStep(step + 1)}
+                disabled={!canProceed()}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-xl hover:from-blue-700 hover:to-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-all shadow-lg shadow-blue-500/25"
+              >
+                Continuar
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={loading || !canProceed()}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-500 text-white rounded-xl hover:from-green-700 hover:to-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-all shadow-lg shadow-green-500/25"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Criando...
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="w-4 h-4" />
+                    Criar Usuario
+                  </>
+                )}
+              </button>
+            )}
           </div>
-        </form>
+        </div>
       </div>
+
+      <style>{`
+        @keyframes slide-in-right {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        .animate-slide-in-right {
+          animation: slide-in-right 0.3s ease-out;
+        }
+      `}</style>
     </div>
   )
 }

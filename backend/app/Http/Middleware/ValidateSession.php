@@ -9,6 +9,22 @@ use Symfony\Component\HttpFoundation\Response;
 class ValidateSession
 {
     /**
+     * Get session timeout in minutes from config
+     */
+    protected function getSessionTimeoutMinutes(): int
+    {
+        return config('security.session.duration_minutes', 120);
+    }
+
+    /**
+     * Get inactivity timeout in minutes from config
+     */
+    protected function getInactivityTimeoutMinutes(): int
+    {
+        return config('security.session.inactivity_timeout_minutes', 30);
+    }
+
+    /**
      * Handle an incoming request.
      * Validates that the user's session is still valid (single session per user).
      *
@@ -27,9 +43,9 @@ class ValidateSession
             // Revoke current token
             $request->user()->currentAccessToken()->delete();
 
+            // SEGURANCA: Nao expor motivo do bloqueio (pode conter info sensivel)
             return response()->json([
-                'message' => 'Sua conta foi bloqueada. Entre em contato com o suporte.',
-                'reason' => $user->blocked_reason,
+                'message' => 'Sua conta foi bloqueada. Entre em contato com o suporte para mais informacoes.',
                 'code' => 'ACCOUNT_BLOCKED'
             ], 403);
         }
@@ -47,6 +63,39 @@ class ValidateSession
 
         // Refresh user from database to get current session_id
         $freshUser = \App\Models\User::find($user->id);
+
+        // Check session expiry (absolute timeout)
+        if ($freshUser->session_expires_at && now()->isAfter($freshUser->session_expires_at)) {
+            // Session has expired
+            $token->delete();
+            $freshUser->update([
+                'current_session_id' => null,
+                'session_expires_at' => null,
+                'last_activity_at' => null,
+            ]);
+
+            return response()->json([
+                'message' => 'Sua sessao expirou. Por favor, faca login novamente.',
+                'code' => 'SESSION_TIMEOUT'
+            ], 401);
+        }
+
+        // Check inactivity timeout
+        if ($freshUser->last_activity_at &&
+            now()->diffInMinutes($freshUser->last_activity_at) > $this->getInactivityTimeoutMinutes()) {
+            // User has been inactive for too long
+            $token->delete();
+            $freshUser->update([
+                'current_session_id' => null,
+                'session_expires_at' => null,
+                'last_activity_at' => null,
+            ]);
+
+            return response()->json([
+                'message' => 'Sessao encerrada por inatividade. Por favor, faca login novamente.',
+                'code' => 'INACTIVITY_TIMEOUT'
+            ], 401);
+        }
 
         // Validate session - if user's current_session_id doesn't match token's session_id
         if ($freshUser->current_session_id && $tokenSessionId !== $freshUser->current_session_id) {
@@ -66,6 +115,11 @@ class ValidateSession
                 'code' => 'SESSION_EXPIRED'
             ], 401);
         }
+
+        // Update last activity timestamp
+        $freshUser->update([
+            'last_activity_at' => now(),
+        ]);
 
         return $next($request);
     }
