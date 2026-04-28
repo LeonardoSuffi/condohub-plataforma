@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use App\Models\Service;
-use App\Models\Banner;
 use App\Models\User;
 use App\Models\CompanyProfile;
 use App\Models\Deal;
@@ -123,34 +122,6 @@ class PublicController extends Controller
         });
 
         return $this->success($services, 'Lista de servicos');
-    }
-
-    /**
-     * Lista banners ativos
-     */
-    public function banners(Request $request)
-    {
-        $query = Banner::where('active', true)
-            ->where(function ($q) {
-                $q->whereNull('starts_at')
-                    ->orWhere('starts_at', '<=', now());
-            })
-            ->where(function ($q) {
-                $q->whereNull('ends_at')
-                    ->orWhere('ends_at', '>=', now());
-            })
-            ->orderBy('order');
-
-        if ($request->position) {
-            $query->where('position', $request->position);
-        }
-
-        $banners = $query->get();
-
-        // Incrementar views
-        Banner::whereIn('id', $banners->pluck('id'))->increment('views');
-
-        return $this->success($banners, 'Lista de banners');
     }
 
     /**

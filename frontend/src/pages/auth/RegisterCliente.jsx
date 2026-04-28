@@ -238,7 +238,13 @@ export default function RegisterCliente() {
               placeholder="Minimo 8 caracteres"
               {...register('password', {
                 required: 'Senha e obrigatoria',
-                minLength: { value: 8, message: 'Senha deve ter no minimo 8 caracteres' }
+                minLength: { value: 8, message: 'Senha deve ter no minimo 8 caracteres' },
+                validate: {
+                  hasUppercase: (value) => /[A-Z]/.test(value) || 'Senha deve ter pelo menos 1 letra maiuscula',
+                  hasLowercase: (value) => /[a-z]/.test(value) || 'Senha deve ter pelo menos 1 letra minuscula',
+                  hasNumber: (value) => /\d/.test(value) || 'Senha deve ter pelo menos 1 numero',
+                  hasSpecial: (value) => /[^A-Za-z\d]/.test(value) || 'Senha deve ter pelo menos 1 caractere especial'
+                }
               })}
             />
             <button
@@ -292,6 +298,22 @@ export default function RegisterCliente() {
             <li className={`flex items-center gap-2 ${password?.length >= 8 ? 'text-emerald-600' : ''}`}>
               <CheckCircle className={`w-4 h-4 ${password?.length >= 8 ? 'text-emerald-500' : 'text-gray-300'}`} />
               Minimo 8 caracteres
+            </li>
+            <li className={`flex items-center gap-2 ${/[A-Z]/.test(password || '') ? 'text-emerald-600' : ''}`}>
+              <CheckCircle className={`w-4 h-4 ${/[A-Z]/.test(password || '') ? 'text-emerald-500' : 'text-gray-300'}`} />
+              1 letra maiuscula
+            </li>
+            <li className={`flex items-center gap-2 ${/[a-z]/.test(password || '') ? 'text-emerald-600' : ''}`}>
+              <CheckCircle className={`w-4 h-4 ${/[a-z]/.test(password || '') ? 'text-emerald-500' : 'text-gray-300'}`} />
+              1 letra minuscula
+            </li>
+            <li className={`flex items-center gap-2 ${/\d/.test(password || '') ? 'text-emerald-600' : ''}`}>
+              <CheckCircle className={`w-4 h-4 ${/\d/.test(password || '') ? 'text-emerald-500' : 'text-gray-300'}`} />
+              1 numero
+            </li>
+            <li className={`flex items-center gap-2 ${/[^A-Za-z\d]/.test(password || '') ? 'text-emerald-600' : ''}`}>
+              <CheckCircle className={`w-4 h-4 ${/[^A-Za-z\d]/.test(password || '') ? 'text-emerald-500' : 'text-gray-300'}`} />
+              1 caractere especial (@, #, $, etc)
             </li>
           </ul>
         </div>

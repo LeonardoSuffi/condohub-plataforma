@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchMetrics, fetchChartData } from '@/store/slices/reviewsSlice'
+import { useSettings } from '@/contexts/SettingsContext'
 import {
   LineChart,
   Line,
@@ -78,7 +79,12 @@ const CustomTooltip = ({ active, payload, label, formatter }) => {
 export default function ReportsView() {
   const dispatch = useDispatch()
   const { metrics, chartData, loadingMetrics, loadingCharts } = useSelector((state) => state.reviews)
-  const [period, setPeriod] = useState(30)
+  const { getReportsConfig, isChartVisible, isMetricVisible } = useSettings()
+
+  const reportsConfig = useMemo(() => getReportsConfig(), [getReportsConfig])
+  const defaultPeriod = parseInt(reportsConfig.default_period || '30')
+
+  const [period, setPeriod] = useState(defaultPeriod)
   const [showFilters, setShowFilters] = useState(false)
   const [compareMode, setCompareMode] = useState(false)
 
@@ -89,6 +95,10 @@ export default function ReportsView() {
     { value: 180, label: 'Ultimos 6 meses', short: '6M' },
     { value: 365, label: 'Ultimo ano', short: '1A' },
   ]
+
+  // Config helpers
+  const showInsights = reportsConfig.show_insights !== false
+  const showExport = reportsConfig.show_export !== false
 
   useEffect(() => {
     dispatch(fetchMetrics({ period }))
@@ -247,8 +257,9 @@ export default function ReportsView() {
     return { direction: 'neutral', percentage: 0 }
   }
 
-  const stats = [
+  const allStats = [
     {
+      id: 'total_deals',
       label: 'Total de Negociacoes',
       value: totalDeals,
       icon: MessageSquare,
@@ -258,6 +269,7 @@ export default function ReportsView() {
       description: 'Todas as negociacoes no periodo',
     },
     {
+      id: 'conversion_rate',
       label: 'Taxa de Conversao',
       value: `${conversionRate}%`,
       icon: Target,
@@ -267,6 +279,7 @@ export default function ReportsView() {
       description: 'Negociacoes convertidas em servicos',
     },
     {
+      id: 'avg_rating',
       label: 'Media de Avaliacoes',
       value: avgRating.toFixed(1),
       suffix: '/5',
@@ -277,6 +290,7 @@ export default function ReportsView() {
       description: `Baseado em ${totalReviews} avaliacoes`,
     },
     {
+      id: 'completed_services',
       label: 'Servicos Concluidos',
       value: completedDeals,
       icon: CheckCircle2,
@@ -286,6 +300,9 @@ export default function ReportsView() {
       description: 'Servicos finalizados com sucesso',
     },
   ]
+
+  // Filter stats based on visibility settings
+  const stats = allStats.filter(stat => isMetricVisible(stat.id))
 
   // Insights based on data
   const insights = [
@@ -394,44 +411,48 @@ export default function ReportsView() {
               </div>
 
               {/* Export Button */}
-              <div className="relative group">
-                <button className="group relative px-5 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-semibold rounded-xl overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/30 hover:scale-[1.02] active:scale-[0.98] flex items-center gap-2">
-                  <Download className="w-4 h-4" />
-                  <span>Exportar</span>
-                </button>
-                <div className="absolute right-0 top-full mt-2 w-44 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                  <button
-                    onClick={() => handleExport('pdf')}
-                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                  >
-                    <FileText className="w-4 h-4 text-red-500" />
-                    Exportar PDF
+              {showExport && (
+                <div className="relative group">
+                  <button className="group relative px-5 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-semibold rounded-xl overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/30 hover:scale-[1.02] active:scale-[0.98] flex items-center gap-2">
+                    <Download className="w-4 h-4" />
+                    <span>Exportar</span>
                   </button>
-                  <button
-                    onClick={() => handleExport('csv')}
-                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                  >
-                    <FileText className="w-4 h-4 text-emerald-500" />
-                    Exportar CSV
-                  </button>
-                  <button
-                    onClick={() => handleExport('xlsx')}
-                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                  >
-                    <FileText className="w-4 h-4 text-blue-500" />
-                    Exportar Excel
-                  </button>
+                  <div className="absolute right-0 top-full mt-2 w-44 bg-white rounded-xl shadow-2xl border border-gray-100 py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                    <button
+                      onClick={() => handleExport('pdf')}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                    >
+                      <FileText className="w-4 h-4 text-red-500" />
+                      Exportar PDF
+                    </button>
+                    <button
+                      onClick={() => handleExport('csv')}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                    >
+                      <FileText className="w-4 h-4 text-emerald-500" />
+                      Exportar CSV
+                    </button>
+                    <button
+                      onClick={() => handleExport('xlsx')}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                    >
+                      <FileText className="w-4 h-4 text-blue-500" />
+                      Exportar Excel
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Print & Refresh */}
-              <button
-                onClick={handlePrint}
-                className="p-3 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-xl border border-white/10 transition-all text-white"
-                title="Imprimir relatorio"
-              >
-                <Printer className="w-5 h-5" />
-              </button>
+              {showExport && (
+                <button
+                  onClick={handlePrint}
+                  className="p-3 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-xl border border-white/10 transition-all text-white"
+                  title="Imprimir relatorio"
+                >
+                  <Printer className="w-5 h-5" />
+                </button>
+              )}
               <button
                 onClick={handleRefresh}
                 disabled={isLoading}
@@ -474,6 +495,7 @@ export default function ReportsView() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Insights Panel */}
+        {showInsights && (
         <div className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-2xl p-6 mb-8 print:bg-slate-100 print:border">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
@@ -518,6 +540,7 @@ export default function ReportsView() {
             })}
           </div>
         </div>
+        )}
 
         {isLoading && !metrics ? (
           <div className="flex flex-col items-center justify-center py-20">
@@ -529,6 +552,7 @@ export default function ReportsView() {
             {/* Charts Row 1 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
               {/* Deals Timeline */}
+              {isChartVisible('deals_timeline') && (
               <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow">
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-3">
@@ -590,8 +614,10 @@ export default function ReportsView() {
                   )}
                 </div>
               </div>
+              )}
 
               {/* Deal Status Distribution */}
+              {isChartVisible('deals_status') && (
               <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow">
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-3">
@@ -653,11 +679,13 @@ export default function ReportsView() {
                   )}
                 </div>
               </div>
+              )}
             </div>
 
             {/* Charts Row 2 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
               {/* Top Services */}
+              {isChartVisible('top_services') && (
               <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center">
@@ -722,8 +750,10 @@ export default function ReportsView() {
                   )}
                 </div>
               </div>
+              )}
 
               {/* Reviews Timeline */}
+              {isChartVisible('reviews_timeline') && (
               <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow">
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-3">
@@ -785,6 +815,7 @@ export default function ReportsView() {
                   )}
                 </div>
               </div>
+              )}
             </div>
 
             {/* Summary Cards */}

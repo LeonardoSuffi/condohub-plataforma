@@ -387,7 +387,6 @@ export default function CompanyList() {
           { name: 'Usuarios', href: '/admin/users', icon: Users },
           { name: 'Categorias', href: '/admin/categories', icon: Tag },
           { name: 'Planos', href: '/admin/plans', icon: CreditCard },
-          { name: 'Banners', href: '/admin/banners', icon: Image },
           { name: 'Financeiro', href: '/admin/finance', icon: BarChart3 },
         ]
       case 'empresa':

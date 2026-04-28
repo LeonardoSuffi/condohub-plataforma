@@ -1,7 +1,10 @@
 import { Outlet, Link } from 'react-router-dom'
 import { Shield, Star, Clock } from 'lucide-react'
+import { useSettings } from '../../contexts/SettingsContext'
 
 export default function AuthLayout() {
+  const { settings, getLogoUrl } = useSettings()
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Left Side - Branding (Hidden on mobile) */}
@@ -16,18 +19,30 @@ export default function AuthLayout() {
         <div className="relative flex flex-col justify-between w-full p-12 xl:p-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
-              <span className="text-slate-800 font-bold text-xl">S</span>
-            </div>
-            <span className="text-2xl font-bold text-white">
-              ServicePro
-            </span>
+            {getLogoUrl() ? (
+              <img
+                src={getLogoUrl()}
+                alt={settings?.branding?.app_name || 'Logo'}
+                className="h-10 w-auto object-contain brightness-0 invert"
+              />
+            ) : (
+              <>
+                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
+                  <span className="text-slate-800 font-bold text-xl">
+                    {(settings?.branding?.app_name || 'S')[0]}
+                  </span>
+                </div>
+                <span className="text-2xl font-bold text-white">
+                  {settings?.branding?.app_name || 'ServicePro'}
+                </span>
+              </>
+            )}
           </Link>
 
           {/* Main Content */}
           <div className="max-w-md">
             <h1 className="text-4xl xl:text-5xl font-bold text-white leading-tight mb-6">
-              O marketplace de servicos
+              {settings?.branding?.tagline || 'O marketplace de servicos'}
             </h1>
             <p className="text-lg text-slate-300 leading-relaxed mb-10">
               Conectamos voce aos melhores profissionais do mercado. Seguro, rapido e gratuito.
@@ -58,7 +73,7 @@ export default function AuthLayout() {
 
           {/* Footer */}
           <div className="text-sm text-slate-400">
-            {new Date().getFullYear()} ServicePro. Todos os direitos reservados.
+            {new Date().getFullYear()} {settings?.branding?.app_name || 'ServicePro'}. {settings?.footer?.copyright_text || 'Todos os direitos reservados.'}
           </div>
         </div>
       </div>
@@ -68,12 +83,24 @@ export default function AuthLayout() {
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
-            <div className="w-10 h-10 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-xl">S</span>
-            </div>
-            <span className="text-2xl font-bold text-gray-900">
-              Service<span className="text-slate-800">Pro</span>
-            </span>
+            {getLogoUrl() ? (
+              <img
+                src={getLogoUrl()}
+                alt={settings?.branding?.app_name || 'Logo'}
+                className="h-10 w-auto object-contain"
+              />
+            ) : (
+              <>
+                <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center">
+                  <span className="text-white font-bold text-xl">
+                    {(settings?.branding?.app_name || 'S')[0]}
+                  </span>
+                </div>
+                <span className="text-2xl font-bold text-gray-900">
+                  {settings?.branding?.app_name || 'ServicePro'}
+                </span>
+              </>
+            )}
           </div>
 
           {/* Form Container */}

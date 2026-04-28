@@ -1,10 +1,4 @@
 import { test, expect } from '@playwright/test';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 async function loginAsAdmin(page) {
   await page.goto('/login');
@@ -48,13 +42,6 @@ test.describe('Admin Dashboard', () => {
     await page.goto('/admin/plans');
 
     await expect(page.getByText(/planos|plans/i).first()).toBeVisible({ timeout: 10000 });
-  });
-
-  test('should navigate to admin banners page', async ({ page }) => {
-    await loginAsAdmin(page);
-    await page.goto('/admin/banners');
-
-    await expect(page.getByText(/banners/i).first()).toBeVisible({ timeout: 10000 });
   });
 });
 
@@ -113,78 +100,6 @@ test.describe('Admin Users Management', () => {
 
     if (await viewButton.isVisible({ timeout: 5000 }).catch(() => false)) {
       await viewButton.click();
-    }
-  });
-});
-
-test.describe('Admin Banners Management', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/login');
-    await page.context().clearCookies();
-    await page.evaluate(() => localStorage.clear());
-    await page.reload();
-  });
-
-  test('should list all banners', async ({ page }) => {
-    await loginAsAdmin(page);
-    await page.goto('/admin/banners');
-
-    await expect(page.getByText(/banners/i).first()).toBeVisible({ timeout: 10000 });
-  });
-
-  test('should create new banner', async ({ page }) => {
-    await loginAsAdmin(page);
-    await page.goto('/admin/banners');
-
-    await expect(page.getByText(/banners/i).first()).toBeVisible({ timeout: 10000 });
-
-    const createButton = page.getByRole('button', { name: /novo|adicionar|criar/i }).first();
-    if (await createButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await createButton.click();
-
-      // Should show modal or form
-      await expect(page.getByText(/novo banner|criar banner|adicionar/i).first()).toBeVisible({ timeout: 5000 });
-    }
-  });
-
-  test('should upload banner image', async ({ page }) => {
-    await loginAsAdmin(page);
-    await page.goto('/admin/banners');
-
-    await expect(page.getByText(/banners/i).first()).toBeVisible({ timeout: 10000 });
-
-    const createButton = page.getByRole('button', { name: /novo|adicionar|criar/i }).first();
-    if (await createButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await createButton.click();
-
-      // Create test image
-      const testImagePath = path.join(__dirname, 'test-banner.png');
-      const pngData = Buffer.from([
-        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
-        0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
-        0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
-        0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
-        0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41,
-        0x54, 0x08, 0xD7, 0x63, 0xF8, 0xCF, 0xC0, 0x00,
-        0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x05, 0xFE,
-        0xD4, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E,
-        0x44, 0xAE, 0x42, 0x60, 0x82
-      ]);
-      fs.writeFileSync(testImagePath, pngData);
-
-      // Fill form
-      const titleInput = page.getByPlaceholder(/titulo|title/i).or(page.locator('input[name="title"]'));
-      if (await titleInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await titleInput.fill('Banner de Teste E2E');
-      }
-
-      // Upload image
-      const fileInput = page.locator('input[type="file"]').first();
-      if (await fileInput.isVisible({ timeout: 3000 }).catch(() => false) || await fileInput.count() > 0) {
-        await fileInput.setInputFiles(testImagePath);
-      }
-
-      fs.unlinkSync(testImagePath);
     }
   });
 });

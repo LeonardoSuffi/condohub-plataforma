@@ -16,15 +16,25 @@ import {
   CheckCircle,
   KeyRound
 } from 'lucide-react'
+import ReCaptcha from '../../components/auth/ReCaptcha'
 
 export default function Login() {
   const dispatch = useDispatch()
   const navigate = useNavigate()
-  const { loading, error } = useSelector((state) => state.auth)
+  const { loading, error, requiresCaptcha } = useSelector((state) => state.auth)
   const [showPassword, setShowPassword] = useState(false)
   const [view, setView] = useState('login') // 'login' | 'forgot' | 'success'
   const [forgotLoading, setForgotLoading] = useState(false)
   const [sentEmail, setSentEmail] = useState('')
+  const [captchaToken, setCaptchaToken] = useState(null)
+  const [showCaptcha, setShowCaptcha] = useState(false)
+
+  // Show CAPTCHA when required by backend
+  useEffect(() => {
+    if (requiresCaptcha) {
+      setShowCaptcha(true)
+    }
+  }, [requiresCaptcha])
 
   const {
     register,
@@ -48,9 +58,21 @@ export default function Login() {
   }, [error, dispatch])
 
   const onSubmit = async (data) => {
-    const result = await dispatch(login(data))
+    // Include captcha token if CAPTCHA is shown
+    if (showCaptcha && !captchaToken) {
+      toast.error('Complete a verificacao de seguranca')
+      return
+    }
+
+    const credentials = showCaptcha
+      ? { ...data, captcha_token: captchaToken }
+      : data
+
+    const result = await dispatch(login(credentials))
     if (login.fulfilled.match(result)) {
       toast.success('Login realizado com sucesso!')
+      setShowCaptcha(false)
+      setCaptchaToken(null)
       navigate('/dashboard')
     }
   }
@@ -164,6 +186,14 @@ export default function Login() {
                 Esqueceu a senha?
               </button>
             </div>
+
+            {/* CAPTCHA - shown after failed attempts */}
+            {showCaptcha && (
+              <ReCaptcha
+                onVerify={setCaptchaToken}
+                error={null}
+              />
+            )}
 
             {/* Submit */}
             <button

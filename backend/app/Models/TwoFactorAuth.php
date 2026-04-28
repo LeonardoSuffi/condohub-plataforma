@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class TwoFactorAuth extends Model
@@ -71,33 +72,43 @@ class TwoFactorAuth extends Model
         $this->update(['last_used_at' => now()]);
     }
 
+    /**
+     * Generate backup codes (returns plain codes, stores hashed)
+     */
     public function generateBackupCodes(): array
     {
-        $codes = [];
-        for ($i = 0; $i < 10; $i++) {
-            $codes[] = strtoupper(Str::random(4) . '-' . Str::random(4));
+        $plainCodes = [];
+        $hashedCodes = [];
+
+        for ($i = 0; $i < 8; $i++) {
+            $code = strtoupper(Str::random(4) . '-' . Str::random(4));
+            $plainCodes[] = $code;
+            $hashedCodes[] = Hash::make(str_replace('-', '', $code));
         }
 
-        $this->update(['backup_codes' => $codes]);
+        $this->update(['backup_codes' => $hashedCodes]);
 
-        return $codes;
+        return $plainCodes; // Return plain codes to show to user ONCE
     }
 
+    /**
+     * Verify and use a backup code (checks against hashed codes)
+     */
     public function useBackupCode(string $code): bool
     {
-        $codes = $this->backup_codes ?? [];
-        $code = strtoupper(trim($code));
+        $hashedCodes = $this->backup_codes ?? [];
+        $normalizedCode = strtoupper(str_replace(['-', ' '], '', trim($code)));
 
-        $index = array_search($code, $codes);
-        if ($index === false) {
-            return false;
+        foreach ($hashedCodes as $index => $hashedCode) {
+            if (Hash::check($normalizedCode, $hashedCode)) {
+                // Remove used code
+                unset($hashedCodes[$index]);
+                $this->update(['backup_codes' => array_values($hashedCodes)]);
+                return true;
+            }
         }
 
-        // Remove o codigo usado
-        unset($codes[$index]);
-        $this->update(['backup_codes' => array_values($codes)]);
-
-        return true;
+        return false;
     }
 
     public function hasBackupCodes(): bool

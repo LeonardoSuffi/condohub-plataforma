@@ -9,6 +9,7 @@ import ErrorBoundary from './components/ErrorBoundary'
 import { ThemeProvider } from './components/theme-provider'
 import { TooltipProvider } from './components/ui/tooltip'
 import { ChatProvider } from './contexts/ChatContext'
+import { SettingsProvider } from './contexts/SettingsContext'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -16,15 +17,17 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <ErrorBoundary>
       <Provider store={store}>
         <BrowserRouter>
-          <ThemeProvider defaultTheme="light" storageKey="servicepro-ui-theme">
-            <TooltipProvider>
-              <AuthProvider>
-                <ChatProvider>
-                  <App />
-                </ChatProvider>
-              </AuthProvider>
-            </TooltipProvider>
-          </ThemeProvider>
+          <SettingsProvider>
+            <ThemeProvider defaultTheme="light" storageKey="servicepro-ui-theme">
+              <TooltipProvider>
+                <AuthProvider>
+                  <ChatProvider>
+                    <App />
+                  </ChatProvider>
+                </AuthProvider>
+              </TooltipProvider>
+            </ThemeProvider>
+          </SettingsProvider>
         </BrowserRouter>
       </Provider>
     </ErrorBoundary>

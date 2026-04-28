@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { useForm } from 'react-hook-form'
 import { updateProfile, logout } from '../store/slices/authSlice'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
+import api from '../services/api'
 import {
   Shield,
   Bell,
@@ -32,9 +33,140 @@ export default function Settings() {
   const navigate = useNavigate()
   const { user, loading } = useSelector((state) => state.auth)
   const [activeTab, setActiveTab] = useState('account')
+  const [notificationPrefs, setNotificationPrefs] = useState({
+    deals: true,
+    messages: true,
+    status: true,
+    promo: false,
+  })
+  const [privacyPrefs, setPrivacyPrefs] = useState({
+    visible_in_ranking: true,
+    share_anonymous_data: true,
+  })
+  const [savingPrefs, setSavingPrefs] = useState(false)
+  const [savingPrivacy, setSavingPrivacy] = useState(false)
+  const [loadingPrefs, setLoadingPrefs] = useState(true)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deleteConfirmation, setDeleteConfirmation] = useState('')
+  const [deletingAccount, setDeletingAccount] = useState(false)
+  const [exportingData, setExportingData] = useState(false)
 
   const { register, handleSubmit, reset, formState: { errors }, watch } = useForm()
   const newPassword = watch('password')
+
+  // Load notification preferences
+  useEffect(() => {
+    const loadPreferences = async () => {
+      try {
+        const response = await api.get('/users/me/notification-preferences')
+        if (response.data?.data) {
+          const prefs = response.data.data
+          setNotificationPrefs({
+            deals: prefs.deals ?? true,
+            messages: prefs.messages ?? true,
+            status: prefs.status ?? true,
+            promo: prefs.promo ?? false,
+          })
+          setPrivacyPrefs({
+            visible_in_ranking: prefs.visible_in_ranking ?? true,
+            share_anonymous_data: prefs.share_anonymous_data ?? true,
+          })
+        }
+      } catch (error) {
+        console.error('Failed to load preferences:', error)
+      } finally {
+        setLoadingPrefs(false)
+      }
+    }
+    loadPreferences()
+  }, [])
+
+  const handleToggleNotification = (key) => {
+    setNotificationPrefs(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }))
+  }
+
+  const saveNotificationPreferences = async () => {
+    setSavingPrefs(true)
+    try {
+      await api.put('/users/me/notification-preferences', notificationPrefs)
+      toast.success('Preferencias de notificacao salvas!')
+    } catch (error) {
+      toast.error('Erro ao salvar preferencias')
+    } finally {
+      setSavingPrefs(false)
+    }
+  }
+
+  const handleTogglePrivacy = (key) => {
+    setPrivacyPrefs(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }))
+  }
+
+  const savePrivacyPreferences = async () => {
+    setSavingPrivacy(true)
+    try {
+      await api.put('/users/me/notification-preferences', privacyPrefs)
+      toast.success('Configuracoes de privacidade salvas!')
+    } catch (error) {
+      toast.error('Erro ao salvar configuracoes')
+    } finally {
+      setSavingPrivacy(false)
+    }
+  }
+
+  const handleExportData = async () => {
+    setExportingData(true)
+    try {
+      const response = await api.get('/gdpr/download', {
+        responseType: 'blob'
+      })
+
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `meus_dados_${new Date().toISOString().split('T')[0]}.json`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+
+      toast.success('Dados exportados com sucesso!')
+    } catch (error) {
+      toast.error('Erro ao exportar dados')
+    } finally {
+      setExportingData(false)
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmation !== 'EXCLUIR') {
+      toast.error('Digite EXCLUIR para confirmar')
+      return
+    }
+
+    setDeletingAccount(true)
+    try {
+      await api.post('/gdpr/delete-account', {
+        password: deletePassword,
+        confirmation: deleteConfirmation
+      })
+
+      toast.success('Conta excluida com sucesso')
+      dispatch(logout())
+      navigate('/login')
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Erro ao excluir conta')
+    } finally {
+      setDeletingAccount(false)
+    }
+  }
 
   const onPasswordChange = async (data) => {
     if (data.password !== data.password_confirmation) {
@@ -406,34 +538,49 @@ export default function Settings() {
                     Preferencias de Notificacao
                   </h3>
 
-                  <div className="space-y-4">
-                    {[
-                      { id: 'deals', label: 'Novas negociacoes', desc: 'Receba avisos quando houver novas propostas', default: true, icon: '🤝' },
-                      { id: 'messages', label: 'Mensagens no chat', desc: 'Notificacoes de novas mensagens', default: true, icon: '💬' },
-                      { id: 'status', label: 'Status de negociacoes', desc: 'Mudancas de status das suas negociacoes', default: true, icon: '📊' },
-                      { id: 'promo', label: 'E-mails promocionais', desc: 'Novidades e ofertas especiais', default: false, icon: '📧' },
-                    ].map((item) => (
-                      <div key={item.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-xl shadow-sm">
-                            {item.icon}
+                  {loadingPrefs ? (
+                    <div className="flex justify-center py-8">
+                      <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {[
+                        { id: 'deals', label: 'Novas negociacoes', desc: 'Receba avisos quando houver novas propostas', icon: '🤝' },
+                        { id: 'messages', label: 'Mensagens no chat', desc: 'Notificacoes de novas mensagens', icon: '💬' },
+                        { id: 'status', label: 'Status de negociacoes', desc: 'Mudancas de status das suas negociacoes', icon: '📊' },
+                        { id: 'promo', label: 'E-mails promocionais', desc: 'Novidades e ofertas especiais', icon: '📧' },
+                      ].map((item) => (
+                        <div key={item.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-xl shadow-sm">
+                              {item.icon}
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">{item.label}</p>
+                              <p className="text-sm text-gray-500">{item.desc}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-medium text-gray-900">{item.label}</p>
-                            <p className="text-sm text-gray-500">{item.desc}</p>
-                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={notificationPrefs[item.id] ?? false}
+                              onChange={() => handleToggleNotification(item.id)}
+                              className="sr-only peer"
+                            />
+                            <div className="w-12 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-violet-500/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600 shadow-inner"></div>
+                          </label>
                         </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input type="checkbox" defaultChecked={item.default} className="sr-only peer" />
-                          <div className="w-12 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-violet-500/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600 shadow-inner"></div>
-                        </label>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
 
-                  <button className="mt-6 flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white font-medium rounded-xl hover:from-violet-700 hover:to-purple-700 transition-all shadow-lg shadow-violet-500/25">
+                  <button
+                    onClick={saveNotificationPreferences}
+                    disabled={savingPrefs || loadingPrefs}
+                    className="mt-6 flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white font-medium rounded-xl hover:from-violet-700 hover:to-purple-700 transition-all shadow-lg shadow-violet-500/25 disabled:opacity-50"
+                  >
                     <Save className="w-5 h-5" />
-                    Salvar Preferencias
+                    {savingPrefs ? 'Salvando...' : 'Salvar Preferencias'}
                   </button>
                 </div>
               </div>
@@ -448,39 +595,64 @@ export default function Settings() {
                     Configuracoes de Privacidade
                   </h3>
 
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-violet-100 rounded-lg flex items-center justify-center">
-                          <Globe className="w-5 h-5 text-violet-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900">Perfil visivel no ranking</p>
-                          <p className="text-sm text-gray-500">Permitir que sua empresa apareca nas listagens publicas</p>
-                        </div>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" defaultChecked className="sr-only peer" />
-                        <div className="w-12 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-violet-500/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600 shadow-inner"></div>
-                      </label>
+                  {loadingPrefs ? (
+                    <div className="flex justify-center py-8">
+                      <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
                     </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-violet-100 rounded-lg flex items-center justify-center">
+                            <Globe className="w-5 h-5 text-violet-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">Perfil visivel no ranking</p>
+                            <p className="text-sm text-gray-500">Permitir que sua empresa apareca nas listagens publicas</p>
+                          </div>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={privacyPrefs.visible_in_ranking}
+                            onChange={() => handleTogglePrivacy('visible_in_ranking')}
+                            className="sr-only peer"
+                          />
+                          <div className="w-12 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-violet-500/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600 shadow-inner"></div>
+                        </label>
+                      </div>
 
-                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                          <SettingsIcon className="w-5 h-5 text-blue-600" />
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <SettingsIcon className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">Compartilhar dados anonimos</p>
+                            <p className="text-sm text-gray-500">Ajude a melhorar a plataforma com dados anonimizados</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-gray-900">Compartilhar dados anonimos</p>
-                          <p className="text-sm text-gray-500">Ajude a melhorar a plataforma com dados anonimizados</p>
-                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={privacyPrefs.share_anonymous_data}
+                            onChange={() => handleTogglePrivacy('share_anonymous_data')}
+                            className="sr-only peer"
+                          />
+                          <div className="w-12 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-violet-500/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600 shadow-inner"></div>
+                        </label>
                       </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" defaultChecked className="sr-only peer" />
-                        <div className="w-12 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-violet-500/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600 shadow-inner"></div>
-                      </label>
+
+                      <button
+                        onClick={savePrivacyPreferences}
+                        disabled={savingPrivacy}
+                        className="mt-4 flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white font-medium rounded-xl hover:from-violet-700 hover:to-purple-700 transition-all shadow-lg shadow-violet-500/25 disabled:opacity-50"
+                      >
+                        <Save className="w-5 h-5" />
+                        {savingPrivacy ? 'Salvando...' : 'Salvar Configuracoes'}
+                      </button>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* LGPD Section */}
@@ -493,11 +665,18 @@ export default function Settings() {
                     Voce tem controle total sobre seus dados. Exporte uma copia ou solicite a exclusao da sua conta.
                   </p>
                   <div className="flex flex-wrap gap-3">
-                    <button className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white font-medium rounded-xl hover:from-violet-700 hover:to-purple-700 transition-all shadow-lg shadow-violet-500/25">
+                    <button
+                      onClick={handleExportData}
+                      disabled={exportingData}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white font-medium rounded-xl hover:from-violet-700 hover:to-purple-700 transition-all shadow-lg shadow-violet-500/25 disabled:opacity-50"
+                    >
                       <Download className="w-5 h-5" />
-                      Exportar Dados
+                      {exportingData ? 'Exportando...' : 'Exportar Dados'}
                     </button>
-                    <button className="flex items-center gap-2 px-4 py-2.5 border border-red-200 text-red-600 font-medium rounded-xl hover:bg-red-50 transition-colors">
+                    <button
+                      onClick={() => setShowDeleteModal(true)}
+                      className="flex items-center gap-2 px-4 py-2.5 border border-red-200 text-red-600 font-medium rounded-xl hover:bg-red-50 transition-colors"
+                    >
                       <Trash2 className="w-5 h-5" />
                       Excluir Conta
                     </button>
@@ -519,6 +698,91 @@ export default function Settings() {
           </div>
         </div>
       </div>
+
+      {/* Delete Account Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div
+            className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm"
+            onClick={() => setShowDeleteModal(false)}
+          />
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Excluir Conta</h3>
+                  <p className="text-sm text-gray-500">Esta acao e irreversivel</p>
+                </div>
+              </div>
+
+              <p className="text-gray-600 text-sm mb-6">
+                Todos os seus dados serao permanentemente removidos. Esta acao nao pode ser desfeita.
+              </p>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Sua senha
+                  </label>
+                  <input
+                    type="password"
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                    placeholder="Digite sua senha"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Digite <span className="font-bold text-red-600">EXCLUIR</span> para confirmar
+                  </label>
+                  <input
+                    type="text"
+                    value={deleteConfirmation}
+                    onChange={(e) => setDeleteConfirmation(e.target.value.toUpperCase())}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                    placeholder="EXCLUIR"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(false)
+                    setDeletePassword('')
+                    setDeleteConfirmation('')
+                  }}
+                  className="flex-1 px-4 py-3 text-gray-700 font-medium bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={deletingAccount || deleteConfirmation !== 'EXCLUIR' || !deletePassword}
+                  className="flex-1 px-4 py-3 bg-red-600 text-white font-medium rounded-xl hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                >
+                  {deletingAccount ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Excluindo...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      Excluir Conta
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

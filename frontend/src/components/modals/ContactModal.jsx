@@ -36,12 +36,20 @@ export default function ContactModal({
   const storageUrl = STORAGE_URL
   const logoUrl = company?.logo_url || null
 
+  // Set initial service when modal opens or selectedService changes
   useEffect(() => {
     if (isOpen) {
-      setServiceId(selectedService?.id?.toString() || '')
+      if (selectedService?.id) {
+        setServiceId(String(selectedService.id))
+      } else if (services.length === 1) {
+        // Auto-select if only one service
+        setServiceId(String(services[0].id))
+      } else {
+        setServiceId('')
+      }
       setMessage('')
     }
-  }, [isOpen, selectedService])
+  }, [isOpen, selectedService, services])
 
   if (!isOpen) return null
 
@@ -144,7 +152,7 @@ export default function ContactModal({
                       </span>
                     )}
                     {company?.cidade && (
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-600">
                         {company.cidade}
                       </span>
                     )}
@@ -162,18 +170,20 @@ export default function ContactModal({
               <label className="block text-sm font-semibold text-gray-900 mb-2">
                 Servico de interesse
               </label>
-              {selectedService ? (
-                <div className="p-4 bg-gradient-to-br from-slate-50 to-gray-50 border border-slate-200 rounded-xl">
+
+              {/* Show selected service as card if pre-selected */}
+              {selectedService && serviceId ? (
+                <div className="p-4 bg-gradient-to-br from-emerald-50 to-teal-50 border-2 border-emerald-200 rounded-xl">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-slate-800 rounded-lg flex items-center justify-center">
+                    <div className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center">
                       <Briefcase className="w-5 h-5 text-white" />
                     </div>
                     <div className="flex-1">
                       <p className="font-medium text-gray-900">
-                        {selectedService.titulo || selectedService.title}
+                        {selectedService.titulo || selectedService.title || selectedService.name || 'Serviço Selecionado'}
                       </p>
                       {(selectedService.preco_minimo || selectedService.price_range) && (
-                        <p className="text-sm text-slate-600 mt-0.5">
+                        <p className="text-sm text-emerald-700 mt-0.5">
                           {selectedService.price_range || `A partir de R$ ${parseFloat(selectedService.preco_minimo).toLocaleString('pt-BR')}`}
                         </p>
                       )}
@@ -181,22 +191,53 @@ export default function ContactModal({
                     <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0" />
                   </div>
                 </div>
+              ) : services.length > 0 ? (
+                /* Dropdown for service selection */
+                <div className="relative">
+                  <select
+                    value={serviceId}
+                    onChange={(e) => setServiceId(e.target.value)}
+                    className="w-full px-4 py-3.5 bg-white border-2 border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all cursor-pointer"
+                    style={{ WebkitAppearance: 'menulist', MozAppearance: 'menulist', appearance: 'menulist' }}
+                    required
+                  >
+                    <option value="">Selecione um servico...</option>
+                    {services.map((service) => (
+                      <option key={service.id} value={String(service.id)}>
+                        {service.titulo || service.title || service.name || `Serviço #${service.id}`}
+                        {(service.preco_minimo || service.price_range) &&
+                          ` - ${service.price_range || `R$ ${parseFloat(service.preco_minimo).toLocaleString('pt-BR')}`}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               ) : (
-                <select
-                  value={serviceId}
-                  onChange={(e) => setServiceId(e.target.value)}
-                  className="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-400 transition-all appearance-none cursor-pointer"
-                  required
-                >
-                  <option value="">Selecione um servico...</option>
+                /* No services available */
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-center">
+                  <p className="text-amber-700 text-sm">
+                    Esta empresa ainda nao cadastrou servicos.
+                  </p>
+                </div>
+              )}
+
+              {/* Service chips for quick selection when multiple services */}
+              {!selectedService && services.length > 1 && services.length <= 5 && (
+                <div className="flex flex-wrap gap-2 mt-3">
                   {services.map((service) => (
-                    <option key={service.id} value={service.id}>
-                      {service.titulo || service.title}
-                      {service.preco_minimo &&
-                        ` - R$ ${parseFloat(service.preco_minimo).toLocaleString('pt-BR')}`}
-                    </option>
+                    <button
+                      key={service.id}
+                      type="button"
+                      onClick={() => setServiceId(String(service.id))}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${
+                        serviceId === String(service.id)
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {service.titulo || service.title || service.name || `Serviço #${service.id}`}
+                    </button>
                   ))}
-                </select>
+                </div>
               )}
             </div>
 
@@ -204,7 +245,7 @@ export default function ContactModal({
             <div>
               <label className="block text-sm font-semibold text-gray-900 mb-2">
                 Mensagem inicial
-                <span className="text-gray-400 font-normal ml-1">(opcional)</span>
+                <span className="text-gray-500 font-normal ml-1">(opcional)</span>
               </label>
               <textarea
                 value={message}
@@ -212,13 +253,13 @@ export default function ContactModal({
                 placeholder="Descreva o que voce precisa, prazos, detalhes do projeto..."
                 rows={3}
                 maxLength={1000}
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-400 transition-all resize-none"
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-400 transition-all resize-none"
               />
               <div className="flex items-center justify-between mt-2">
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-gray-500">
                   Seja especifico para receber um orcamento mais preciso
                 </p>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-gray-500">
                   {message.length}/1000
                 </p>
               </div>
@@ -255,7 +296,7 @@ export default function ContactModal({
                       <span className="text-xs text-slate-600 mt-1.5 font-medium">{item.label}</span>
                     </div>
                     {idx < 2 && (
-                      <ArrowRight className="w-4 h-4 text-slate-300 mx-3" />
+                      <ArrowRight className="w-4 h-4 text-slate-400 mx-3" />
                     )}
                   </div>
                 ))}
@@ -275,8 +316,8 @@ export default function ContactModal({
             </button>
             <button
               onClick={handleSubmit}
-              disabled={loading || !serviceId}
-              className="flex-1 px-5 py-3 bg-gradient-to-r from-slate-800 to-slate-900 text-white font-semibold rounded-xl hover:from-slate-900 hover:to-black disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-lg shadow-slate-900/20"
+              disabled={loading || !serviceId || services.length === 0}
+              className="flex-1 px-5 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-xl hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
             >
               {loading ? (
                 <>

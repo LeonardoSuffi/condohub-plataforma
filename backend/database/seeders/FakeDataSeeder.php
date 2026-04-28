@@ -13,7 +13,6 @@ use App\Models\Service;
 use App\Models\Deal;
 use App\Models\Order;
 use App\Models\Message;
-use App\Models\Banner;
 use App\Models\Transaction;
 use App\Models\Notification;
 use Illuminate\Support\Facades\Hash;
@@ -251,54 +250,6 @@ class FakeDataSeeder extends Seeder
     ];
 
     /**
-     * Banners promocionais e informativos
-     */
-    protected array $banners = [
-        [
-            'title' => 'Bem-vindo ao ServicePro!',
-            'description' => 'A plataforma completa para conectar voce aos melhores profissionais.',
-            'position' => 'topo',
-            'type' => 'admin',
-            'link' => '/services',
-        ],
-        [
-            'title' => 'Plano Premium - 30% OFF',
-            'description' => 'Destaque seus serviços e aumente suas vendas! Promoção válida até o fim do mês.',
-            'position' => 'topo',
-            'type' => 'promocional',
-            'link' => '/plans',
-        ],
-        [
-            'title' => 'ManutenPro - Manutenção Predial',
-            'description' => 'Especialistas em manutenção com 15 anos de experiência. Solicite orçamento!',
-            'position' => 'lateral',
-            'type' => 'comercial',
-            'link' => '/services',
-        ],
-        [
-            'title' => 'SegurMax - Portaria 24h',
-            'description' => 'Seguranca profissional para sua empresa. Portaria e CFTV.',
-            'position' => 'lateral',
-            'type' => 'comercial',
-            'link' => '/services',
-        ],
-        [
-            'title' => 'Novidade: Chat em Tempo Real',
-            'description' => 'Negocie diretamente com fornecedores pelo chat da plataforma.',
-            'position' => 'modal',
-            'type' => 'admin',
-            'link' => '/deals',
-        ],
-        [
-            'title' => 'ElevaTec - Elevadores',
-            'description' => 'Manutenção de elevadores de todas as marcas. Contrato mensal a partir de R$ 800.',
-            'position' => 'topo',
-            'type' => 'comercial',
-            'link' => '/services',
-        ],
-    ];
-
-    /**
      * Serviços por categoria
      */
     protected array $servicosPorCategoria = [
@@ -363,9 +314,6 @@ class FakeDataSeeder extends Seeder
 
         $this->command->info('Criando negociações e ordens de exemplo...');
         $this->createDealsAndOrders($empresasCreated, $clientesCreated);
-
-        $this->command->info('Criando banners promocionais...');
-        $this->createBanners();
 
         $this->command->info('Criando notificações de exemplo...');
         $this->createNotifications($empresasCreated, $clientesCreated);
@@ -596,31 +544,6 @@ class FakeDataSeeder extends Seeder
                 'content_original' => $msg['msg'],
                 'created_at' => now()->subHours(rand(1, 72)),
             ]);
-        }
-    }
-
-    /**
-     * Cria banners promocionais e informativos
-     */
-    protected function createBanners(): void
-    {
-        $order = 1;
-        foreach ($this->banners as $banner) {
-            Banner::create([
-                'title' => $banner['title'],
-                'description' => $banner['description'],
-                'image_path' => 'banners/placeholder-' . $order . '.jpg', // Placeholder
-                'link' => $banner['link'],
-                'position' => $banner['position'],
-                'type' => $banner['type'],
-                'active' => true,
-                'order' => $order,
-                'starts_at' => now()->subDays(rand(1, 30)),
-                'ends_at' => now()->addDays(rand(30, 90)),
-                'views' => rand(100, 5000),
-                'clicks' => rand(10, 500),
-            ]);
-            $order++;
         }
     }
 

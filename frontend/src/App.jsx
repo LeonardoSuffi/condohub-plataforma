@@ -35,9 +35,9 @@ import ReportsView from './pages/reports/ReportsView'
 import AdminPanel from './pages/admin/AdminPanel'
 import AdminUsers from './pages/admin/AdminUsers'
 import AdminPlans from './pages/admin/AdminPlans'
-import AdminBanners from './pages/admin/AdminBanners'
 import AdminCategories from './pages/admin/AdminCategories'
 import AdminFinance from './pages/admin/AdminFinance'
+import AdminSettings from './pages/admin/AdminSettings'
 
 // Loading component for route guards
 const RouteLoading = () => (
@@ -157,9 +157,9 @@ function App() {
         <Route path="/admin" element={<AdminRoute><AdminPanel /></AdminRoute>} />
         <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
         <Route path="/admin/plans" element={<AdminRoute><AdminPlans /></AdminRoute>} />
-        <Route path="/admin/banners" element={<AdminRoute><AdminBanners /></AdminRoute>} />
         <Route path="/admin/categories" element={<AdminRoute><AdminCategories /></AdminRoute>} />
         <Route path="/admin/finance" element={<AdminRoute><AdminFinance /></AdminRoute>} />
+        <Route path="/admin/settings" element={<AdminRoute><AdminSettings /></AdminRoute>} />
       </Route>
 
       {/* 404 Redirect */}

@@ -16,7 +16,13 @@ class RegisterEmpresaRequest extends FormRequest
         return [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
+            'password' => [
+                'required',
+                'string',
+                'min:8',
+                'confirmed',
+                'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).+$/',
+            ],
             'cnpj' => 'required|string|size:18|unique:company_profiles',
             'razao_social' => 'required|string|max:255',
             'nome_fantasia' => 'nullable|string|max:255',
@@ -35,6 +41,7 @@ class RegisterEmpresaRequest extends FormRequest
             'password.required' => 'A senha é obrigatória.',
             'password.min' => 'A senha deve ter no mínimo 8 caracteres.',
             'password.confirmed' => 'As senhas não conferem.',
+            'password.regex' => 'A senha deve conter pelo menos: 1 letra maiuscula, 1 minuscula, 1 numero e 1 caractere especial.',
             'cnpj.required' => 'O CNPJ é obrigatório.',
             'cnpj.size' => 'O CNPJ deve ter 18 caracteres (com formatação).',
             'cnpj.unique' => 'Este CNPJ já está cadastrado.',

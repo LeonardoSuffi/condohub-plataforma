@@ -8,10 +8,28 @@ use App\Models\User;
 class NotificationService
 {
     /**
+     * Map notification types to preference keys
+     */
+    private array $typeToPreference = [
+        'deal_new' => 'deals',
+        'deal_status' => 'status',
+        'message' => 'messages',
+        'order_status' => 'status',
+        'subscription' => 'promo',
+        'system' => null, // Always send system notifications
+    ];
+
+    /**
      * Cria uma notificacao para um usuario
      */
-    public function create(User $user, string $type, string $title, string $message, array $data = []): Notification
+    public function create(User $user, string $type, string $title, string $message, array $data = []): ?Notification
     {
+        // Check if user has notifications enabled for this type
+        $preferenceKey = $this->typeToPreference[$type] ?? null;
+        if ($preferenceKey !== null && !$user->hasNotificationEnabled($preferenceKey)) {
+            return null; // User disabled this notification type
+        }
+
         return Notification::create([
             'user_id' => $user->id,
             'type' => $type,
@@ -24,7 +42,7 @@ class NotificationService
     /**
      * Notifica sobre nova negociacao
      */
-    public function notifyNewDeal(User $user, $deal): Notification
+    public function notifyNewDeal(User $user, $deal): ?Notification
     {
         $serviceName = $deal->service?->titulo ?? 'servico';
 
@@ -44,7 +62,7 @@ class NotificationService
     /**
      * Notifica sobre mudanca de status da negociacao
      */
-    public function notifyDealStatusChange(User $user, $deal, string $newStatus): Notification
+    public function notifyDealStatusChange(User $user, $deal, string $newStatus): ?Notification
     {
         $serviceName = $deal->service?->titulo ?? 'negociacao';
 
@@ -80,7 +98,7 @@ class NotificationService
     /**
      * Notifica sobre nova mensagem
      */
-    public function notifyNewMessage(User $user, $deal, $message): Notification
+    public function notifyNewMessage(User $user, $deal, $message): ?Notification
     {
         $serviceName = $deal->service?->titulo ?? 'negociacao';
 
@@ -100,7 +118,7 @@ class NotificationService
     /**
      * Notifica sobre mudanca de status da ordem
      */
-    public function notifyOrderStatusChange(User $user, $order, string $newStatus): Notification
+    public function notifyOrderStatusChange(User $user, $order, string $newStatus): ?Notification
     {
         $statusMessages = [
             'aprovada' => 'Sua ordem foi aprovada!',
@@ -122,7 +140,7 @@ class NotificationService
     /**
      * Notifica sobre assinatura
      */
-    public function notifySubscription(User $user, string $action, $subscription = null): Notification
+    public function notifySubscription(User $user, string $action, $subscription = null): ?Notification
     {
         $messages = [
             'created' => 'Seu plano foi ativado com sucesso!',
@@ -144,7 +162,7 @@ class NotificationService
     /**
      * Notifica mensagem do sistema
      */
-    public function notifySystem(User $user, string $title, string $message, array $data = []): Notification
+    public function notifySystem(User $user, string $title, string $message, array $data = []): ?Notification
     {
         return $this->create($user, 'system', $title, $message, $data);
     }

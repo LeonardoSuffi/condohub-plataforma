@@ -199,4 +199,99 @@ class ActivityLogService
             ->limit($limit)
             ->get();
     }
+
+    /**
+     * Log de verificacao de email
+     */
+    public function logEmailVerified(User $user): ActivityLog
+    {
+        return $this->log($user, ActivityLog::ACTION_EMAIL_VERIFIED);
+    }
+
+    /**
+     * Log de login de novo dispositivo
+     */
+    public function logNewDeviceLogin(User $user, array $deviceInfo = []): ActivityLog
+    {
+        return $this->log($user, ActivityLog::ACTION_NEW_DEVICE_LOGIN, null, $deviceInfo);
+    }
+
+    /**
+     * Log de tentativa de login falha
+     */
+    public function logFailedLogin(?User $user, string $email, string $ip, string $userAgent): void
+    {
+        // Se temos o usuario, logamos com o user_id
+        if ($user) {
+            $this->log($user, ActivityLog::ACTION_FAILED_LOGIN, null, [
+                'email_attempted' => $email,
+                'ip_address' => $ip,
+            ]);
+        }
+        // Se nao temos usuario (email nao existe), nao logamos na tabela activity_logs
+        // pois ela requer user_id. O log de tentativas de emails inexistentes
+        // pode ser feito em um sistema de logs separado se necessario.
+    }
+
+    /**
+     * Log de CAPTCHA acionado
+     */
+    public function logCaptchaTriggered(User $user): ActivityLog
+    {
+        return $this->log($user, ActivityLog::ACTION_CAPTCHA_TRIGGERED);
+    }
+
+    /**
+     * Log de acesso a dados sensiveis
+     */
+    public function logSensitiveDataAccess(User $user, string $dataType, ?Model $entity = null): ActivityLog
+    {
+        return $this->log($user, ActivityLog::ACTION_SENSITIVE_DATA_ACCESS, $entity, [
+            'data_type' => $dataType,
+        ]);
+    }
+
+    /**
+     * Log de atualizacao de usuario por admin
+     */
+    public function logAdminUserUpdate(User $admin, User $targetUser, array $changes = []): ActivityLog
+    {
+        return $this->log($admin, ActivityLog::ACTION_ADMIN_USER_UPDATE, $targetUser, [
+            'target_user_id' => $targetUser->id,
+            'fields_changed' => array_keys($changes),
+        ]);
+    }
+
+    /**
+     * Log de bloqueio de usuario por admin
+     */
+    public function logAdminUserBlock(User $admin, User $targetUser, ?string $reason = null): ActivityLog
+    {
+        return $this->log($admin, ActivityLog::ACTION_ADMIN_USER_BLOCK, $targetUser, [
+            'target_user_id' => $targetUser->id,
+            'reason' => $reason,
+        ]);
+    }
+
+    /**
+     * Log de desbloqueio de usuario por admin
+     */
+    public function logAdminUserUnblock(User $admin, User $targetUser): ActivityLog
+    {
+        return $this->log($admin, ActivityLog::ACTION_ADMIN_USER_UNBLOCK, $targetUser, [
+            'target_user_id' => $targetUser->id,
+        ]);
+    }
+
+    /**
+     * Obter todas as atividades de admin
+     */
+    public function getAdminActivities(int $limit = 50)
+    {
+        return ActivityLog::adminActions()
+            ->with('user')
+            ->latest('created_at')
+            ->limit($limit)
+            ->get();
+    }
 }

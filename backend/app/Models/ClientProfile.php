@@ -6,10 +6,20 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
+use App\Traits\MasksSensitiveData;
 
 class ClientProfile extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, MasksSensitiveData;
+
+    /**
+     * Campos que devem ser mascarados na API
+     */
+    protected array $maskedFields = [
+        'cpf' => 'cpf',
+        'cnpj' => 'cnpj',
+        'telefone' => 'phone',
+    ];
 
     protected $appends = ['cover_url'];
 

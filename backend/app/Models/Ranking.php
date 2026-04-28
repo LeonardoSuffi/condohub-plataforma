@@ -17,6 +17,7 @@ class Ranking extends Model
         'deals_completed',
         'total_value',
         'position',
+        'previous_position',
         'breakdown',
     ];
 
@@ -27,6 +28,7 @@ class Ranking extends Model
             'total_value' => 'decimal:2',
             'deals_completed' => 'integer',
             'position' => 'integer',
+            'previous_position' => 'integer',
             'breakdown' => 'array',
         ];
     }
@@ -115,7 +117,11 @@ class Ranking extends Model
 
         $position = 1;
         foreach ($rankings as $ranking) {
-            $ranking->update(['position' => $position]);
+            // Save previous position before updating
+            $ranking->update([
+                'previous_position' => $ranking->position,
+                'position' => $position,
+            ]);
             $position++;
         }
     }

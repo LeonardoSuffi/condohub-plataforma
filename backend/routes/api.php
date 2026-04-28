@@ -13,7 +13,6 @@ use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\RankingController;
 use App\Http\Controllers\Admin\AdminController;
-use App\Http\Controllers\Admin\BannerController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PublicController;
 use App\Http\Controllers\CompanyController;
@@ -23,6 +22,7 @@ use App\Http\Controllers\SecurityController;
 use App\Http\Controllers\GdprController;
 use App\Http\Controllers\MetricsController;
 use App\Http\Controllers\CepController;
+use App\Http\Controllers\Admin\SettingsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -41,6 +41,13 @@ Route::prefix('auth')->middleware('throttle:auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:password-reset');
     Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:password-reset');
+
+    // Email verification
+    Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
+        ->middleware('signed')
+        ->name('verification.verify');
+    Route::post('/email/resend', [AuthController::class, 'resendVerificationEmail'])
+        ->middleware('throttle:6,1');
 });
 
 // Categorias públicas para exibição
@@ -51,7 +58,6 @@ Route::prefix('public')->middleware('throttle:api')->group(function () {
     Route::get('/categories', [PublicController::class, 'categories']);
     Route::get('/services', [PublicController::class, 'services']);
     Route::get('/services/recent', [PublicController::class, 'recentServices']);
-    Route::get('/banners', [PublicController::class, 'banners']);
     Route::get('/stats', [PublicController::class, 'stats']);
 
     // Empresas públicas
@@ -70,6 +76,9 @@ Route::prefix('public')->middleware('throttle:api')->group(function () {
 // CEP - Rota publica (para cadastro)
 Route::get('/cep/{cep}', [CepController::class, 'fetch'])->middleware('throttle:api');
 Route::get('/cep/search/{estado}/{cidade}/{logradouro}', [CepController::class, 'search'])->middleware('throttle:api');
+
+// Settings publicas (para frontend)
+Route::get('/settings/public', [SettingsController::class, 'publicSettings'])->middleware('throttle:api');
 
 // ============================================
 // ROTAS AUTENTICADAS
@@ -93,6 +102,8 @@ Route::middleware(['auth:sanctum', 'validateSession'])->group(function () {
     Route::delete('/users/me/logo', [UserController::class, 'removeLogo']);
     Route::post('/users/me/cover', [UserController::class, 'uploadCover']);
     Route::delete('/users/me/cover', [UserController::class, 'removeCover']);
+    Route::get('/users/me/notification-preferences', [UserController::class, 'getNotificationPreferences']);
+    Route::put('/users/me/notification-preferences', [UserController::class, 'updateNotificationPreferences']);
 
     // -----------------------------------------
     // SEGURANCA
@@ -243,19 +254,24 @@ Route::middleware(['auth:sanctum', 'validateSession'])->group(function () {
     // ROTAS ADMINISTRATIVAS
     // ============================================
 
-    Route::prefix('admin')->middleware('isAdmin')->group(function () {
+    Route::prefix('admin')->middleware(['isAdmin', 'throttle:admin'])->group(function () {
         // Usuários - CRUD completo
         Route::get('/users', [AdminController::class, 'listUsers']);
-        Route::get('/users/export', [AdminController::class, 'exportUsers']);
         Route::get('/users/{id}', [AdminController::class, 'showUser']);
         Route::post('/users', [AdminController::class, 'createUser']);
         Route::patch('/users/{id}', [AdminController::class, 'updateUser']);
-        Route::delete('/users/{id}', [AdminController::class, 'deleteUser']);
 
-        // Usuários - Ações específicas
-        Route::patch('/users/{id}/verify', [AdminController::class, 'verifyCompany']);
-        Route::post('/users/{id}/reset-password', [AdminController::class, 'resetUserPassword']);
-        Route::post('/users/{id}/subscription', [AdminController::class, 'manageSubscription']);
+        // Export com rate limit especifico
+        Route::get('/users/export', [AdminController::class, 'exportUsers'])->middleware('throttle:admin-export');
+
+        // Acoes criticas com rate limit mais restritivo
+        Route::middleware('throttle:admin-critical')->group(function () {
+            Route::delete('/users/{id}', [AdminController::class, 'deleteUser']);
+            Route::patch('/users/{id}/verify', [AdminController::class, 'verifyCompany']);
+            Route::post('/users/{id}/reset-password', [AdminController::class, 'resetUserPassword']);
+            Route::post('/users/{id}/subscription', [AdminController::class, 'manageSubscription']);
+        });
+
         Route::post('/users/{id}/send-verification', [AdminController::class, 'sendVerificationEmail']);
         Route::post('/users/{id}/verify-email', [AdminController::class, 'verifyEmail']);
 
@@ -263,12 +279,6 @@ Route::middleware(['auth:sanctum', 'validateSession'])->group(function () {
         Route::get('/plans', [AdminController::class, 'listPlans']);
         Route::post('/plans', [AdminController::class, 'storePlan']);
         Route::put('/plans/{id}', [AdminController::class, 'updatePlan']);
-
-        // Banners
-        Route::get('/banners', [BannerController::class, 'index']);
-        Route::post('/banners', [BannerController::class, 'store']);
-        Route::put('/banners/{id}', [BannerController::class, 'update']);
-        Route::delete('/banners/{id}', [BannerController::class, 'destroy']);
 
         // Categorias
         Route::get('/categories', [CategoryController::class, 'adminIndex']);
@@ -281,7 +291,19 @@ Route::middleware(['auth:sanctum', 'validateSession'])->group(function () {
         Route::get('/finance', [AdminController::class, 'financeOverview']);
         Route::get('/transactions', [AdminController::class, 'listTransactions']);
 
-        // Ranking - reset manual
-        Route::post('/ranking/reset', [RankingController::class, 'resetCycle']);
+        // Analytics completo para dashboard
+        Route::get('/analytics', [AdminController::class, 'analytics']);
+
+        // Ranking - reset manual (acao critica)
+        Route::post('/ranking/reset', [RankingController::class, 'resetCycle'])->middleware('throttle:admin-critical');
+
+        // Settings da plataforma
+        Route::get('/settings', [SettingsController::class, 'index']);
+        Route::put('/settings', [SettingsController::class, 'update']);
+        Route::post('/settings/logo', [SettingsController::class, 'uploadLogo']);
+        Route::post('/settings/favicon', [SettingsController::class, 'uploadFavicon']);
+        Route::post('/settings/og-image', [SettingsController::class, 'uploadOgImage']);
+        Route::delete('/settings/logo', [SettingsController::class, 'removeLogo']);
+        Route::delete('/settings/favicon', [SettingsController::class, 'removeFavicon']);
     });
 });

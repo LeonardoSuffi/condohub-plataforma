@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useSelector } from 'react-redux'
 import api from '../services/api'
+import { useSettings } from '../contexts/SettingsContext'
 import {
   Trophy,
   Star,
@@ -26,6 +27,19 @@ export default function RankingView() {
   const { user } = useSelector((state) => state.auth)
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const { getRankingConfig, isBenefitVisible, isTipVisible } = useSettings()
+
+  const rankingConfig = useMemo(() => getRankingConfig(), [getRankingConfig])
+  const scoring = rankingConfig.scoring || {}
+  const showPodium = rankingConfig.show_podium !== false
+  const showHowItWorks = rankingConfig.show_how_it_works !== false
+  const showBenefits = rankingConfig.show_benefits !== false
+  const showTips = rankingConfig.show_tips !== false
+  const resetPeriod = rankingConfig.reset_period || 'semestral'
+
+  // Get visible benefits and tips from config
+  const visibleBenefits = (rankingConfig.benefits || []).filter(b => b.visible)
+  const visibleTips = (rankingConfig.tips || []).filter(t => t.visible)
 
   useEffect(() => {
     loadRanking()
@@ -208,6 +222,8 @@ export default function RankingView() {
           {/* Ranking List - Main */}
           <div className="lg:col-span-2 space-y-6">
             {/* Top 3 Podium */}
+            {/* Podium - Top 3 */}
+            {showPodium && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="px-6 py-5 border-b border-gray-100">
                 <div className="flex items-center gap-3">
@@ -262,6 +278,7 @@ export default function RankingView() {
                 </div>
               </div>
             </div>
+            )}
 
             {/* Full Ranking List */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -304,6 +321,7 @@ export default function RankingView() {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* How it Works */}
+            {showHowItWorks && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="px-6 py-5 border-b border-gray-100">
                 <div className="flex items-center gap-3">
@@ -318,10 +336,10 @@ export default function RankingView() {
               </div>
               <div className="p-6 space-y-4">
                 {[
-                  { icon: DollarSign, color: 'bg-emerald-100 text-emerald-600', text: 'R$ 1,00 em servicos = 0.1 pts' },
-                  { icon: CheckCircle, color: 'bg-blue-100 text-blue-600', text: 'Deal concluido = +10 pts' },
-                  { icon: Star, color: 'bg-amber-100 text-amber-600', text: 'Avaliacao 5 estrelas = +5 pts' },
-                  { icon: Calendar, color: 'bg-violet-100 text-violet-600', text: 'Reset semestral do ranking' },
+                  { icon: DollarSign, color: 'bg-emerald-100 text-emerald-600', text: `R$ 1,00 em servicos = ${scoring.revenue_multiplier || 0.1} pts` },
+                  { icon: CheckCircle, color: 'bg-blue-100 text-blue-600', text: `Deal concluido = +${scoring.deal_completed_points || 10} pts` },
+                  { icon: Star, color: 'bg-amber-100 text-amber-600', text: `Avaliacao 5 estrelas = +${scoring.five_star_review_points || 5} pts` },
+                  { icon: Calendar, color: 'bg-violet-100 text-violet-600', text: `Reset ${resetPeriod} do ranking` },
                 ].map((item, idx) => (
                   <div key={idx} className="flex items-center gap-3">
                     <div className={`w-9 h-9 rounded-lg ${item.color} flex items-center justify-center flex-shrink-0`}>
@@ -332,8 +350,10 @@ export default function RankingView() {
                 ))}
               </div>
             </div>
+            )}
 
             {/* Benefits */}
+            {showBenefits && visibleBenefits.length > 0 && (
             <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-100">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center">
@@ -342,32 +362,35 @@ export default function RankingView() {
                 <h3 className="font-bold text-gray-900">Beneficios do Top 10</h3>
               </div>
               <ul className="space-y-3">
-                {[
-                  'Destaque na busca de empresas',
-                  'Badge exclusivo de Top Performer',
-                  'Prioridade em leads qualificados',
-                  'Exposicao em campanhas da plataforma',
-                ].map((benefit, idx) => (
-                  <li key={idx} className="flex items-start gap-2 text-sm text-gray-600">
+                {visibleBenefits.map((benefit) => (
+                  <li key={benefit.id} className="flex items-start gap-2 text-sm text-gray-600">
                     <CheckCircle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                    {benefit}
+                    {benefit.title}
                   </li>
                 ))}
               </ul>
             </div>
+            )}
 
             {/* Tips */}
+            {showTips && visibleTips.length > 0 && (
             <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-6 border border-blue-100">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
                   <Zap className="w-5 h-5 text-white" />
                 </div>
-                <h3 className="font-bold text-gray-900">Dica</h3>
+                <h3 className="font-bold text-gray-900">Dicas</h3>
               </div>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                Mantenha seu perfil atualizado, responda rapidamente e entregue servicos de qualidade para subir no ranking e atrair mais clientes.
-              </p>
+              <ul className="space-y-2">
+                {visibleTips.map((tip) => (
+                  <li key={tip.id} className="flex items-start gap-2 text-sm text-gray-600">
+                    <CheckCircle className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                    {tip.text}
+                  </li>
+                ))}
+              </ul>
             </div>
+            )}
           </div>
         </div>
       </div>

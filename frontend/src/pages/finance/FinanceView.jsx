@@ -36,22 +36,30 @@ export default function FinanceView() {
   const loadFinanceData = async () => {
     try {
       const response = await api.get('/finance/transactions')
-      setData(response.data.data)
+      const responseData = response.data.data
+      // Only set data if there are actual transactions
+      if (responseData?.transactions?.length > 0) {
+        setData(responseData)
+      } else {
+        // No transactions yet - show empty state
+        setData({
+          summary: {
+            total: { received: 0, commissions_paid: 0, net: 0 },
+            current_month: { received: 0, commissions_paid: 0, net: 0 },
+            pending: 0
+          },
+          transactions: []
+        })
+      }
     } catch (_error) {
-      // Dados mock para demonstracao
+      // No data available - empty state
       setData({
         summary: {
-          total: { received: 25000, commissions_paid: 2500, net: 22500 },
-          current_month: { received: 5000, commissions_paid: 500, net: 4500 },
-          pending: 3500
+          total: { received: 0, commissions_paid: 0, net: 0 },
+          current_month: { received: 0, commissions_paid: 0, net: 0 },
+          pending: 0
         },
-        transactions: [
-          { id: 1, type: 'servico', description: 'Manutencao predial', amount: 1500, commission: 150, net_amount: 1350, status: 'concluida', created_at: new Date().toISOString() },
-          { id: 2, type: 'assinatura', description: 'Plano Premium - Mensal', amount: 99, commission: 0, net_amount: 99, status: 'concluida', created_at: new Date(Date.now() - 86400000).toISOString() },
-          { id: 3, type: 'servico', description: 'Instalacao eletrica', amount: 2000, commission: 200, net_amount: 1800, status: 'pendente', created_at: new Date(Date.now() - 172800000).toISOString() },
-          { id: 4, type: 'servico', description: 'Pintura externa', amount: 3500, commission: 350, net_amount: 3150, status: 'processando', created_at: new Date(Date.now() - 259200000).toISOString() },
-          { id: 5, type: 'estorno', description: 'Estorno - Servico cancelado', amount: -500, commission: 0, net_amount: -500, status: 'concluida', created_at: new Date(Date.now() - 345600000).toISOString() },
-        ]
+        transactions: []
       })
     } finally {
       setLoading(false)
@@ -327,12 +335,18 @@ export default function FinanceView() {
               </div>
 
               {filteredTransactions.length === 0 ? (
-                <div className="text-center py-16">
-                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <DollarSign className="w-8 h-8 text-gray-400" />
+                <div className="text-center py-16 px-6">
+                  <div className="w-20 h-20 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                    <Wallet className="w-10 h-10 text-emerald-500" />
                   </div>
-                  <p className="text-gray-500 font-medium">Nenhuma transacao encontrada</p>
-                  <p className="text-sm text-gray-400 mt-1">Tente ajustar os filtros</p>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Pagamentos em breve</h3>
+                  <p className="text-gray-500 max-w-sm mx-auto mb-6">
+                    Estamos preparando a integracao com gateway de pagamento. Em breve voce podera receber pagamentos diretamente pela plataforma.
+                  </p>
+                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-full text-sm font-medium">
+                    <Clock className="w-4 h-4" />
+                    Em desenvolvimento
+                  </div>
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100">

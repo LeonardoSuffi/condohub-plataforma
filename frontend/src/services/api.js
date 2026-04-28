@@ -8,10 +8,34 @@ const api = axios.create({
   },
   timeout: 30000, // 30 second timeout
   withCredentials: true, // Importante para CSRF cookies
+  xsrfCookieName: 'XSRF-TOKEN',
+  xsrfHeaderName: 'X-XSRF-TOKEN',
 })
 
 // Flag to prevent multiple 401 redirects
 let isRedirecting = false
+
+// Flag to prevent multiple CSRF refreshes
+let isRefreshingCsrf = false
+let csrfRefreshPromise = null
+
+// Function to get CSRF cookie
+const getCsrfCookie = async () => {
+  if (isRefreshingCsrf) {
+    return csrfRefreshPromise
+  }
+
+  isRefreshingCsrf = true
+  csrfRefreshPromise = axios.get('/sanctum/csrf-cookie', {
+    baseURL: '',
+    withCredentials: true,
+  }).finally(() => {
+    isRefreshingCsrf = false
+    csrfRefreshPromise = null
+  })
+
+  return csrfRefreshPromise
+}
 
 // Track last API activity for session management
 const SESSION_STORAGE_KEY = 'last_api_activity'
@@ -35,7 +59,7 @@ export const getLastApiActivity = () => {
 
 // Request Interceptor
 api.interceptors.request.use(
-  (config) => {
+  async (config) => {
     const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
@@ -45,6 +69,16 @@ api.interceptors.request.use(
     // For other requests, explicitly set JSON content type
     if (!(config.data instanceof FormData)) {
       config.headers['Content-Type'] = 'application/json'
+    }
+
+    // Ensure CSRF cookie exists for mutating requests
+    const mutatingMethods = ['post', 'put', 'patch', 'delete']
+    if (mutatingMethods.includes(config.method?.toLowerCase())) {
+      // Check if XSRF-TOKEN cookie exists
+      const hasXsrfCookie = document.cookie.includes('XSRF-TOKEN')
+      if (!hasXsrfCookie) {
+        await getCsrfCookie()
+      }
     }
 
     // Update last activity timestamp
@@ -62,7 +96,7 @@ api.interceptors.response.use(
   (response) => {
     return response
   },
-  (error) => {
+  async (error) => {
     // Handle network errors
     if (!error.response) {
       // Network error or timeout
@@ -93,7 +127,11 @@ api.interceptors.response.use(
         if (hadToken) {
           const errorCode = data?.code
           if (errorCode === 'SESSION_EXPIRED') {
-            toast.error('Sua sessao foi encerrada. Outro login foi detectado.')
+            toast.error('Sua sessao foi encerrada. Outro login foi detectado em outro dispositivo.')
+          } else if (errorCode === 'SESSION_TIMEOUT') {
+            toast.error('Sua sessao expirou. Por favor, faca login novamente.')
+          } else if (errorCode === 'INACTIVITY_TIMEOUT') {
+            toast.error('Sessao encerrada por inatividade. Por favor, faca login novamente.')
           } else {
             toast.error('Sessao expirada. Faca login novamente.')
           }
@@ -129,6 +167,19 @@ api.interceptors.response.use(
       return Promise.reject(error)
     }
 
+    // Handle 419 - CSRF Token Mismatch
+    if (status === 419) {
+      // Get fresh CSRF token and retry the request
+      try {
+        await getCsrfCookie()
+        // Retry the original request
+        return api.request(error.config)
+      } catch (csrfError) {
+        toast.error('Erro de seguranca. Recarregue a pagina.')
+        return Promise.reject(error)
+      }
+    }
+
     // Handle 404 - Not Found
     if (status === 404) {
       // Don't show toast for 404 - let the component handle it
@@ -136,14 +187,9 @@ api.interceptors.response.use(
     }
 
     // Handle 422 - Validation Error
+    // Don't show toast here - let the component handle validation errors
+    // This allows components to handle errors with more context (e.g., CAPTCHA requirements)
     if (status === 422) {
-      const errors = data.errors
-      if (errors) {
-        const firstError = Object.values(errors)[0]
-        toast.error(Array.isArray(firstError) ? firstError[0] : firstError)
-      } else {
-        toast.error(message)
-      }
       return Promise.reject(error)
     }
 
@@ -165,4 +211,5 @@ api.interceptors.response.use(
   }
 )
 
+export { getCsrfCookie }
 export default api

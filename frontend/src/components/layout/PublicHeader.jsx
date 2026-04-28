@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import { Menu, X, Building2, Search, Briefcase, Home, MessageSquare, LayoutDashboard } from 'lucide-react'
+import { useSettings } from '../../contexts/SettingsContext'
 
 export default function PublicHeader() {
   const location = useLocation()
   const { isAuthenticated, user, initialized } = useSelector((state) => state.auth)
+  const { settings, getLogoUrl } = useSettings()
 
   // Only consider authenticated if both initialized AND isAuthenticated are true
   const isLoggedIn = initialized && isAuthenticated
@@ -80,12 +82,24 @@ export default function PublicHeader() {
         <div className="flex items-center justify-between h-16 lg:h-18">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-xl">S</span>
-            </div>
-            <span className="text-xl font-bold text-gray-900">
-              Service<span className="text-slate-800">Pro</span>
-            </span>
+            {getLogoUrl() ? (
+              <img
+                src={getLogoUrl()}
+                alt={settings?.branding?.app_name || 'Logo'}
+                className="h-10 w-auto object-contain"
+              />
+            ) : (
+              <>
+                <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center">
+                  <span className="text-white font-bold text-xl">
+                    {(settings?.branding?.app_name || 'S')[0]}
+                  </span>
+                </div>
+                <span className="text-xl font-bold text-gray-900">
+                  {settings?.branding?.app_name || 'ServicePro'}
+                </span>
+              </>
+            )}
           </Link>
 
           {/* Desktop Navigation */}

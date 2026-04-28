@@ -3,6 +3,8 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { logout } from '../store/slices/authSlice'
 import NotificationDropdown from '../components/NotificationDropdown'
+import SessionMonitor from '../components/SessionMonitor'
+import { useSettings } from '../contexts/SettingsContext'
 import { STORAGE_URL } from '../lib/config'
 import {
   Menu,
@@ -29,6 +31,7 @@ export default function SiteLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, initialized, initialLoading } = useSelector((state) => state.auth)
+  const { settings, getLogoUrl } = useSettings()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
 
@@ -74,8 +77,8 @@ export default function SiteLayout() {
           { name: 'Usuarios', href: '/admin/users', icon: Users },
           { name: 'Categorias', href: '/admin/categories', icon: Tag },
           { name: 'Planos', href: '/admin/plans', icon: CreditCard },
-          { name: 'Banners', href: '/admin/banners', icon: Image },
           { name: 'Financeiro', href: '/admin/finance', icon: BarChart3 },
+          { name: 'Config', href: '/admin/settings', icon: Settings },
         ]
       case 'empresa':
         return [
@@ -107,18 +110,33 @@ export default function SiteLayout() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Session Monitor - Auto-logout por inatividade */}
+      <SessionMonitor />
+
       {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link to="/dashboard" className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-xl">S</span>
-              </div>
-              <span className="text-xl font-bold text-gray-900 hidden sm:block">
-                Service<span className="text-slate-800">Pro</span>
-              </span>
+              {getLogoUrl() ? (
+                <img
+                  src={getLogoUrl()}
+                  alt={settings?.branding?.app_name || 'Logo'}
+                  className="h-10 w-auto object-contain"
+                />
+              ) : (
+                <>
+                  <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center">
+                    <span className="text-white font-bold text-xl">
+                      {(settings?.branding?.app_name || 'S')[0]}
+                    </span>
+                  </div>
+                  <span className="text-xl font-bold text-gray-900 hidden sm:block">
+                    {settings?.branding?.app_name || 'ServicePro'}
+                  </span>
+                </>
+              )}
             </Link>
 
             {/* Desktop Navigation */}
@@ -282,7 +300,7 @@ export default function SiteLayout() {
       {/* Main Content */}
       <main className={`flex-1 ${
         // Páginas com hero full-width não recebem padding/max-width
-        ['/dashboard', '/my-services', '/profile', '/ranking', '/finance', '/deals', '/settings', '/empresas', '/reports', '/admin', '/admin/users', '/admin/categories', '/admin/plans', '/admin/banners', '/admin/finance'].includes(location.pathname)
+        ['/dashboard', '/my-services', '/profile', '/ranking', '/finance', '/deals', '/settings', '/empresas', '/reports', '/admin', '/admin/users', '/admin/categories', '/admin/plans', '/admin/finance', '/admin/settings'].includes(location.pathname)
           ? ''
           : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6'
       }`}>
@@ -293,7 +311,7 @@ export default function SiteLayout() {
       <footer className="bg-white border-t border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <p className="text-center text-sm text-gray-500">
-            2024 ServicePro. Todos os direitos reservados.
+            {new Date().getFullYear()} {settings?.branding?.app_name || 'ServicePro'}. {settings?.footer?.copyright_text || 'Todos os direitos reservados.'}
           </p>
         </div>
       </footer>

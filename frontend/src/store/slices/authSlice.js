@@ -2,6 +2,29 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import api from '../../services/api'
 
 // Async Thunks
+// Helper to extract error message from Laravel validation response
+const extractErrorMessage = (error, defaultMessage) => {
+  const data = error.response?.data
+  if (data?.errors) {
+    // Get first error from errors object
+    const firstErrorKey = Object.keys(data.errors)[0]
+    const firstError = data.errors[firstErrorKey]
+    if (Array.isArray(firstError)) {
+      return firstError[0]
+    }
+    return firstError
+  }
+  return data?.message || defaultMessage
+}
+
+// Helper to check if CAPTCHA is required
+const checkCaptchaRequired = (error) => {
+  const errors = error.response?.data?.errors
+  // Laravel ValidationException returns arrays, so check for [true] or true
+  const requiresCaptcha = errors?.requires_captcha
+  return requiresCaptcha === true || (Array.isArray(requiresCaptcha) && requiresCaptcha[0] === true)
+}
+
 export const login = createAsyncThunk(
   'auth/login',
   async (credentials, { rejectWithValue }) => {
@@ -11,7 +34,9 @@ export const login = createAsyncThunk(
       localStorage.setItem('token', token)
       return { user, token }
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || 'Erro ao fazer login')
+      const message = extractErrorMessage(error, 'Erro ao fazer login')
+      const requiresCaptcha = checkCaptchaRequired(error)
+      return rejectWithValue({ message, requiresCaptcha })
     }
   }
 )
@@ -107,6 +132,7 @@ const initialState = {
   initialLoading: !!token, // True if there's a token to verify
   initialized: !token, // True if no token (no need to verify), false if there's token
   error: null,
+  requiresCaptcha: false, // True after 3 failed login attempts
 }
 
 const authSlice = createSlice({
@@ -151,7 +177,8 @@ const authSlice = createSlice({
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false
-        state.error = action.payload
+        state.error = action.payload?.message || action.payload
+        state.requiresCaptcha = action.payload?.requiresCaptcha || false
         state.initialLoading = false
         state.initialized = true
       })

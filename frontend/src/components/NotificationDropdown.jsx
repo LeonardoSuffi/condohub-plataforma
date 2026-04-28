@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import {
   fetchNotifications,
   fetchUnreadCount,
@@ -31,9 +32,11 @@ export default function NotificationDropdown() {
   const { isAuthenticated, user } = useSelector((state) => state.auth)
   const [isOpen, setIsOpen] = useState(false)
   const [isAnimating, setIsAnimating] = useState(false)
+  const [hasNewNotification, setHasNewNotification] = useState(false)
   const dropdownRef = useRef(null)
   const pollingRef = useRef(null)
   const fastPollingRef = useRef(null)
+  const prevUnreadCountRef = useRef(unreadCount)
 
   // Click outside handler
   useEffect(() => {
@@ -45,6 +48,56 @@ export default function NotificationDropdown() {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  // Detect new notifications and show toast
+  useEffect(() => {
+    if (unreadCount > prevUnreadCountRef.current && prevUnreadCountRef.current !== null) {
+      // New notification arrived
+      setHasNewNotification(true)
+
+      // Show toast notification
+      toast.custom((t) => (
+        <div
+          className={`${
+            t.visible ? 'animate-enter' : 'animate-leave'
+          } max-w-md w-full bg-white shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5`}
+        >
+          <div className="flex-1 w-0 p-4">
+            <div className="flex items-start">
+              <div className="flex-shrink-0 pt-0.5">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
+                  <Bell className="w-5 h-5 text-white" />
+                </div>
+              </div>
+              <div className="ml-3 flex-1">
+                <p className="text-sm font-medium text-gray-900">
+                  Nova notificacao
+                </p>
+                <p className="mt-1 text-sm text-gray-500">
+                  Voce tem {unreadCount} notificacao{unreadCount > 1 ? 'es' : ''} nao lida{unreadCount > 1 ? 's' : ''}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="flex border-l border-gray-200">
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="w-full border border-transparent rounded-none rounded-r-lg p-4 flex items-center justify-center text-sm font-medium text-gray-600 hover:text-gray-500 focus:outline-none"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      ), {
+        duration: 5000,
+        position: 'top-right',
+      })
+
+      // Reset animation after 3 seconds
+      setTimeout(() => setHasNewNotification(false), 3000)
+    }
+    prevUnreadCountRef.current = unreadCount
+  }, [unreadCount])
 
   // Polling for unread count - only when authenticated and user exists
   useEffect(() => {
@@ -60,12 +113,12 @@ export default function NotificationDropdown() {
     // Initial fetch
     dispatch(fetchUnreadCount())
 
-    // Standard polling every 30 seconds
+    // Standard polling every 15 seconds for faster notification updates
     pollingRef.current = setInterval(() => {
       if (!isOpen) {
         dispatch(fetchUnreadCount())
       }
-    }, 30000)
+    }, 15000)
 
     return () => {
       if (pollingRef.current) {
@@ -253,7 +306,7 @@ export default function NotificationDropdown() {
             : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
         }`}
       >
-        <Bell className={`w-5 h-5 transition-transform duration-200 ${isOpen ? 'scale-110' : ''}`} />
+        <Bell className={`w-5 h-5 transition-transform duration-200 ${isOpen ? 'scale-110' : ''} ${hasNewNotification ? 'animate-bounce' : ''}`} />
 
         {/* Animated Badge */}
         {unreadCount > 0 && (

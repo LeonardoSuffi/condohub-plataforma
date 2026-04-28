@@ -1,9 +1,11 @@
 import { useSelector } from 'react-redux'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { useEffect, useState, useCallback } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import api from '../services/api'
 import CompanyCarousel from '../components/common/CompanyCarousel'
+import DraggableCarousel from '../components/common/DraggableCarousel'
 import { STORAGE_URL } from '../lib/config'
+import { useSettings } from '../contexts/SettingsContext'
 import {
   Search,
   ChevronRight,
@@ -33,10 +35,32 @@ import {
   ThumbsUp,
 } from 'lucide-react'
 
+// Simple cache with TTL (5 minutes)
+const cache = {
+  data: {},
+  timestamps: {},
+  TTL: 5 * 60 * 1000, // 5 minutes
+  get(key) {
+    const timestamp = this.timestamps[key]
+    if (timestamp && Date.now() - timestamp < this.TTL) {
+      return this.data[key]
+    }
+    return null
+  },
+  set(key, value) {
+    this.data[key] = value
+    this.timestamps[key] = Date.now()
+  },
+  clear() {
+    this.data = {}
+    this.timestamps = {}
+  }
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
-  const location = useLocation()
   const { user } = useSelector((state) => state.auth)
+  const { getDashboardSections, isSectionVisible, getSectionConfig } = useSettings()
   const [categories, setCategories] = useState([])
   const [recentDeals, setRecentDeals] = useState([])
   const [stats, setStats] = useState({})
@@ -58,35 +82,61 @@ export default function Dashboard() {
   const [nearbyCompanies, setNearbyCompanies] = useState([])
   const [companiesByCategory, setCompaniesByCategory] = useState({})
 
-  // Recarrega dados quando a pagina e acessada (location.key muda a cada navegacao)
-  useEffect(() => {
-    setLoading(true)
-    loadData()
-  }, [location.key])
+  // Obter tipo de usuario e secoes visiveis
+  const userType = user?.type === 'empresa' ? 'empresa' : 'cliente'
+  const visibleSections = useMemo(() => getDashboardSections(userType), [getDashboardSections, userType])
 
-  // Helper function to fetch with retry
-  const fetchWithRetry = async (url, params = {}, retries = 2) => {
-    for (let i = 0; i <= retries; i++) {
-      try {
-        const response = await api.get(url, { params })
-        return response
-      } catch (error) {
-        if (i === retries) {
+  // Refs to prevent duplicate/concurrent loads
+  const isLoadingRef = useRef(false)
+  const hasLoadedRef = useRef(false)
+
+  // Load data only once on mount, not on every navigation
+  useEffect(() => {
+    if (!hasLoadedRef.current && !isLoadingRef.current) {
+      loadData()
+    }
+  }, [])
+
+  // Helper function to fetch with cache and retry
+  const fetchWithCache = async (url, params = {}) => {
+    const cacheKey = `${url}?${JSON.stringify(params)}`
+    const cached = cache.get(cacheKey)
+    if (cached) {
+      return cached
+    }
+
+    try {
+      const response = await api.get(url, { params })
+      cache.set(cacheKey, response)
+      return response
+    } catch (error) {
+      // On 429, wait and retry once
+      if (error.response?.status === 429) {
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        try {
+          const response = await api.get(url, { params })
+          cache.set(cacheKey, response)
+          return response
+        } catch {
           return { data: { data: [] } }
         }
-        // Wait before retry (exponential backoff)
-        await new Promise(resolve => setTimeout(resolve, 500 * (i + 1)))
       }
+      return { data: { data: [] } }
     }
-    return { data: { data: [] } }
   }
 
   const loadData = async () => {
+    // Prevent concurrent/duplicate loads
+    if (isLoadingRef.current) return
+    isLoadingRef.current = true
+    setLoading(true)
+
     try {
+      // BATCH 1: Essential data (categories, deals, stats)
       const [catRes, dealsRes, platformStatsRes] = await Promise.all([
-        fetchWithRetry('/public/categories'),
-        fetchWithRetry('/deals', { per_page: 5 }),
-        fetchWithRetry('/public/stats'),
+        fetchWithCache('/public/categories'),
+        fetchWithCache('/deals', { per_page: 5 }),
+        fetchWithCache('/public/stats'),
       ])
 
       // Platform stats for hero section
@@ -112,58 +162,66 @@ export default function Dashboard() {
         completed_deals: deals.filter(d => d.status === 'completed' || d.status === 'concluido').length,
       })
 
-      // Load companies with retry
-      const [
-        featuredRes,
-        topRatedRes,
-        newRes,
-        mostHiredRes,
-        verifiedRes,
-      ] = await Promise.all([
-        fetchWithRetry('/public/companies', { per_page: 20, order_by: 'deals' }),
-        fetchWithRetry('/public/companies', { per_page: 20, order_by: 'rating' }),
-        fetchWithRetry('/public/companies', { per_page: 20, order_by: 'created_at' }),
-        fetchWithRetry('/public/companies', { per_page: 20, order_by: 'services' }),
-        fetchWithRetry('/public/companies', { per_page: 20, verified_only: true }),
+      // Small delay between batches to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // BATCH 2: First set of company lists (staggered)
+      const [featuredRes, topRatedRes] = await Promise.all([
+        fetchWithCache('/public/companies', { per_page: 20, order_by: 'deals' }),
+        fetchWithCache('/public/companies', { per_page: 20, order_by: 'rating' }),
       ])
 
-      const featured = extractCompanies(featuredRes)
-      const topRated = extractCompanies(topRatedRes)
-      const newOnes = extractCompanies(newRes)
-      const mostHired = extractCompanies(mostHiredRes)
-      const verified = extractCompanies(verifiedRes)
+      setFeaturedCompanies(extractCompanies(featuredRes))
+      setTopRatedCompanies(extractCompanies(topRatedRes))
 
-      setFeaturedCompanies(featured)
-      setTopRatedCompanies(topRated)
-      setNewCompanies(newOnes)
-      setMostHiredCompanies(mostHired)
-      setVerifiedCompanies(verified)
+      // Small delay
+      await new Promise(resolve => setTimeout(resolve, 100))
 
+      // BATCH 3: Second set of company lists
+      const [newRes, mostHiredRes] = await Promise.all([
+        fetchWithCache('/public/companies', { per_page: 20, order_by: 'created_at' }),
+        fetchWithCache('/public/companies', { per_page: 20, order_by: 'services' }),
+      ])
+
+      setNewCompanies(extractCompanies(newRes))
+      setMostHiredCompanies(extractCompanies(mostHiredRes))
+
+      // Small delay
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // BATCH 4: Verified companies
+      const verifiedRes = await fetchWithCache('/public/companies', { per_page: 20, verified_only: true })
+      setVerifiedCompanies(extractCompanies(verifiedRes))
+
+      // BATCH 5: Optional - nearby companies (only if user has city)
       if (user?.cidade || user?.profile?.cidade) {
+        await new Promise(resolve => setTimeout(resolve, 100))
         const cidade = user?.cidade || user?.profile?.cidade
-        const nearbyRes = await fetchWithRetry('/public/companies', { per_page: 20, cidade })
+        const nearbyRes = await fetchWithCache('/public/companies', { per_page: 20, cidade })
         setNearbyCompanies(extractCompanies(nearbyRes))
       }
 
+      // BATCH 6: Category-specific companies (sequential to avoid rate limit)
       const parentCats = (Array.isArray(categoriesData) ? categoriesData : []).filter(c => !c.parent_id).slice(0, 3)
-      const categoryPromises = parentCats.map(async cat => {
-        const res = await fetchWithRetry('/public/companies', { per_page: 20, category_id: cat.id })
-        return { category: cat, companies: extractCompanies(res) }
-      })
-
-      const categoryResults = await Promise.all(categoryPromises)
       const byCategory = {}
-      categoryResults.forEach(({ category, companies }) => {
+
+      for (const cat of parentCats) {
+        await new Promise(resolve => setTimeout(resolve, 100))
+        const res = await fetchWithCache('/public/companies', { per_page: 20, category_id: cat.id })
+        const companies = extractCompanies(res)
         if (companies.length > 0) {
-          byCategory[category.id] = { category, companies }
+          byCategory[cat.id] = { category: cat, companies }
         }
-      })
+      }
       setCompaniesByCategory(byCategory)
+
+      hasLoadedRef.current = true
 
     } catch (_error) {
       // Silently handle loading errors
     } finally {
       setLoading(false)
+      isLoadingRef.current = false
     }
   }
 
@@ -256,9 +314,14 @@ export default function Dashboard() {
   const totalCompanies = featuredCompanies.length + topRatedCompanies.length + newCompanies.length + mostHiredCompanies.length + verifiedCompanies.length
   const storageUrl = STORAGE_URL
 
+  // Helper para verificar visibilidade de secao
+  const showSection = (sectionId) => isSectionVisible(userType, sectionId)
+  const getConfig = (sectionId) => getSectionConfig(userType, sectionId)
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
+      {showSection('hero') && (
       <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -top-40 -right-40 w-[600px] h-[600px] bg-gradient-to-br from-violet-500/30 via-blue-500/20 to-transparent rounded-full blur-3xl animate-pulse" style={{ animationDuration: '4s' }} />
@@ -380,11 +443,12 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+      )}
 
       {/* Main Content - Professional Layout */}
       <main>
         {/* Categories Bar */}
-        {parentCategories.length > 0 && (
+        {showSection('categories') && parentCategories.length > 0 && (
           <div className="bg-white border-b border-gray-100 sticky top-0 z-40">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex items-center gap-2 py-4 overflow-x-auto scrollbar-hide">
@@ -411,7 +475,7 @@ export default function Dashboard() {
         )}
 
         {/* User Stats Bar (for logged users) */}
-        {(stats.total_deals > 0 || isEmpresa) && (
+        {showSection('user_stats') && (stats.total_deals > 0 || isEmpresa) && (
           <div className="bg-gradient-to-r from-gray-900 to-gray-800">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex items-center justify-between py-4">
@@ -444,7 +508,7 @@ export default function Dashboard() {
         )}
 
         {/* Featured Companies - Infinite Scroll */}
-        {featuredCompanies.length > 0 && (
+        {showSection('featured') && featuredCompanies.length > 0 && (
           <section className="py-12 bg-white">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
               <div className="flex items-center justify-between">
@@ -467,34 +531,22 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Infinite Scroll Carousel */}
-            <div className="overflow-hidden">
-              <div
-                className="flex gap-6 animate-scroll-slow"
-                style={{ width: 'max-content' }}
-              >
-                {[...featuredCompanies.slice(0, 15), ...featuredCompanies.slice(0, 15)].map((company, idx) => (
-                  <CompanyCardModern key={`featured-${idx}`} company={company} storageUrl={storageUrl} badge="top" />
-                ))}
-              </div>
-            </div>
-
-            <style>{`
-              @keyframes scroll-slow {
-                0% { transform: translateX(0); }
-                100% { transform: translateX(-50%); }
-              }
-              .animate-scroll-slow {
-                animation: scroll-slow 60s linear infinite;
-              }
-              .animate-scroll-slow:hover {
-                animation-play-state: paused;
-              }
-            `}</style>
+            {/* Interactive Draggable Carousel */}
+            <DraggableCarousel autoScroll={true} autoScrollSpeed={0.5}>
+              {(() => {
+                const config = getConfig('featured')
+                const itemCount = config.items || 15
+                const items = featuredCompanies.slice(0, itemCount)
+                return [...items, ...items].map((company, idx) => (
+                  <CompanyCardModern key={`featured-${idx}`} company={company} storageUrl={storageUrl} badge="top" cardSize={config.cardSize} />
+                ))
+              })()}
+            </DraggableCarousel>
           </section>
         )}
 
         {/* Two Column Grid - Best Rated + New Companies */}
+        {showSection('top_rated_new') && (
         <section className="py-12 bg-gray-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid lg:grid-cols-2 gap-8">
@@ -513,7 +565,7 @@ export default function Dashboard() {
                     </Link>
                   </div>
                   <div className="space-y-4">
-                    {topRatedCompanies.slice(0, 5).map((company, idx) => (
+                    {topRatedCompanies.slice(0, getConfig('top_rated_new').items || 5).map((company, idx) => (
                       <CompanyListItem key={company.id} company={company} storageUrl={storageUrl} rank={idx + 1} />
                     ))}
                   </div>
@@ -535,7 +587,7 @@ export default function Dashboard() {
                     </Link>
                   </div>
                   <div className="space-y-4">
-                    {newCompanies.slice(0, 5).map((company) => (
+                    {newCompanies.slice(0, getConfig('top_rated_new').items || 5).map((company) => (
                       <CompanyListItem key={company.id} company={company} storageUrl={storageUrl} isNew />
                     ))}
                   </div>
@@ -544,9 +596,10 @@ export default function Dashboard() {
             </div>
           </div>
         </section>
+        )}
 
         {/* Most Hired - Infinite Scroll */}
-        {mostHiredCompanies.length > 0 && (
+        {showSection('most_hired') && mostHiredCompanies.length > 0 && (
           <section className="py-12 bg-white">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
               <div className="flex items-center justify-between">
@@ -569,34 +622,21 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="overflow-hidden">
-              <div
-                className="flex gap-6 animate-scroll-medium"
-                style={{ width: 'max-content' }}
-              >
-                {[...mostHiredCompanies.slice(0, 15), ...mostHiredCompanies.slice(0, 15)].map((company, idx) => (
-                  <CompanyCardModern key={`hired-${idx}`} company={company} storageUrl={storageUrl} badge="trending" />
-                ))}
-              </div>
-            </div>
-
-            <style>{`
-              @keyframes scroll-medium {
-                0% { transform: translateX(0); }
-                100% { transform: translateX(-50%); }
-              }
-              .animate-scroll-medium {
-                animation: scroll-medium 50s linear infinite;
-              }
-              .animate-scroll-medium:hover {
-                animation-play-state: paused;
-              }
-            `}</style>
+            <DraggableCarousel autoScroll={true} autoScrollSpeed={0.6}>
+              {(() => {
+                const config = getConfig('most_hired')
+                const itemCount = config.items || 15
+                const items = mostHiredCompanies.slice(0, itemCount)
+                return [...items, ...items].map((company, idx) => (
+                  <CompanyCardModern key={`hired-${idx}`} company={company} storageUrl={storageUrl} badge="trending" cardSize={config.cardSize} />
+                ))
+              })()}
+            </DraggableCarousel>
           </section>
         )}
 
         {/* Verified Companies Grid */}
-        {verifiedCompanies.length > 0 && (
+        {showSection('verified') && verifiedCompanies.length > 0 && (
           <section className="py-12 bg-gradient-to-br from-emerald-50 to-teal-50">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex items-center justify-between mb-8">
@@ -619,7 +659,7 @@ export default function Dashboard() {
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {verifiedCompanies.slice(0, 8).map((company) => (
+                {verifiedCompanies.slice(0, getConfig('verified').items || 8).map((company) => (
                   <CompanyCardCompact key={company.id} company={company} storageUrl={storageUrl} verified />
                 ))}
               </div>
@@ -628,7 +668,7 @@ export default function Dashboard() {
         )}
 
         {/* Nearby Companies */}
-        {nearbyCompanies.length > 0 && (
+        {showSection('nearby') && nearbyCompanies.length > 0 && (
           <section className="py-12 bg-white">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
               <div className="flex items-center justify-between">
@@ -651,34 +691,21 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="overflow-hidden">
-              <div
-                className="flex gap-6 animate-scroll-fast"
-                style={{ width: 'max-content' }}
-              >
-                {[...nearbyCompanies.slice(0, 15), ...nearbyCompanies.slice(0, 15)].map((company, idx) => (
-                  <CompanyCardModern key={`nearby-${idx}`} company={company} storageUrl={storageUrl} />
-                ))}
-              </div>
-            </div>
-
-            <style>{`
-              @keyframes scroll-fast {
-                0% { transform: translateX(0); }
-                100% { transform: translateX(-50%); }
-              }
-              .animate-scroll-fast {
-                animation: scroll-fast 45s linear infinite;
-              }
-              .animate-scroll-fast:hover {
-                animation-play-state: paused;
-              }
-            `}</style>
+            <DraggableCarousel autoScroll={true} autoScrollSpeed={0.7}>
+              {(() => {
+                const config = getConfig('nearby')
+                const itemCount = config.items || 15
+                const items = nearbyCompanies.slice(0, itemCount)
+                return [...items, ...items].map((company, idx) => (
+                  <CompanyCardModern key={`nearby-${idx}`} company={company} storageUrl={storageUrl} cardSize={config.cardSize} />
+                ))
+              })()}
+            </DraggableCarousel>
           </section>
         )}
 
         {/* Recent Deals */}
-        {recentDeals.length > 0 && (
+        {showSection('recent_deals') && recentDeals.length > 0 && (
           <section className="py-12 bg-gray-50">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex items-center justify-between mb-8">
@@ -701,7 +728,7 @@ export default function Dashboard() {
               </div>
 
               <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                {recentDeals.slice(0, 5).map((deal, idx) => (
+                {recentDeals.slice(0, getConfig('recent_deals').items || 5).map((deal, idx) => (
                   <Link
                     key={deal.id}
                     to={`/chat/${deal.id}`}
@@ -730,7 +757,7 @@ export default function Dashboard() {
         )}
 
         {/* Tools for Empresa */}
-        {isEmpresa && (
+        {showSection('tools') && isEmpresa && (
           <section className="py-12 bg-white">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex items-center gap-4 mb-8">
@@ -769,7 +796,7 @@ export default function Dashboard() {
         )}
 
         {/* CTA Banner */}
-        {!isEmpresa && (
+        {showSection('cta_banner') && !isEmpresa && (
           <section className="py-12 bg-gray-900">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex flex-col lg:flex-row items-center justify-between gap-8">
@@ -799,6 +826,7 @@ export default function Dashboard() {
         )}
 
         {/* Trust Bar */}
+        {showSection('trust_bar') && (
         <section className="py-8 bg-white border-t border-gray-100">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-wrap items-center justify-center gap-8 lg:gap-16 text-gray-400">
@@ -816,6 +844,7 @@ export default function Dashboard() {
             </div>
           </div>
         </section>
+        )}
 
         {/* Empty State */}
         {totalCompanies === 0 && (
@@ -1053,7 +1082,6 @@ function AdminDashboard({ stats }) {
             { to: '/admin/users', icon: Users, title: 'Usuarios', desc: 'Gerenciar usuarios', color: 'from-slate-500 to-slate-600' },
             { to: '/admin/categories', icon: Tag, title: 'Categorias', desc: 'Gerenciar categorias', color: 'from-violet-500 to-purple-500' },
             { to: '/admin/plans', icon: CreditCard, title: 'Planos', desc: 'Gerenciar planos', color: 'from-amber-500 to-orange-500' },
-            { to: '/admin/banners', icon: Image, title: 'Banners', desc: 'Gerenciar banners', color: 'from-emerald-500 to-teal-500' },
             { to: '/admin/finance', icon: BarChart3, title: 'Financeiro', desc: 'Relatorios', color: 'from-blue-500 to-cyan-500' },
           ].map((item, idx) => (
             <Link

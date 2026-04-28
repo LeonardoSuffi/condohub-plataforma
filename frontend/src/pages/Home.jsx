@@ -8,12 +8,14 @@ import {
 } from 'lucide-react'
 import PublicHeader from '../components/layout/PublicHeader'
 import PublicFooter from '../components/layout/PublicFooter'
+import { useSettings } from '../contexts/SettingsContext'
 import api from '../services/api'
 
 export default function Home() {
   const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const { isAuthenticated, user, initialized } = useSelector((state) => state.auth)
+  const { settings } = useSettings()
   const isLoggedIn = initialized && isAuthenticated
 
   const [platformStats, setPlatformStats] = useState({
@@ -78,19 +80,17 @@ export default function Home() {
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center min-h-[calc(100vh-80px)] py-12 lg:py-20">
             {/* Left - Content */}
             <div>
-              <div className="inline-flex items-center gap-2 bg-slate-100 text-slate-800 px-4 py-2 rounded-full text-sm font-medium mb-6">
+              <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-6">
                 <Award className="w-4 h-4" />
-                Marketplace #1 de Servicos
+                {settings?.home?.hero_badge || 'Marketplace #1 de Servicos'}
               </div>
 
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 leading-[1.1] mb-6">
-                Encontre os melhores
-                <span className="text-slate-800"> profissionais</span> para seu projeto
+                {settings?.home?.hero_title || 'Encontre os melhores profissionais para seu projeto'}
               </h1>
 
               <p className="text-xl text-gray-600 mb-8 leading-relaxed">
-                Conectamos voce aos prestadores de servicos mais qualificados do mercado.
-                Rapido, seguro e 100% gratuito.
+                {settings?.home?.hero_subtitle || 'Conectamos voce aos prestadores de servicos mais qualificados do mercado. Rapido, seguro e 100% gratuito.'}
               </p>
 
               {/* Search Box */}
@@ -358,27 +358,27 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-slate-800 via-slate-900 to-black">
+      <section className="py-20 bg-gradient-to-r from-primary via-primary/90 to-primary/80">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           {isLoggedIn ? (
             <>
               <h2 className="text-3xl lg:text-4xl font-bold text-white mb-6">
                 Encontre o profissional ideal agora
               </h2>
-              <p className="text-xl text-slate-300 mb-10">
+              <p className="text-xl text-white/80 mb-10">
                 Explore nossa lista de empresas verificadas e solicite orcamentos
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link
                   to="/empresas"
-                  className="px-8 py-4 bg-white text-slate-800 font-semibold rounded-xl hover:bg-gray-100 transition-colors flex items-center justify-center gap-2"
+                  className="px-8 py-4 bg-white text-primary font-semibold rounded-xl hover:bg-gray-100 transition-colors flex items-center justify-center gap-2"
                 >
                   <Search className="w-5 h-5" />
                   Encontrar Empresas
                 </Link>
                 <Link
                   to="/dashboard"
-                  className="px-8 py-4 bg-slate-700 text-white font-semibold rounded-xl hover:bg-slate-600 transition-colors border border-slate-600 flex items-center justify-center gap-2"
+                  className="px-8 py-4 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/20 transition-colors border border-white/30 flex items-center justify-center gap-2"
                 >
                   <LayoutDashboard className="w-5 h-5" />
                   Meu Painel
@@ -388,25 +388,25 @@ export default function Home() {
           ) : (
             <>
               <h2 className="text-3xl lg:text-4xl font-bold text-white mb-6">
-                Pronto para encontrar o profissional ideal?
+                {settings?.home?.cta_title || 'Pronto para encontrar o profissional ideal?'}
               </h2>
-              <p className="text-xl text-slate-300 mb-10">
-                {platformStats.total_clients > 0
-                  ? `Junte-se a ${platformStats.total_clients} clientes que ja usam o ServicePro`
-                  : 'Cadastre-se gratuitamente e encontre profissionais qualificados'}
+              <p className="text-xl text-white/80 mb-10">
+                {settings?.home?.cta_subtitle || (platformStats.total_clients > 0
+                  ? `Junte-se a ${platformStats.total_clients} clientes que ja usam a plataforma`
+                  : 'Cadastre-se gratuitamente e encontre profissionais qualificados')}
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link
                   to="/register/cliente"
-                  className="px-8 py-4 bg-white text-slate-800 font-semibold rounded-xl hover:bg-gray-100 transition-colors"
+                  className="px-8 py-4 bg-white text-primary font-semibold rounded-xl hover:bg-gray-100 transition-colors"
                 >
-                  Criar conta gratuita
+                  {settings?.home?.cta_button || 'Comecar Agora'}
                 </Link>
                 <Link
                   to="/register/empresa"
-                  className="px-8 py-4 bg-slate-700 text-white font-semibold rounded-xl hover:bg-slate-600 transition-colors border border-slate-600"
+                  className="px-8 py-4 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/20 transition-colors border border-white/30"
                 >
-                  Cadastrar minha empresa
+                  {settings?.home?.hero_cta_secondary || 'Sou Prestador'}
                 </Link>
               </div>
             </>
